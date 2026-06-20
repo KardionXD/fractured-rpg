@@ -56,7 +56,10 @@
           <div class="page-title">Ficha do Personagem</div>
           <div class="page-sub">FRACTURED · Sistema d20</div>
         </div>
-        <button class="btn-ghost" onclick="salvarFicha()">💾 Salvar</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn-ghost" onclick="salvarFicha()">💾 Salvar</button>
+          <button class="btn-ghost" onclick="apagarFicha()" style="color:var(--red);border-color:var(--red-dim)">🗑 Apagar ficha</button>
+        </div>
       </div>
 
       <!-- IDENTIDADE -->
@@ -204,8 +207,9 @@
           <div class="page-title">Sala de Jogo</div>
           <div class="page-sub">Rolls e tensão em tempo real</div>
         </div>
-      </div>
-      <div class="sala-layout">
+        <div style="display:flex;gap:8px">
+          <button class="btn-ghost" id="btn-limpar-historico" onclick="limparHistorico()" style="display:none;color:var(--red);border-color:var(--red-dim)">🗑 Limpar histórico</button>
+        </div>
         <!-- FEED -->
         <div class="feed">
           <div class="feed-header">

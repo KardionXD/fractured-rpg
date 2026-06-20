@@ -26,14 +26,13 @@ async function init() {
 
   currentUser = session.user;
 
-  const { data: profile, error: profileError } = await db
+  const { data: profile } = await db
     .from('profiles')
     .select('*')
     .eq('id', currentUser.id)
     .single();
 
   if (!profile) {
-    // Perfil ainda não existe — cria um básico automaticamente
     const username = currentUser.email.split('@')[0];
     const { data: newProfile, error: createError } = await db
       .from('profiles')
@@ -57,6 +56,7 @@ async function init() {
   if (isMaster) {
     document.getElementById('master-badge').style.display = '';
     document.getElementById('nav-master-section').style.display = '';
+    document.getElementById('btn-limpar-historico').style.display = '';
   }
 
   buildAttrGrid();
@@ -82,7 +82,8 @@ function navigate(page) {
     if (nav) nav.classList.toggle('active', p === page);
   });
   if (page === 'master') carregarPlayers();
-  if (page === 'sala') { setTimeout(() => scrollFeedToBottom(), 100); }
+  if (page === 'sala') setTimeout(() => scrollFeedToBottom(), 100);
+  if (page === 'notas') renderListaNotas();
 }
 
 // ── TOAST ─────────────────────────────────────────
@@ -152,6 +153,7 @@ function onAttrInput(id) {
 // ── PIPS ─────────────────────────────────────────
 function buildPips(containerId, total, active, color, onClick, valId) {
   const c = document.getElementById(containerId);
+  if (!c) return;
   c.innerHTML = '';
   for (let i = 0; i < total; i++) {
     const pip = document.createElement('div');
@@ -330,9 +332,9 @@ function coletarFicha() {
     suprimentos: supAtual,
     humanidade: humAtual,
     tensao:     tensaoFicha,
-    veiculo_tipo:     document.getElementById('f-veiculo-tipo')?.value || '',
-    veiculo_ti_atual: parseInt(document.getElementById('f-vti-a')?.value) || 0,
-    veiculo_ti_max:   parseInt(document.getElementById('f-vti-m')?.value) || 0,
+    veiculo_tipo:       document.getElementById('f-veiculo-tipo')?.value || '',
+    veiculo_ti_atual:   parseInt(document.getElementById('f-vti-a')?.value) || 0,
+    veiculo_ti_max:     parseInt(document.getElementById('f-vti-m')?.value) || 0,
     veiculo_comb_atual: parseInt(document.getElementById('f-vcomb-a')?.value) || 0,
     veiculo_comb_max:   parseInt(document.getElementById('f-vcomb-m')?.value) || 0,
     pericias,
@@ -345,17 +347,17 @@ function coletarFicha() {
 
 function aplicarFicha(d) {
   if (!d) return;
-  document.getElementById('f-nome').value      = d.nome || '';
-  document.getElementById('f-jogador').value   = d.jogador || '';
-  document.getElementById('f-profissao').value = d.profissao || '';
-  document.getElementById('f-trauma').value    = d.trauma || '';
+  document.getElementById('f-nome').value       = d.nome || '';
+  document.getElementById('f-jogador').value    = d.jogador || '';
+  document.getElementById('f-profissao').value  = d.profissao || '';
+  document.getElementById('f-trauma').value     = d.trauma || '';
   document.getElementById('f-inventario').value = d.inventario || '';
-  document.getElementById('f-notas').value     = d.notas || '';
+  document.getElementById('f-notas').value      = d.notas || '';
   document.getElementById('f-veiculo-tipo').value = d.veiculo_tipo || '';
-  document.getElementById('f-vti-a').value  = d.veiculo_ti_atual || 0;
-  document.getElementById('f-vti-m').value  = d.veiculo_ti_max || 0;
-  document.getElementById('f-vcomb-a').value = d.veiculo_comb_atual || 0;
-  document.getElementById('f-vcomb-m').value = d.veiculo_comb_max || 0;
+  document.getElementById('f-vti-a').value    = d.veiculo_ti_atual || 0;
+  document.getElementById('f-vti-m').value    = d.veiculo_ti_max || 0;
+  document.getElementById('f-vcomb-a').value  = d.veiculo_comb_atual || 0;
+  document.getElementById('f-vcomb-m').value  = d.veiculo_comb_max || 0;
 
   ATTRS.forEach(a => {
     const val = d[`attr_${a.id}`] || 0;
@@ -363,8 +365,8 @@ function aplicarFicha(d) {
     document.getElementById(`m-${a.id}`).value = calcMod(val);
   });
 
-  pvAtual = d.pv_atual || 0;
-  pvMax   = Math.max((d.attr_res || 0) * 4, 4);
+  pvAtual  = d.pv_atual || 0;
+  pvMax    = Math.max((d.attr_res || 0) * 4, 4);
   supAtual = d.suprimentos || 0;
   humAtual = d.humanidade ?? 10;
   tensaoFicha = d.tensao || 0;
@@ -434,18 +436,37 @@ async function salvarFicha(silencioso = false) {
   }
 }
 
+async function apagarFicha() {
+  if (!fichaId) return toast('Nenhuma ficha para apagar.', 'err');
+  if (!confirm('Apagar a ficha inteira? Isso não pode ser desfeito.')) return;
+
+  const { error } = await db.from('fichas').delete().eq('id', fichaId);
+  if (error) return toast('Erro ao apagar ficha!', 'err');
+
+  fichaId = null;
+  pvAtual = 0; supAtual = 0; humAtual = 10; tensaoFicha = 0; pvMax = 20;
+
+  document.querySelectorAll('#page-ficha input, #page-ficha textarea').forEach(el => el.value = '');
+  document.getElementById('f-profissao').value = '';
+  document.getElementById('f-veiculo-tipo').value = '';
+
+  buildPips('pip-pv', 20, 0, 'red', onPVClick, 'pip-pv-val');
+  buildPips('pip-sup', 10, 0, 'blue', onSupClick, 'pip-sup-val');
+  buildPips('pip-hum', 10, 10, 'green', onHumClick, 'pip-hum-val');
+  buildTensaoPips('tensao-pips-ficha', 0, true);
+  document.getElementById('pv-formula').textContent = 'RES × 4 = máx 20';
+
+  toast('Ficha apagada.', 'ok');
+}
+
 // ══════════════════════════════════════════════════
 //  SALA DE JOGO
 // ══════════════════════════════════════════════════
 
 function subscribeToSala() {
-  // Carrega histórico
   carregarFeed();
-
-  // Carrega tensão atual
   carregarTensaoSala();
 
-  // Subscribe realtime
   realtimeSub = db
     .channel('sala-publica')
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'sala' }, payload => {
@@ -464,7 +485,7 @@ async function carregarFeed() {
     .from('sala')
     .select('*')
     .order('created_at', { ascending: true })
-    .limit(50);
+    .limit(80);
 
   const feed = document.getElementById('feed-messages');
   feed.innerHTML = '';
@@ -501,7 +522,7 @@ function appendFeedMsg(msg) {
 
   if (msg.tipo === 'roll') {
     const c = msg.conteudo;
-    const isCrit = c.dado === 20 && c.resultado_dado === 20;
+    const isCrit  = c.dado === 20 && c.resultado_dado === 20;
     const isFalha = c.dado === 20 && c.resultado_dado === 1;
     div.className = 'feed-msg roll' + (isCrit ? ' critico' : '') + (isFalha ? ' falha-critica' : '');
     div.innerHTML = `
@@ -512,12 +533,12 @@ function appendFeedMsg(msg) {
       <div class="feed-msg-content">
         <span class="roll-total">${c.total}</span>
         ${c.dif ? `<span style="font-size:12px;color:${c.total >= c.dif ? 'var(--green)' : 'var(--red)'}"> — ${c.total >= c.dif ? '✓ SUCESSO' : '✗ FALHA'} (dif. ${c.dif})</span>` : ''}
-        ${isCrit ? ' <span style="color:var(--gold)">⭐ CRÍTICO!</span>' : ''}
+        ${isCrit  ? ' <span style="color:var(--gold)">⭐ CRÍTICO!</span>'       : ''}
         ${isFalha ? ' <span style="color:var(--red)">💀 FALHA CRÍTICA!</span>' : ''}
       </div>
       <div class="roll-detail">
         rolou 1d${c.dado} → ${c.resultado_dado}
-        ${c.bonus ? ` + bônus ${c.bonus}` : ''}
+        ${c.bonus ? ` + bônus ${c.bonus > 0 ? '+' : ''}${c.bonus}` : ''}
         ${c.label ? ` — ${c.label}` : ''}
       </div>
     `;
@@ -537,7 +558,7 @@ function appendFeedMsg(msg) {
         <span class="feed-msg-user">${msg.username}</span>
         <span class="feed-msg-time">${hora}</span>
       </div>
-      <div class="feed-msg-content">${msg.conteudo.texto || ''}</div>
+      <div class="feed-msg-content">${(msg.conteudo.texto || '').replace(/</g,'&lt;')}</div>
     `;
   }
 
@@ -559,6 +580,18 @@ async function publicarSala(tipo, conteudo) {
   });
 }
 
+async function limparHistorico() {
+  if (!isMaster) return toast('Só o mestre pode limpar o histórico.', 'err');
+  if (!confirm('Limpar todo o histórico de rolls da sala? Não pode ser desfeito.')) return;
+  const { error } = await db.from('sala').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  if (error) return toast('Erro ao limpar histórico!', 'err');
+  tensaoSala = 0;
+  buildTensaoPips('tensao-pips-sala', 0, false);
+  document.getElementById('feed-messages').innerHTML =
+    '<div class="empty-state"><div class="empty-icon">🎲</div><p>Histórico limpo.</p></div>';
+  toast('Histórico limpo!', 'ok');
+}
+
 // ── DADOS ─────────────────────────────────────────
 function rolarDado(faces, qtd = 1) {
   let total = 0;
@@ -578,12 +611,12 @@ function rolarDado(faces, qtd = 1) {
 }
 
 function rolarFormula() {
-  const modAtrib  = parseInt(document.getElementById('roll-atrib').value) || 0;
-  const modPer    = parseInt(document.getElementById('roll-pericia').value) || 0;
-  const modSit    = parseInt(document.getElementById('roll-situacao').value) || 0;
-  const dif       = parseInt(document.getElementById('roll-dif').value) || 11;
+  const modAtrib = parseInt(document.getElementById('roll-atrib').value) || 0;
+  const modPer   = parseInt(document.getElementById('roll-pericia').value) || 0;
+  const modSit   = parseInt(document.getElementById('roll-situacao').value) || 0;
+  const dif      = parseInt(document.getElementById('roll-dif').value) || 11;
 
-  const dado = Math.floor(Math.random() * 20) + 1;
+  const dado  = Math.floor(Math.random() * 20) + 1;
   const bonus = modAtrib + modPer + modSit;
   const total = dado + bonus;
 
@@ -613,10 +646,8 @@ async function enviarMsg() {
 async function alterarTensao(delta) {
   if (!isMaster) return;
   tensaoSala = Math.max(0, Math.min(10, tensaoSala + delta));
-
-  const statuses = ['','CALMA','CALMA','CALMA','ALERTA','ALERTA','ALERTA','PERIGO','PERIGO','TERROR','TERROR'];
-  const status = statuses[tensaoSala] || 'CALMA';
-
+  const statuses = ['CALMA','CALMA','CALMA','CALMA','ALERTA','ALERTA','ALERTA','PERIGO','PERIGO','TERROR','TERROR'];
+  const status = statuses[tensaoSala];
   buildTensaoPips('tensao-pips-sala', tensaoSala, false);
   await publicarSala('tensao', { valor: tensaoSala, status });
 }
@@ -628,7 +659,7 @@ async function alterarTensao(delta) {
 let notas = [];
 
 async function carregarNotas() {
-  const { data } = await db
+  const { data, error } = await db
     .from('notas_sessao')
     .select('*')
     .eq('user_id', currentUser.id)
@@ -640,6 +671,7 @@ async function carregarNotas() {
 
 function renderListaNotas() {
   const lista = document.getElementById('notas-lista');
+  if (!lista) return;
   lista.innerHTML = '';
   if (notas.length === 0) {
     lista.innerHTML = '<div style="padding:16px;font-size:12px;color:var(--muted);text-align:center">Nenhuma nota ainda.<br>Clique em + para criar.</div>';
@@ -667,11 +699,13 @@ function abrirNota(n) {
 }
 
 function novaNota() {
-  notaAtual = { id: null, sessao: (notas[0]?.sessao || 0) + 1, titulo: '', conteudo: '' };
-  document.getElementById('nota-titulo').value = '';
-  document.getElementById('nota-sessao').value = notaAtual.sessao;
-  document.getElementById('nota-corpo').value  = '';
+  const proximaSessao = notas.length > 0 ? (notas[0].sessao || 1) + 1 : 1;
+  notaAtual = { id: null };
   notaEditada = false;
+  document.getElementById('nota-titulo').value = '';
+  document.getElementById('nota-sessao').value = proximaSessao;
+  document.getElementById('nota-corpo').value  = '';
+  document.getElementById('nota-titulo').focus();
 }
 
 async function salvarNota() {
@@ -679,30 +713,55 @@ async function salvarNota() {
   const sessao   = parseInt(document.getElementById('nota-sessao').value) || 1;
   const conteudo = document.getElementById('nota-corpo').value;
 
-  const payload = { user_id: currentUser.id, titulo, sessao, conteudo };
-  let error;
+  if (!titulo) return toast('Coloca um título na nota!', 'err');
+
+  const payload = {
+    user_id: currentUser.id,
+    titulo,
+    sessao,
+    conteudo,
+    visivel_master: true
+  };
+
+  let error, savedData;
 
   if (notaAtual?.id) {
-    ({ error } = await db.from('notas_sessao').update(payload).eq('id', notaAtual.id));
+    const { error: e } = await db.from('notas_sessao').update(payload).eq('id', notaAtual.id);
+    error = e;
   } else {
     const { data, error: e } = await db.from('notas_sessao').insert(payload).select().single();
     error = e;
+    savedData = data;
     if (data) notaAtual = data;
   }
 
-  if (error) { toast('Erro ao salvar nota!', 'err'); return; }
+  if (error) {
+    console.error('Erro ao salvar nota:', error);
+    return toast('Erro ao salvar nota!', 'err');
+  }
+
   toast('Nota salva!', 'ok');
   notaEditada = false;
   await carregarNotas();
+
+  // Mantém a nota atual selecionada
+  if (notaAtual?.id) {
+    const notaAtualizada = notas.find(n => n.id === notaAtual.id);
+    if (notaAtualizada) abrirNota(notaAtualizada);
+  }
 }
 
 async function deletarNota() {
-  if (!notaAtual?.id) return;
+  if (!notaAtual?.id) return toast('Seleciona uma nota primeiro.', 'err');
   if (!confirm('Excluir esta nota?')) return;
-  await db.from('notas_sessao').delete().eq('id', notaAtual.id);
+
+  const { error } = await db.from('notas_sessao').delete().eq('id', notaAtual.id);
+  if (error) return toast('Erro ao excluir nota!', 'err');
+
   notaAtual = null;
   document.getElementById('nota-titulo').value = '';
-  document.getElementById('nota-corpo').value = '';
+  document.getElementById('nota-sessao').value = '';
+  document.getElementById('nota-corpo').value  = '';
   await carregarNotas();
   toast('Nota excluída.', 'ok');
 }
@@ -772,10 +831,84 @@ async function carregarPlayers() {
       <div style="margin-top:8px;font-size:10px;color:var(--muted)">
         <strong style="color:var(--text)">Trauma:</strong> ${ficha.trauma || '—'}
       </div>
+      <div style="margin-top:10px">
+        <button class="btn-ghost" style="font-size:10px;padding:5px 10px" onclick="verFichaCompleta('${player.id}')">Ver ficha completa</button>
+      </div>
       ` : `<div style="font-size:12px;color:var(--muted);padding:8px 0">Ficha não criada ainda.</div>`}
     `;
     grid.appendChild(card);
   });
+}
+
+async function verFichaCompleta(userId) {
+  const { data: ficha } = await db.from('fichas').select('*').eq('user_id', userId).single();
+  const { data: profile } = await db.from('profiles').select('username').eq('id', userId).single();
+  if (!ficha) return toast('Ficha não encontrada.', 'err');
+
+  const pvMax = Math.max((ficha.attr_res || 0) * 4, 4);
+  const pericias = (ficha.pericias || []).filter(p => p.nome).map(p => `<li>${p.nome} <span style="color:var(--purple)">(${p.atrib})</span></li>`).join('');
+  const vinculos = (ficha.vinculos || []).filter(v => v.personagem).map(v =>
+    `<li><strong>${v.personagem}</strong> — ${v.tipo || '?'}<br>
+     <span style="color:var(--muted);font-size:11px">Promessa: ${v.promessa || '—'} · Dívida: ${v.divida || '—'}</span></li>`
+  ).join('');
+
+  const modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:999;display:flex;align-items:center;justify-content:center;padding:20px';
+  modal.innerHTML = `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;max-width:600px;width:100%;max-height:90vh;overflow-y:auto;padding:24px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div>
+          <div style="font-size:18px;font-weight:800">${ficha.nome || profile?.username}</div>
+          <div style="font-size:11px;color:var(--muted)">${ficha.profissao || '—'} · Player: ${profile?.username}</div>
+        </div>
+        <button onclick="this.closest('[style*=fixed]').remove()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer">✕</button>
+      </div>
+
+      <div style="font-size:11px;color:var(--red);font-weight:700;letter-spacing:2px;margin-bottom:8px">TRAUMA</div>
+      <div style="margin-bottom:14px;font-style:italic;color:var(--muted)">${ficha.trauma || '—'}</div>
+
+      <div style="font-size:11px;color:var(--red);font-weight:700;letter-spacing:2px;margin-bottom:8px">ATRIBUTOS</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:14px">
+        ${['FOR','RES','COM','SOC','CON','AGI'].map((a,i) => {
+          const keys = ['attr_for','attr_res','attr_com','attr_soc','attr_con','attr_agi'];
+          const val = ficha[keys[i]] || 0;
+          const mod = val - 3;
+          return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:8px;text-align:center">
+            <div style="font-size:9px;color:var(--red);font-weight:700">${a}</div>
+            <div style="font-size:20px;font-weight:700">${val}</div>
+            <div style="font-size:11px;color:var(--purple)">${mod >= 0 ? '+' : ''}${mod}</div>
+          </div>`;
+        }).join('')}
+      </div>
+
+      <div style="font-size:11px;color:var(--red);font-weight:700;letter-spacing:2px;margin-bottom:8px">RECURSOS</div>
+      <div style="display:flex;gap:10px;margin-bottom:14px">
+        <div style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:10px;text-align:center">
+          <div style="font-size:9px;color:var(--muted)">PV</div>
+          <div style="font-size:18px;font-weight:700;color:var(--red)">${ficha.pv_atual}/${pvMax}</div>
+        </div>
+        <div style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:10px;text-align:center">
+          <div style="font-size:9px;color:var(--muted)">HUMANIDADE</div>
+          <div style="font-size:18px;font-weight:700;color:var(--green)">${ficha.humanidade}/10</div>
+        </div>
+        <div style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:10px;text-align:center">
+          <div style="font-size:9px;color:var(--muted)">SUPRIMENTOS</div>
+          <div style="font-size:18px;font-weight:700;color:var(--blue)">${ficha.suprimentos}/10</div>
+        </div>
+      </div>
+
+      ${pericias ? `<div style="font-size:11px;color:var(--red);font-weight:700;letter-spacing:2px;margin-bottom:8px">PERÍCIAS</div>
+      <ul style="list-style:none;display:flex;flex-direction:column;gap:4px;margin-bottom:14px;font-size:13px">${pericias}</ul>` : ''}
+
+      ${vinculos ? `<div style="font-size:11px;color:var(--red);font-weight:700;letter-spacing:2px;margin-bottom:8px">VÍNCULOS</div>
+      <ul style="list-style:none;display:flex;flex-direction:column;gap:8px;margin-bottom:14px;font-size:13px">${vinculos}</ul>` : ''}
+
+      ${ficha.inventario ? `<div style="font-size:11px;color:var(--red);font-weight:700;letter-spacing:2px;margin-bottom:8px">INVENTÁRIO</div>
+      <div style="font-size:12px;color:var(--muted);white-space:pre-wrap;margin-bottom:14px">${ficha.inventario}</div>` : ''}
+    </div>
+  `;
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+  document.body.appendChild(modal);
 }
 
 // ── START ─────────────────────────────────────────
