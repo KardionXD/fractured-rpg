@@ -1120,3 +1120,127 @@ h1,h2,h3 { letter-spacing: .04em; }
   outline: none; width: 100%; margin-bottom: 6px;
 }
 .ct-filtro:focus { border-color: var(--red); }
+
+/* ══════════════════════════════════════════════════
+   SALA UNIFICADA
+══════════════════════════════════════════════════ */
+.sala-abas {
+  display: none;
+  gap: 4px;
+  margin-bottom: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 4px;
+}
+.sala-aba {
+  flex: 1; background: transparent; border: none;
+  border-radius: 6px; color: var(--muted);
+  cursor: pointer; font-size: 11px; font-weight: 700;
+  padding: 8px 4px; text-align: center;
+  transition: all .15s; letter-spacing: .5px;
+}
+.sala-aba.active { background: var(--surface2); color: var(--text); }
+
+.sala-unified {
+  display: grid;
+  grid-template-columns: 1fr 280px 300px 1fr;
+  gap: 10px;
+  height: calc(100vh - 56px - 90px);
+  min-height: 500px;
+}
+
+.sala-col {
+  display: flex; flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.sala-col-mapa {
+  min-width: 0;
+}
+
+/* Combat panel dentro da sala */
+.ct-panel {
+  display: flex; flex-direction: column;
+  height: 100%; overflow: hidden;
+}
+.ct-panel-header {
+  padding: 8px 10px;
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.ct-panel-btns {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  display: flex; gap: 4px; flex-wrap: wrap;
+}
+.ct-bestiario-mini {
+  max-height: 180px; overflow-y: auto;
+  border-bottom: 1px solid var(--border);
+  padding: 4px 6px;
+}
+.ct-scroll { flex: 1; overflow-y: auto; padding: 8px; }
+
+/* Mapa dentro da sala */
+.mapa-wrap {
+  display: flex; flex-direction: column; height: 100%;
+}
+.mapa-toolbar {
+  padding: 6px 8px;
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+}
+.mapa-canvas-area {
+  flex: 1; overflow: auto;
+  background: #03030a;
+  display: flex; align-items: flex-start; justify-content: flex-start;
+  min-height: 0;
+}
+#mapa-canvas {
+  display: block;
+  cursor: crosshair;
+  touch-action: none;
+  max-width: 100%;
+}
+
+/* ── RESPONSIVO ─────────────────────────────────── */
+@media (max-width: 1200px) {
+  .sala-unified { grid-template-columns: 1fr 260px 280px; }
+  .sala-col-mapa { display: none; }
+  .sala-unified .sala-col:nth-child(4) { display: none; }
+}
+
+@media (max-width: 900px) {
+  .sala-abas { display: flex; }
+  .sala-unified {
+    grid-template-columns: 1fr;
+    height: auto;
+    min-height: unset;
+  }
+  .sala-col { height: 450px; display: none; }
+  .sala-col.aba-ativa { display: flex; }
+  .sala-col-mapa { height: 500px; }
+  .feed { min-height: 300px; }
+}
+
+/* Token info */
+.token-info-header {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+}
+.token-pv-row {
+  display: flex; align-items: center; gap: 5px; margin-top: 4px;
+}
+
+/* Modal overlay básico */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.85);
+  z-index: 200;
+  display: none;
+}

@@ -358,6 +358,7 @@ function aplicarFicha(d) {
   document.getElementById('f-trauma').value     = d.trauma || '';
   document.getElementById('f-inventario').value = d.inventario || '';
   document.getElementById('f-notas').value      = d.notas || '';
+  if (d.foto_url) aplicarFotoPersonagem(d.foto_url);
   document.getElementById('f-veiculo-tipo').value = d.veiculo_tipo || '';
   document.getElementById('f-vti-a').value    = d.veiculo_ti_atual || 0;
   document.getElementById('f-vti-m').value    = d.veiculo_ti_max || 0;
@@ -992,3 +993,86 @@ function appendFeedMsg(msg) {
   feed.appendChild(div);
   scrollFeedToBottom();
 }
+
+// ══════════════════════════════════════════════════
+//  SALA — ABAS MOBILE
+// ══════════════════════════════════════════════════
+const SALA_ABAS = { feed:'sala-col-feed', dados:'sala-col-dados', combate:'sala-col-combate', mapa:'sala-col-mapa' };
+
+function switchSalaAba(aba) {
+  Object.entries(SALA_ABAS).forEach(([key, colId]) => {
+    const col = document.getElementById(colId);
+    const btn = document.getElementById('aba-'+key);
+    if (col) col.classList.toggle('aba-ativa', key === aba);
+    if (btn) btn.classList.toggle('active', key === aba);
+  });
+  if (aba === 'mapa') { setTimeout(() => { if (!canvas) initMapa(); else desenharMapa(); }, 50); }
+  if (aba === 'combate') { renderCT(); renderBestiarioCT(); }
+}
+
+// ── Inicializa abas no mobile ──────────────────────
+function initSalaAbas() {
+  // No desktop todas as colunas ficam visíveis
+  // No mobile mostra só o feed por padrão
+  if (window.innerWidth <= 900) {
+    Object.values(SALA_ABAS).forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.classList.remove('aba-ativa');
+    });
+    document.getElementById('sala-col-feed')?.classList.add('aba-ativa');
+  }
+}
+
+// ══════════════════════════════════════════════════
+//  FOTO DO PERSONAGEM
+// ══════════════════════════════════════════════════
+async function uploadFotoPersonagem(input) {
+  const file = input.files[0]; if (!file) return;
+  const ext = file.name.split('.').pop();
+  const path = `${currentUser.id}/personagem.${ext}`;
+
+  const { error } = await db.storage.from('tokens').upload(path, file, { upsert: true });
+  if (error) { toast('Erro no upload: ' + error.message, 'err'); return; }
+
+  const { data } = db.storage.from('tokens').getPublicUrl(path);
+  const url = data.publicUrl;
+
+  // Atualiza UI
+  const img = document.getElementById('char-foto-img');
+  const ph  = document.getElementById('char-foto-placeholder');
+  if (img) { img.src = url; img.style.display = 'block'; }
+  if (ph)  ph.style.display = 'none';
+
+  // Salva na ficha
+  if (fichaId) {
+    await db.from('fichas').update({ foto_url: url, updated_at: new Date().toISOString() }).eq('id', fichaId);
+  }
+
+  // Atualiza token do player no mapa se existir
+  const tokenPlayer = tokens.find(t => t.isPC && t.userId === currentUser.id);
+  if (tokenPlayer) { tokenPlayer.imgUrl = url; desenharMapa(); salvarMapaDB(); }
+
+  toast('Foto atualizada!', 'ok');
+}
+
+function aplicarFotoPersonagem(url) {
+  if (!url) return;
+  const img = document.getElementById('char-foto-img');
+  const ph  = document.getElementById('char-foto-placeholder');
+  if (img) { img.src = url; img.style.display = 'block'; }
+  if (ph)  ph.style.display = 'none';
+}
+
+// ── Hook na navigate para inicializar mapa e CT ───
+const _origNavigate = navigate;
+window.navigate = function(page) {
+  _origNavigate(page);
+  if (page === 'sala') {
+    setTimeout(() => {
+      initSalaAbas();
+      initMapa();
+      renderCT();
+      renderBestiarioCT();
+    }, 80);
+  }
+};

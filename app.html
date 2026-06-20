@@ -19,8 +19,6 @@
       <span class="topbar-badge" id="master-badge" style="display:none">MESTRE</span>
     </div>
     <div class="topbar-right">
-      <button class="btn-combate" onclick="abrirCombate()">⚔ Combate</button>
-      <button class="btn-mapa" onclick="abrirMapa()">🗺 Mapa</button>
       <span class="topbar-user">Olá, <strong id="topbar-username">...</strong></span>
       <button class="btn-ghost" onclick="logout()">Sair</button>
     </div>
@@ -30,21 +28,13 @@
   <nav class="sidebar">
     <div class="nav-section">
       <div class="nav-label">Jogador</div>
-      <button class="nav-item active" onclick="navigate('ficha')" id="nav-ficha">
-        <span class="icon">📋</span> Ficha
-      </button>
-      <button class="nav-item" onclick="navigate('sala')" id="nav-sala">
-        <span class="icon">🎲</span> Sala
-      </button>
-      <button class="nav-item" onclick="navigate('notas')" id="nav-notas">
-        <span class="icon">📓</span> Notas
-      </button>
+      <button class="nav-item active" onclick="navigate('ficha')" id="nav-ficha"><span class="icon">📋</span> Ficha</button>
+      <button class="nav-item" onclick="navigate('sala')" id="nav-sala"><span class="icon">🎲</span> Sala</button>
+      <button class="nav-item" onclick="navigate('notas')" id="nav-notas"><span class="icon">📓</span> Notas</button>
     </div>
     <div class="nav-section" id="nav-master-section" style="display:none">
       <div class="nav-label">Mestre</div>
-      <button class="nav-item" onclick="navigate('master')" id="nav-master">
-        <span class="icon">👁</span> Players
-      </button>
+      <button class="nav-item" onclick="navigate('master')" id="nav-master"><span class="icon">👁</span> Players</button>
     </div>
   </nav>
 
@@ -54,116 +44,83 @@
     <!-- ═══ FICHA ══════════════════════════════════ -->
     <div id="page-ficha">
       <div class="page-header">
-        <div>
-          <div class="page-title">Ficha do Personagem</div>
-          <div class="page-sub">FRACTURED · Sistema d20</div>
-        </div>
+        <div><div class="page-title">Ficha do Personagem</div><div class="page-sub">FRACTURED · Sistema d20</div></div>
         <button class="btn-ghost" onclick="salvarFicha()">💾 Salvar</button>
       </div>
 
-      <!-- IDENTIDADE -->
+      <!-- Foto do personagem -->
       <div class="section-card">
         <div class="section-card-title">Identidade</div>
-        <div class="grid-3" style="margin-bottom:10px">
-          <div class="field">
-            <label>Nome do Personagem</label>
-            <input type="text" id="f-nome" placeholder="..." oninput="autoSave()">
+        <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+            <div id="char-foto-wrap" style="width:80px;height:80px;border-radius:50%;background:var(--surface2);border:2px solid var(--border);overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:32px;cursor:pointer" onclick="document.getElementById('char-foto-input').click()">
+              <span id="char-foto-placeholder">🧑</span>
+              <img id="char-foto-img" style="display:none;width:100%;height:100%;object-fit:cover">
+            </div>
+            <input type="file" id="char-foto-input" accept="image/*" style="display:none" onchange="uploadFotoPersonagem(this)">
+            <span style="font-size:9px;color:var(--muted);text-align:center">Clique para<br>trocar foto</span>
           </div>
-          <div class="field">
-            <label>Jogador</label>
-            <input type="text" id="f-jogador" placeholder="..." oninput="autoSave()">
+          <div style="flex:1;display:flex;flex-direction:column;gap:10px">
+            <div class="grid-3">
+              <div class="field"><label>Nome do Personagem</label><input type="text" id="f-nome" placeholder="..." oninput="autoSave()"></div>
+              <div class="field"><label>Jogador</label><input type="text" id="f-jogador" placeholder="..." oninput="autoSave()"></div>
+              <div class="field"><label>Profissão</label>
+                <select id="f-profissao" onchange="autoSave()">
+                  <option value="">Selecionar...</option>
+                  <option>Médico de Campo</option><option>Mecânico</option><option>Ex-Policial</option>
+                  <option>Engenheiro Civil</option><option>Jornalista</option><option>Atirador Militar</option>
+                  <option>Agricultor / Botânico</option><option>Psicólogo / Conselheiro</option>
+                  <option>Químico / Farmacêutico</option><option>Líder Comunitário</option>
+                  <option>Ladrão / Arrombador</option><option>Sem Profissão Definida</option>
+                </select>
+              </div>
+            </div>
+            <div class="field"><label>Trauma Central</label><input type="text" id="f-trauma" placeholder="O evento que te assombra..." oninput="autoSave()"></div>
           </div>
-          <div class="field">
-            <label>Profissão</label>
-            <select id="f-profissao" onchange="autoSave()">
-              <option value="">Selecionar...</option>
-              <option>Médico de Campo</option>
-              <option>Mecânico</option>
-              <option>Ex-Policial</option>
-              <option>Engenheiro Civil</option>
-              <option>Jornalista</option>
-              <option>Atirador Militar</option>
-              <option>Agricultor / Botânico</option>
-              <option>Psicólogo / Conselheiro</option>
-              <option>Químico / Farmacêutico</option>
-              <option>Líder Comunitário</option>
-              <option>Ladrão / Arrombador</option>
-              <option>Sem Profissão Definida</option>
-            </select>
-          </div>
-        </div>
-        <div class="field">
-          <label>Trauma Central</label>
-          <input type="text" id="f-trauma" placeholder="O evento que te assombra..." oninput="autoSave()">
         </div>
       </div>
 
-      <!-- ATRIBUTOS -->
       <div class="section-card">
-        <div class="section-card-title">Atributos — distribua 15 pontos (máx 4 por atributo)</div>
+        <div class="section-card-title">Atributos — distribua 15 pontos (máx 4)</div>
         <div class="attr-grid" id="attr-grid"></div>
       </div>
 
-      <!-- RECURSOS -->
       <div class="section-card">
         <div class="section-card-title">Recursos</div>
-        <div class="pip-row">
-          <span class="pip-label">Pontos de Vida</span>
-          <div class="pips" id="pip-pv"></div>
-          <span class="pip-val" id="pip-pv-val">0/20</span>
-        </div>
+        <div class="pip-row"><span class="pip-label">Pontos de Vida</span><div class="pips" id="pip-pv"></div><span class="pip-val" id="pip-pv-val">0/20</span></div>
         <div style="font-size:10px;color:var(--muted);margin-bottom:10px;margin-left:108px" id="pv-formula">RES × 4 = máx 20</div>
-        <div class="pip-row">
-          <span class="pip-label">Suprimentos</span>
-          <div class="pips" id="pip-sup"></div>
-          <span class="pip-val" id="pip-sup-val">0/10</span>
-        </div>
-        <div class="pip-row" style="margin-top:6px">
-          <span class="pip-label">Humanidade</span>
-          <div class="pips" id="pip-hum"></div>
-          <span class="pip-val" id="pip-hum-val">10/10</span>
-        </div>
+        <div class="pip-row"><span class="pip-label">Suprimentos</span><div class="pips" id="pip-sup"></div><span class="pip-val" id="pip-sup-val">0/10</span></div>
+        <div class="pip-row" style="margin-top:6px"><span class="pip-label">Humanidade</span><div class="pips" id="pip-hum"></div><span class="pip-val" id="pip-hum-val">10/10</span></div>
       </div>
 
-      <!-- TENSÃO -->
       <div class="section-card">
         <div class="section-card-title">Tensão</div>
         <div class="tensao-pips" id="tensao-pips-ficha"></div>
         <div style="margin-top:8px;font-size:9px;color:var(--muted);display:flex;gap:14px;flex-wrap:wrap">
-          <span><span style="color:#e67e22">■</span> C = Calma (1-3)</span>
-          <span><span style="color:#c0392b">■</span> A = Alerta (4-6)</span>
-          <span><span style="color:#8e44ad">■</span> P = Perigo (7-8)</span>
-          <span><span style="color:#7f8c8d">■</span> T = Terror (9-10)</span>
+          <span><span style="color:#e67e22">■</span> C = Calma</span><span><span style="color:#c0392b">■</span> A = Alerta</span>
+          <span><span style="color:#8e44ad">■</span> P = Perigo</span><span><span style="color:#7f8c8d">■</span> T = Terror</span>
         </div>
       </div>
 
-      <!-- VEÍCULO -->
       <div class="section-card">
         <div class="section-card-title">Veículo</div>
-        <div class="grid-2" style="margin-bottom:10px">
-          <div class="field">
-            <label>Tipo</label>
+        <div class="grid-2">
+          <div class="field"><label>Tipo</label>
             <select id="f-veiculo-tipo" onchange="autoSave()">
-              <option value="">Nenhum</option>
-              <option>Bicicleta</option>
-              <option>Motocicleta</option>
-              <option>Sedan / Utilitário</option>
-              <option>Caminhonete / Pickup</option>
-              <option>Ônibus / Caminhão</option>
-              <option>Barco a Motor</option>
+              <option value="">Nenhum</option><option>Bicicleta</option><option>Motocicleta</option>
+              <option>Sedan / Utilitário</option><option>Caminhonete / Pickup</option>
+              <option>Ônibus / Caminhão</option><option>Barco a Motor</option>
             </select>
           </div>
           <div style="display:flex;gap:8px">
-            <div class="field" style="flex:1">
-              <label>Integridade</label>
+            <div class="field" style="flex:1"><label>Integridade</label>
               <div style="display:flex;gap:4px;align-items:center">
                 <input type="number" id="f-vti-a" min="0" max="20" placeholder="0" style="text-align:center" oninput="autoSave()">
                 <span style="color:var(--muted)">/</span>
                 <input type="number" id="f-vti-m" min="0" max="20" placeholder="0" style="text-align:center" oninput="autoSave()">
               </div>
             </div>
-            <div class="field" style="flex:1">
-              <label>Combustível</label>
+            <div class="field" style="flex:1"><label>Combustível</label>
               <div style="display:flex;gap:4px;align-items:center">
                 <input type="number" id="f-vcomb-a" min="0" max="20" placeholder="0" style="text-align:center" oninput="autoSave()">
                 <span style="color:var(--muted)">/</span>
@@ -174,82 +131,64 @@
         </div>
       </div>
 
-      <!-- PERÍCIAS -->
-      <div class="section-card">
-        <div class="section-card-title">Perícias Ativas</div>
-        <div id="pericias-list" class="gap-12"></div>
-      </div>
+      <div class="section-card"><div class="section-card-title">Perícias Ativas</div><div id="pericias-list" class="gap-12"></div></div>
+      <div class="section-card"><div class="section-card-title">Vínculos — Promessa &amp; Dívida</div><div id="vinculos-list"></div></div>
 
-      <!-- VÍNCULOS -->
-      <div class="section-card">
-        <div class="section-card-title">Vínculos — Promessa &amp; Dívida</div>
-        <div id="vinculos-list"></div>
-      </div>
-
-      <!-- INVENTÁRIO / NOTAS -->
       <div class="grid-2">
-        <div class="section-card">
-          <div class="section-card-title">Inventário</div>
-          <textarea id="f-inventario" placeholder="Itens, armas, equipamentos..." rows="5" oninput="autoSave()" class="textarea-bare"></textarea>
-        </div>
-        <div class="section-card">
-          <div class="section-card-title">Notas / Trauma / Memórias</div>
-          <textarea id="f-notas" placeholder="Memórias, traumas, observações..." rows="5" oninput="autoSave()" class="textarea-bare"></textarea>
-        </div>
+        <div class="section-card"><div class="section-card-title">Inventário</div><textarea id="f-inventario" placeholder="Itens, armas, equipamentos..." rows="5" oninput="autoSave()" class="textarea-bare"></textarea></div>
+        <div class="section-card"><div class="section-card-title">Notas / Trauma / Memórias</div><textarea id="f-notas" placeholder="Memórias, traumas..." rows="5" oninput="autoSave()" class="textarea-bare"></textarea></div>
       </div>
     </div>
 
-    <!-- ═══ SALA ════════════════════════════════════ -->
+    <!-- ═══ SALA UNIFICADA ══════════════════════════ -->
     <div id="page-sala" style="display:none">
       <div class="page-header">
-        <div>
-          <div class="page-title">Sala de Jogo</div>
-          <div class="page-sub">Rolls e tensão em tempo real</div>
-        </div>
-        <button class="btn-ghost" id="btn-limpar-historico" onclick="limparHistorico()" style="display:none;color:var(--red);border-color:var(--red-dim)">🗑 Limpar histórico</button>
-      </div>
-
-      <!-- TENSÃO - visível no topo em mobile -->
-      <div class="section-card tensao-mobile" id="tensao-mobile-panel">
-        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
-          <div>
-            <div style="font-size:9px;font-weight:700;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:6px">⚠ Tensão da Sessão</div>
-            <div class="tensao-pips" id="tensao-pips-sala-mobile"></div>
-          </div>
-          <div>
-            <div class="tensao-status" id="tensao-status-mobile">CALMA (0/10)</div>
-            <div class="tensao-btns" id="tensao-master-btns-mobile" style="display:none;margin-top:6px">
-              <button onclick="alterarTensao(-1)">− Baixar</button>
-              <button onclick="alterarTensao(1)">+ Subir</button>
-            </div>
-          </div>
+        <div><div class="page-title">Sala de Jogo</div><div class="page-sub">Dados · Combate · Mapa</div></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn-ghost" id="btn-limpar-historico" onclick="limparHistorico()" style="display:none;color:var(--red);border-color:var(--red-dim)">🗑 Histórico</button>
         </div>
       </div>
 
-      <div class="sala-layout">
-        <!-- FEED -->
-        <div class="feed">
-          <div class="feed-header">
-            <div class="feed-dot"></div>
-            AO VIVO — SALA DE JOGO
-          </div>
-          <div class="feed-messages" id="feed-messages">
-            <div class="empty-state">
-              <div class="empty-icon">🎲</div>
-              <p>Role um dado para começar.</p>
+      <!-- ABAS MOBILE -->
+      <div class="sala-abas">
+        <button class="sala-aba active" onclick="switchSalaAba('feed')" id="aba-feed">💬 Feed</button>
+        <button class="sala-aba" onclick="switchSalaAba('dados')" id="aba-dados">🎲 Dados</button>
+        <button class="sala-aba" onclick="switchSalaAba('combate')" id="aba-combate">⚔ Combate</button>
+        <button class="sala-aba" onclick="switchSalaAba('mapa')" id="aba-mapa">🗺 Mapa</button>
+      </div>
+
+      <div class="sala-unified">
+
+        <!-- COLUNA 1: FEED -->
+        <div class="sala-col" id="sala-col-feed">
+          <div class="feed">
+            <div class="feed-header"><div class="feed-dot"></div>AO VIVO</div>
+            <div class="feed-messages" id="feed-messages"><div class="empty-state"><div class="empty-icon">🎲</div><p>Role um dado para começar.</p></div></div>
+            <div class="feed-input-row">
+              <input type="text" class="feed-input" id="msg-input" placeholder="Mensagem..." onkeydown="if(event.key==='Enter')enviarMsg()">
+              <button class="btn-ghost" onclick="enviarMsg()">Enviar</button>
             </div>
-          </div>
-          <div class="feed-input-row">
-            <input type="text" class="feed-input" id="msg-input" placeholder="Mensagem para a sala..." onkeydown="if(event.key==='Enter')enviarMsg()">
-            <button class="btn-ghost" onclick="enviarMsg()">Enviar</button>
           </div>
         </div>
 
-        <!-- PAINEL DIREITO -->
-        <div class="dados-panel">
+        <!-- COLUNA 2: DADOS + TENSÃO -->
+        <div class="sala-col" id="sala-col-dados">
+          <!-- Tensão topo -->
+          <div class="section-card" style="margin:0 0 10px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+              <span style="font-size:9px;font-weight:700;letter-spacing:2px;color:var(--muted);text-transform:uppercase">⚠ Tensão da Sessão</span>
+              <div class="tensao-btns" id="tensao-master-btns" style="display:none">
+                <button onclick="alterarTensao(-1)">−</button>
+                <button onclick="alterarTensao(1)">+</button>
+              </div>
+            </div>
+            <div class="tensao-pips" id="tensao-pips-sala"></div>
+            <div class="tensao-status" id="tensao-status-text" style="margin-top:6px">CALMA (0/10)</div>
+            <div style="font-size:9px;color:var(--muted);margin-top:2px" id="tensao-tip"></div>
+          </div>
 
-          <!-- DADOS RÁPIDOS -->
-          <div class="section-card" style="margin:0">
+          <!-- Dados rápidos -->
+          <div class="section-card" style="margin:0 0 10px">
             <div class="section-card-title">Dados Rápidos</div>
             <div class="dado-grid">
               <button class="dado-btn" onclick="rolarDado(4)">d4</button>
@@ -258,12 +197,12 @@
               <button class="dado-btn" onclick="rolarDado(10)">d10</button>
               <button class="dado-btn" onclick="rolarDado(12)">d12</button>
               <button class="dado-btn" onclick="rolarDado(20)">d20</button>
-              <button class="dado-btn" onclick="rolarDado(100)">d100</button>
+              <button class="dado-btn" onclick="rolarDado(100)">d%</button>
               <button class="dado-btn" onclick="rolarDado(6,2)">2d6</button>
             </div>
           </div>
 
-          <!-- FÓRMULA D20 -->
+          <!-- Teste d20 -->
           <div class="roll-formula">
             <div class="roll-formula-title">Teste — 1d20 + Mod + Perícia</div>
             <div class="formula-grid">
@@ -279,56 +218,105 @@
               </select>
               <label class="formula-label">Perícia</label>
               <select id="roll-pericia" class="formula-select">
-                <option value="0">Sem perícia (+0)</option>
-                <option value="3">Com perícia (+3)</option>
+                <option value="0">Sem perícia (+0)</option><option value="3">Com perícia (+3)</option>
               </select>
               <label class="formula-label">Situação</label>
               <select id="roll-situacao" class="formula-select">
                 <option value="0">Normal</option>
-                <option value="3">+3 Vínculo Ativo</option>
-                <option value="2">+2 Ferramenta</option>
-                <option value="2">+2 Aliado Ajuda</option>
-                <option value="2">+2 Vantagem</option>
-                <option value="-2">−2 Ferido PV&lt;50%</option>
-                <option value="-2">−2 Tensão Alta</option>
-                <option value="-3">−3 Sem Equipamento</option>
-                <option value="-2">−2 Escuridão</option>
+                <option value="3">+3 Vínculo Ativo</option><option value="2">+2 Ferramenta</option>
+                <option value="2">+2 Aliado Ajuda</option><option value="2">+2 Vantagem</option>
+                <option value="-2">−2 Ferido &lt;50%</option><option value="-2">−2 Tensão Alta</option>
+                <option value="-3">−3 Sem Equipamento</option><option value="-2">−2 Escuridão</option>
               </select>
               <label class="formula-label">Dificuldade</label>
               <select id="roll-dif" class="formula-select">
-                <option value="8">8 — Fácil</option>
-                <option value="11" selected>11 — Moderado</option>
-                <option value="14">14 — Difícil</option>
-                <option value="17">17 — Severo</option>
-                <option value="20">20 — Extremo</option>
+                <option value="8">8 — Fácil</option><option value="11" selected>11 — Moderado</option>
+                <option value="14">14 — Difícil</option><option value="17">17 — Severo</option><option value="20">20 — Extremo</option>
               </select>
             </div>
-            <button class="btn-primary" onclick="rolarFormula()" style="margin-top:10px">🎲 Rolar Teste</button>
+            <button class="btn-primary" onclick="rolarFormula()" style="margin-top:8px">🎲 Rolar Teste</button>
           </div>
-
-          <!-- TENSÃO - só desktop -->
-          <div class="tensao-shared tensao-desktop">
-            <div class="tensao-shared-title">⚠ Tensão da Sessão</div>
-            <div class="tensao-pips" id="tensao-pips-sala" style="margin-bottom:8px"></div>
-            <div class="tensao-status" id="tensao-status-text">CALMA (0/10)</div>
-            <div class="tensao-btns" id="tensao-master-btns" style="display:none;margin-top:8px">
-              <button onclick="alterarTensao(-1)">− Baixar</button>
-              <button onclick="alterarTensao(1)">+ Subir</button>
-            </div>
-            <div style="font-size:9px;color:var(--muted);margin-top:6px" id="tensao-tip"></div>
-          </div>
-
         </div>
+
+        <!-- COLUNA 3: COMBAT TRACKER -->
+        <div class="sala-col" id="sala-col-combate">
+          <div class="ct-panel">
+            <div class="ct-panel-header">
+              <span class="ct-rodada-badge" id="ct-rodada">Rodada 1</span>
+              <span class="ct-turno-info" id="ct-turno-info">Não iniciado</span>
+            </div>
+            <div class="ct-panel-btns">
+              <button class="btn-ghost" onclick="iniciarCombate()" style="font-size:10px;padding:5px 8px">▶ Iniciar</button>
+              <button class="btn-ghost" onclick="proximoTurno()" style="font-size:10px;padding:5px 8px">⏭ Próximo</button>
+              <button class="btn-ghost" id="btn-toggle-pv" onclick="togglePVInimigos()" style="font-size:10px;padding:5px 8px">👁 Ocultar PV</button>
+              <button class="btn-ghost" onclick="encerrarCombate()" style="font-size:10px;padding:5px 8px;color:var(--red);border-color:var(--red-dim)">✕</button>
+            </div>
+
+            <!-- Busca bestiário -->
+            <div style="padding:6px 8px">
+              <input type="text" class="ct-filtro" id="ct-filtro" placeholder="🔍 Buscar inimigo..." oninput="renderBestiarioCT()">
+            </div>
+            <div class="ct-bestiario-mini" id="ct-bestiario-lista"></div>
+
+            <!-- Lista combatentes -->
+            <div class="ct-scroll" id="ct-lista"></div>
+
+            <!-- Add PC -->
+            <div class="ct-add-pc">
+              <div class="field" style="flex:2"><label>Nome PC</label><input type="text" id="ct-pc-nome" placeholder="Nome..."></div>
+              <div class="field" style="flex:1"><label>Ini</label><input type="number" id="ct-pc-ini" placeholder="10" min="1" max="30"></div>
+              <div class="field" style="flex:1"><label>PV</label><input type="number" id="ct-pc-pv" placeholder="20" min="1"></div>
+              <button class="btn-ghost" onclick="adicionarPCCT()" style="align-self:flex-end;font-size:10px;white-space:nowrap">+ PC</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- COLUNA 4: MAPA -->
+        <div class="sala-col sala-col-mapa" id="sala-col-mapa">
+          <div class="mapa-wrap">
+            <!-- Toolbar mapa -->
+            <div class="mapa-toolbar">
+              <button class="btn-ghost" onclick="importarMapaImg()" style="font-size:10px;padding:5px 8px">📁 Mapa</button>
+              <button class="btn-ghost" id="btn-grid" onclick="toggleGrid()" style="font-size:10px;padding:5px 8px">⬛ Ocultar Grid</button>
+              <button class="btn-ghost" id="btn-regua" onclick="toggleRegua()" style="font-size:10px;padding:5px 8px">📏 Régua</button>
+              <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted)">
+                <button class="ct-pv-btn" onclick="alterarGrid(-5)">−</button>
+                <span id="grid-size-val">60px</span>
+                <button class="ct-pv-btn" onclick="alterarGrid(5)">+</button>
+              </div>
+              <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted)">
+                <span>1cel=</span>
+                <input type="number" value="1.5" min="0.5" max="10" step="0.5" style="width:44px;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:3px;font-size:10px;text-align:center"
+                  onchange="metrosPorCelula=parseFloat(this.value)||1.5">
+                <span>m</span>
+              </div>
+            </div>
+            <div class="mapa-toolbar" style="border-top:none;padding-top:0">
+              <div class="field" style="flex:1;margin:0">
+                <input type="text" id="mapa-pc-nome" placeholder="Nome do PC..." style="font-size:11px;padding:5px 8px">
+              </div>
+              <button class="btn-ghost" onclick="adicionarTokenPC()" style="font-size:10px;padding:5px 8px;white-space:nowrap">🧑 +PC</button>
+              ${isMaster?`<button class="btn-ghost" onclick="abrirCriarTokenCustom()" style="font-size:10px;padding:5px 8px;white-space:nowrap">⭐ +Custom</button>`:''}
+              <button class="btn-ghost" onclick="limparTokens()" style="font-size:10px;padding:5px 8px;color:var(--red);border-color:var(--red-dim)">🗑</button>
+            </div>
+
+            <!-- Canvas -->
+            <div class="mapa-canvas-area">
+              <canvas id="mapa-canvas"></canvas>
+            </div>
+
+            <!-- Info token selecionado -->
+            <div id="token-info" style="display:none;padding:10px;background:var(--surface2);border-top:1px solid var(--border)"></div>
+          </div>
+        </div>
+
       </div>
     </div>
 
     <!-- ═══ NOTAS ═══════════════════════════════════ -->
     <div id="page-notas" style="display:none">
       <div class="page-header">
-        <div>
-          <div class="page-title">Notas de Sessão</div>
-          <div class="page-sub">Suas anotações pessoais</div>
-        </div>
+        <div><div class="page-title">Notas de Sessão</div><div class="page-sub">Suas anotações pessoais</div></div>
         <button class="btn-ghost" onclick="novaNota()">＋ Nova Nota</button>
       </div>
       <div class="notas-grid">
@@ -355,134 +343,43 @@
     <!-- ═══ MASTER ══════════════════════════════════ -->
     <div id="page-master" style="display:none">
       <div class="page-header">
-        <div>
-          <div class="page-title">Painel do Mestre</div>
-          <div class="page-sub">Visão geral dos sobreviventes</div>
-        </div>
+        <div><div class="page-title">Painel do Mestre</div><div class="page-sub">Visão geral dos sobreviventes</div></div>
         <button class="btn-ghost" onclick="carregarPlayers(false)">↻ Atualizar</button>
       </div>
-      <div class="players-grid" id="players-grid">
-        <div class="empty-state">
-          <div class="empty-icon">👥</div>
-          <p>Carregando players...</p>
-        </div>
-      </div>
+      <div class="players-grid" id="players-grid"><div class="empty-state"><div class="empty-icon">👥</div><p>Carregando...</p></div></div>
     </div>
 
   </main>
 </div>
 
-<!-- ═══ MODAL COMBATE ══════════════════════════════ -->
-<div class="modal-overlay" id="modal-combate" style="display:none">
-  <div class="ct-modal">
-
-    <!-- Sidebar bestiário -->
-    <div class="ct-sidebar">
-      <div class="ct-sidebar-header">
-        <span>⚔ Bestiário</span>
-        <button class="btn-icon" onclick="fecharCombate()">✕</button>
-      </div>
-      <div style="padding:8px">
-        <input type="text" class="ct-filtro" id="ct-filtro" placeholder="Buscar inimigo..." oninput="renderListaInimigos()">
-      </div>
-      <div class="ct-sidebar-scroll" id="ct-bestiario-lista"></div>
+<!-- Modal Token Custom -->
+<div class="modal-overlay" id="modal-token-custom" style="display:none;align-items:center;justify-content:center">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;width:100%;max-width:380px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div style="font-size:14px;font-weight:800">⭐ Criar Token Customizado</div>
+      <button class="btn-icon" onclick="fecharCriarTokenCustom()">✕</button>
     </div>
-
-    <!-- Main tracker -->
-    <div class="ct-main">
-      <div class="ct-topbar">
-        <span class="ct-rodada-badge" id="ct-rodada">Rodada 1</span>
-        <span class="ct-turno-info" id="ct-turno-info">Combate não iniciado</span>
-        <button class="btn-ghost" onclick="iniciarCombate()" style="font-size:10px;padding:5px 10px">▶ Iniciar</button>
-        <button class="btn-ghost" onclick="proximoTurno()" style="font-size:10px;padding:5px 10px">⏭ Próximo</button>
-        <button class="btn-ghost" onclick="encerrarCombate()" style="font-size:10px;padding:5px 10px;color:var(--red);border-color:var(--red-dim)">✕ Encerrar</button>
+    <div class="gap-12">
+      <div class="field"><label>Nome</label><input type="text" id="tc-nome" placeholder="Nome do token..."></div>
+      <div class="grid-2">
+        <div class="field"><label>Emoji</label><input type="text" id="tc-emoji" placeholder="⭐" maxlength="2" style="font-size:20px;text-align:center"></div>
+        <div class="field"><label>PV Máximo (0 = sem PV)</label><input type="number" id="tc-pv" placeholder="0" min="0"></div>
       </div>
-
-      <div class="ct-scroll" id="ct-lista"></div>
-
-      <!-- Adicionar PC -->
-      <div class="ct-add-pc">
-        <div style="font-size:9px;font-weight:700;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;width:100%;margin-bottom:4px">Adicionar Personagem</div>
-        <div class="field" style="flex:2">
-          <label>Nome</label>
-          <input type="text" id="ct-pc-nome" placeholder="Nome do PC...">
-        </div>
-        <div class="field" style="flex:1">
-          <label>Iniciativa</label>
-          <input type="number" id="ct-pc-ini" placeholder="10" min="1" max="30">
-        </div>
-        <div class="field" style="flex:1">
-          <label>PV Máx</label>
-          <input type="number" id="ct-pc-pv" placeholder="20" min="1">
-        </div>
-        <button class="btn-ghost" onclick="adicionarPCCombate()" style="align-self:flex-end;white-space:nowrap">+ Adicionar</button>
+      <div class="field"><label>Tipo</label>
+        <select id="tc-tipo">
+          <option value="custom">Customizado</option>
+          <option value="infectado">Infectado</option>
+          <option value="animal">Animal</option>
+          <option value="humano">Humano Hostil</option>
+          <option value="pc">Personagem</option>
+        </select>
       </div>
-    </div>
-  </div>
-</div>
-
-<!-- ═══ MODAL MAPA ══════════════════════════════════ -->
-<div class="modal-overlay" id="modal-mapa" style="display:none">
-  <div class="mapa-modal">
-
-    <!-- Topbar do mapa -->
-    <div class="mapa-topbar">
-      <span style="font-size:14px;font-weight:800;letter-spacing:2px;color:var(--blue)">🗺 MAPA</span>
-      <button class="btn-ghost" onclick="importarMapa()" style="font-size:10px;padding:5px 10px">📁 Importar imagem</button>
-      <button class="btn-ghost" onclick="limparMapa()" style="font-size:10px;padding:5px 10px">🗑 Limpar tokens</button>
-      <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted)">
-        Grid:
-        <button class="ct-pv-btn" onclick="alterarGrid(-5)">−</button>
-        <span id="grid-size-val">60px</span>
-        <button class="ct-pv-btn" onclick="alterarGrid(5)">+</button>
+      <div class="field">
+        <label>Imagem (opcional)</label>
+        <input type="file" accept="image/*" onchange="tokenCustomImgPreview(this)">
+        <img id="token-custom-preview" style="display:none;width:60px;height:60px;border-radius:50%;object-fit:cover;margin-top:6px">
       </div>
-      <div style="flex:1"></div>
-      <button class="btn-icon" onclick="fecharMapa()" style="font-size:18px;color:var(--muted)">✕</button>
-    </div>
-
-    <div class="mapa-body">
-      <!-- Canvas -->
-      <div class="mapa-canvas-wrap">
-        <canvas id="mapa-canvas"></canvas>
-      </div>
-
-      <!-- Sidebar do mapa -->
-      <div class="mapa-sidebar">
-
-        <!-- Info do token selecionado -->
-        <div id="token-info"></div>
-
-        <!-- Adicionar PC ao mapa -->
-        <div>
-          <div class="mapa-section-title">Adicionar PC</div>
-          <div class="field" style="margin-bottom:6px">
-            <label>Nome do personagem</label>
-            <input type="text" id="mapa-pc-nome" placeholder="Nome...">
-          </div>
-          <button class="btn-ghost" onclick="adicionarTokenPC()" style="width:100%;font-size:10px">🧑 + Adicionar PC</button>
-        </div>
-
-        <!-- Bestiário rápido no mapa -->
-        <div>
-          <div class="mapa-section-title">Inimigos Rápidos</div>
-          <div style="display:flex;flex-direction:column;gap:4px" id="mapa-bestiario-quick">
-          </div>
-        </div>
-
-        <!-- Legenda -->
-        <div>
-          <div class="mapa-section-title">Legenda</div>
-          <div style="font-size:10px;display:flex;flex-direction:column;gap:4px;color:var(--muted)">
-            <span>🔵 Azul = PC</span>
-            <span>🔴 Vermelho = Infectado</span>
-            <span>🟢 Verde = Animal</span>
-            <span>🟣 Roxo = Animal Infectado</span>
-            <span>🟠 Laranja = Humano hostil</span>
-            <span style="margin-top:4px;font-size:9px">Arraste os tokens para mover</span>
-          </div>
-        </div>
-
-      </div>
+      <button class="btn-primary" onclick="criarTokenCustom()">Criar Token</button>
     </div>
   </div>
 </div>
