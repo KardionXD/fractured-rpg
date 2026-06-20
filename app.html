@@ -56,10 +56,7 @@
           <div class="page-title">Ficha do Personagem</div>
           <div class="page-sub">FRACTURED · Sistema d20</div>
         </div>
-        <div style="display:flex;gap:8px">
-          <button class="btn-ghost" onclick="salvarFicha()">💾 Salvar</button>
-          <button class="btn-ghost" onclick="apagarFicha()" style="color:var(--red);border-color:var(--red-dim)">🗑 Apagar ficha</button>
-        </div>
+        <button class="btn-ghost" onclick="salvarFicha()">💾 Salvar</button>
       </div>
 
       <!-- IDENTIDADE -->
@@ -191,11 +188,11 @@
       <div class="grid-2">
         <div class="section-card">
           <div class="section-card-title">Inventário</div>
-          <textarea id="f-inventario" placeholder="Itens, armas, equipamentos..." rows="5" oninput="autoSave()" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--font);font-size:12px;padding:10px;resize:vertical;width:100%;outline:none;line-height:1.7" onfocus="this.style.borderColor='var(--red)'" onblur="this.style.borderColor='var(--border)'"></textarea>
+          <textarea id="f-inventario" placeholder="Itens, armas, equipamentos..." rows="5" oninput="autoSave()" class="textarea-bare"></textarea>
         </div>
         <div class="section-card">
           <div class="section-card-title">Notas / Trauma / Memórias</div>
-          <textarea id="f-notas" placeholder="Memórias, traumas, observações..." rows="5" oninput="autoSave()" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--font);font-size:12px;padding:10px;resize:vertical;width:100%;outline:none;line-height:1.7" onfocus="this.style.borderColor='var(--red)'" onblur="this.style.borderColor='var(--border)'"></textarea>
+          <textarea id="f-notas" placeholder="Memórias, traumas, observações..." rows="5" oninput="autoSave()" class="textarea-bare"></textarea>
         </div>
       </div>
     </div>
@@ -207,9 +204,27 @@
           <div class="page-title">Sala de Jogo</div>
           <div class="page-sub">Rolls e tensão em tempo real</div>
         </div>
-        <div style="display:flex;gap:8px">
-          <button class="btn-ghost" id="btn-limpar-historico" onclick="limparHistorico()" style="display:none;color:var(--red);border-color:var(--red-dim)">🗑 Limpar histórico</button>
+        <button class="btn-ghost" id="btn-limpar-historico" onclick="limparHistorico()" style="display:none;color:var(--red);border-color:var(--red-dim)">🗑 Limpar histórico</button>
+      </div>
+
+      <!-- TENSÃO - visível no topo em mobile -->
+      <div class="section-card tensao-mobile" id="tensao-mobile-panel">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+          <div>
+            <div style="font-size:9px;font-weight:700;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:6px">⚠ Tensão da Sessão</div>
+            <div class="tensao-pips" id="tensao-pips-sala-mobile"></div>
+          </div>
+          <div>
+            <div class="tensao-status" id="tensao-status-mobile">CALMA (0/10)</div>
+            <div class="tensao-btns" id="tensao-master-btns-mobile" style="display:none;margin-top:6px">
+              <button onclick="alterarTensao(-1)">− Baixar</button>
+              <button onclick="alterarTensao(1)">+ Subir</button>
+            </div>
+          </div>
         </div>
+      </div>
+
+      <div class="sala-layout">
         <!-- FEED -->
         <div class="feed">
           <div class="feed-header">
@@ -230,6 +245,7 @@
 
         <!-- PAINEL DIREITO -->
         <div class="dados-panel">
+
           <!-- DADOS RÁPIDOS -->
           <div class="section-card" style="margin:0">
             <div class="section-card-title">Dados Rápidos</div>
@@ -248,51 +264,24 @@
           <!-- FÓRMULA D20 -->
           <div class="roll-formula">
             <div class="roll-formula-title">Teste — 1d20 + Mod + Perícia</div>
-            <div class="formula-row">
-              <select id="roll-atrib">
-                <option value="0">Atributo (mod)</option>
-                <option value="-2">FOR −2</option>
-                <option value="-1">FOR −1</option>
-                <option value="0">FOR +0</option>
-                <option value="1">FOR +1</option>
-                <option value="2">FOR +2</option>
-                <option value="-2">RES −2</option>
-                <option value="-1">RES −1</option>
-                <option value="0">RES +0</option>
-                <option value="1">RES +1</option>
-                <option value="2">RES +2</option>
-                <option value="-2">COM −2</option>
-                <option value="-1">COM −1</option>
-                <option value="0">COM +0</option>
-                <option value="1">COM +1</option>
-                <option value="2">COM +2</option>
-                <option value="-2">SOC −2</option>
-                <option value="-1">SOC −1</option>
-                <option value="0">SOC +0</option>
-                <option value="1">SOC +1</option>
-                <option value="2">SOC +2</option>
-                <option value="-2">CON −2</option>
-                <option value="-1">CON −1</option>
-                <option value="0">CON +0</option>
-                <option value="1">CON +1</option>
-                <option value="2">CON +2</option>
-                <option value="-2">AGI −2</option>
-                <option value="-1">AGI −1</option>
-                <option value="0">AGI +0</option>
-                <option value="1">AGI +1</option>
-                <option value="2">AGI +2</option>
+            <div class="formula-grid">
+              <label class="formula-label">Atributo</label>
+              <select id="roll-atrib" class="formula-select">
+                <option value="0">— nenhum —</option>
+                <option value="-2">FOR −2</option><option value="-1">FOR −1</option><option value="0">FOR +0</option><option value="1">FOR +1</option><option value="2">FOR +2</option>
+                <option value="-2">RES −2</option><option value="-1">RES −1</option><option value="0">RES +0</option><option value="1">RES +1</option><option value="2">RES +2</option>
+                <option value="-2">COM −2</option><option value="-1">COM −1</option><option value="0">COM +0</option><option value="1">COM +1</option><option value="2">COM +2</option>
+                <option value="-2">SOC −2</option><option value="-1">SOC −1</option><option value="0">SOC +0</option><option value="1">SOC +1</option><option value="2">SOC +2</option>
+                <option value="-2">CON −2</option><option value="-1">CON −1</option><option value="0">CON +0</option><option value="1">CON +1</option><option value="2">CON +2</option>
+                <option value="-2">AGI −2</option><option value="-1">AGI −1</option><option value="0">AGI +0</option><option value="1">AGI +1</option><option value="2">AGI +2</option>
               </select>
-            </div>
-            <div class="formula-row">
-              <span class="formula-plus">Perícia</span>
-              <select id="roll-pericia">
+              <label class="formula-label">Perícia</label>
+              <select id="roll-pericia" class="formula-select">
                 <option value="0">Sem perícia (+0)</option>
                 <option value="3">Com perícia (+3)</option>
               </select>
-            </div>
-            <div class="formula-row">
-              <span class="formula-plus">Situação</span>
-              <select id="roll-situacao">
+              <label class="formula-label">Situação</label>
+              <select id="roll-situacao" class="formula-select">
                 <option value="0">Normal</option>
                 <option value="3">+3 Vínculo Ativo</option>
                 <option value="2">+2 Ferramenta</option>
@@ -303,31 +292,30 @@
                 <option value="-3">−3 Sem Equipamento</option>
                 <option value="-2">−2 Escuridão</option>
               </select>
-            </div>
-            <div class="formula-row">
-              <span class="formula-plus">Dif.</span>
-              <select id="roll-dif">
+              <label class="formula-label">Dificuldade</label>
+              <select id="roll-dif" class="formula-select">
                 <option value="8">8 — Fácil</option>
                 <option value="11" selected>11 — Moderado</option>
                 <option value="14">14 — Difícil</option>
                 <option value="17">17 — Severo</option>
                 <option value="20">20 — Extremo</option>
               </select>
-              <button class="btn-ghost" onclick="rolarFormula()" style="white-space:nowrap">Rolar!</button>
             </div>
+            <button class="btn-primary" onclick="rolarFormula()" style="margin-top:10px">🎲 Rolar Teste</button>
           </div>
 
-          <!-- TENSÃO COMPARTILHADA -->
-          <div class="tensao-shared" id="tensao-shared-panel">
+          <!-- TENSÃO - só desktop -->
+          <div class="tensao-shared tensao-desktop">
             <div class="tensao-shared-title">⚠ Tensão da Sessão</div>
             <div class="tensao-pips" id="tensao-pips-sala" style="margin-bottom:8px"></div>
-            <div class="tensao-status" id="tensao-status-text">CALMA</div>
-            <div class="tensao-btns" id="tensao-master-btns" style="display:none">
+            <div class="tensao-status" id="tensao-status-text">CALMA (0/10)</div>
+            <div class="tensao-btns" id="tensao-master-btns" style="display:none;margin-top:8px">
               <button onclick="alterarTensao(-1)">− Baixar</button>
               <button onclick="alterarTensao(1)">+ Subir</button>
             </div>
             <div style="font-size:9px;color:var(--muted);margin-top:6px" id="tensao-tip"></div>
           </div>
+
         </div>
       </div>
     </div>
@@ -339,24 +327,24 @@
           <div class="page-title">Notas de Sessão</div>
           <div class="page-sub">Suas anotações pessoais</div>
         </div>
+        <button class="btn-ghost" onclick="novaNota()">＋ Nova Nota</button>
       </div>
       <div class="notas-grid">
         <div class="notas-list">
           <div class="notas-list-header">
             <span style="font-size:11px;font-weight:700;letter-spacing:1px;color:var(--muted);text-transform:uppercase">Sessões</span>
-            <button class="btn-icon" onclick="novaNota()" title="Nova nota">＋</button>
           </div>
           <div id="notas-lista"></div>
         </div>
         <div class="nota-editor">
           <div class="nota-editor-header">
-            <input type="text" id="nota-titulo" placeholder="Título da nota..." style="background:transparent;border:none;color:var(--text);font-size:14px;font-weight:700;flex:1;outline:none" oninput="notaEditada=true">
-            <input type="number" id="nota-sessao" placeholder="Sessão #" min="1" style="background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--muted);font-size:12px;padding:5px 8px;width:80px;outline:none" oninput="notaEditada=true">
+            <input type="text" id="nota-titulo" placeholder="Título da nota..." style="background:transparent;border:none;color:var(--text);font-size:14px;font-weight:700;flex:1;outline:none">
+            <input type="number" id="nota-sessao" placeholder="Sessão #" min="1" style="background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--muted);font-size:12px;padding:5px 8px;width:80px;outline:none">
           </div>
-          <textarea class="nota-editor-body" id="nota-corpo" placeholder="Escreva suas notas aqui..." oninput="notaEditada=true"></textarea>
+          <textarea class="nota-editor-body" id="nota-corpo" placeholder="Escreva suas notas aqui..."></textarea>
           <div class="nota-editor-footer">
             <button class="btn-ghost" onclick="deletarNota()" style="color:var(--red);border-color:var(--red-dim)">Excluir</button>
-            <button class="btn-ghost" onclick="salvarNota()">Salvar nota</button>
+            <button class="btn-ghost" onclick="salvarNota()">💾 Salvar nota</button>
           </div>
         </div>
       </div>

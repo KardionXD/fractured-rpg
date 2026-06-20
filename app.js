@@ -57,6 +57,8 @@ async function init() {
     document.getElementById('master-badge').style.display = '';
     document.getElementById('nav-master-section').style.display = '';
     document.getElementById('btn-limpar-historico').style.display = '';
+    const mb = document.getElementById('tensao-master-btns-mobile');
+    if (mb) mb.style.display = '';
   }
 
   buildAttrGrid();
@@ -193,45 +195,48 @@ function onHumClick(i, cid, total, valId) {
 
 // ── TENSÃO PIPS ──────────────────────────────────
 function buildTensaoPips(containerId, active, forFicha) {
-  const c = document.getElementById(containerId);
-  if (!c) return;
-  c.innerHTML = '';
-  TENSAO_TYPES.forEach((t, i) => {
-    const pip = document.createElement('div');
-    pip.className = `tpip ${t.toLowerCase()}` + (i < active ? ' on' : '');
-    pip.textContent = t;
-    pip.addEventListener('click', () => {
-      if (containerId === 'tensao-pips-ficha') {
-        tensaoFicha = (i < tensaoFicha) ? i : i + 1;
-        buildTensaoPips('tensao-pips-ficha', tensaoFicha, true);
-        autoSave();
-      } else if (isMaster) {
-        alterarTensao(i + 1 > tensaoSala ? 1 : -1);
-      }
+  const targets = containerId === 'tensao-pips-sala'
+    ? ['tensao-pips-sala', 'tensao-pips-sala-mobile']
+    : [containerId];
+
+  targets.forEach(cid => {
+    const c = document.getElementById(cid);
+    if (!c) return;
+    c.innerHTML = '';
+    TENSAO_TYPES.forEach((t, i) => {
+      const pip = document.createElement('div');
+      pip.className = `tpip ${t.toLowerCase()}` + (i < active ? ' on' : '');
+      pip.textContent = t;
+      pip.addEventListener('click', () => {
+        if (forFicha) {
+          tensaoFicha = (i < tensaoFicha) ? i : i + 1;
+          buildTensaoPips('tensao-pips-ficha', tensaoFicha, true);
+          autoSave();
+        } else if (isMaster) {
+          alterarTensao(i + 1 > tensaoSala ? 1 : -1);
+        }
+      });
+      c.appendChild(pip);
     });
-    c.appendChild(pip);
   });
-  if (containerId === 'tensao-pips-sala') updateTensaoStatus();
+  if (!forFicha) updateTensaoStatus();
 }
 
 function updateTensaoStatus() {
-  const el = document.getElementById('tensao-status-text');
-  const tip = document.getElementById('tensao-tip');
-  if (!el) return;
   const t = tensaoSala;
-  if (t <= 3) {
-    el.textContent = `CALMA (${t}/10)`; el.className = 'tensao-status calma';
-    if (tip) tip.textContent = 'Testes normais. Descanso permitido.';
-  } else if (t <= 6) {
-    el.textContent = `ALERTA (${t}/10)`; el.className = 'tensao-status alerta';
-    if (tip) tip.textContent = '−1 Agilidade. NPCs na defensiva.';
-  } else if (t <= 8) {
-    el.textContent = `PERIGO (${t}/10)`; el.className = 'tensao-status perigo';
-    if (tip) tip.textContent = 'Cada teste custa +1 Suprimento.';
-  } else {
-    el.textContent = `TERROR (${t}/10)`; el.className = 'tensao-status terror';
-    if (tip) tip.textContent = 'Falhas causam Trauma permanente!';
-  }
+  let label, cls, tipText;
+  if (t <= 3)      { label='CALMA';  cls='calma';  tipText='Testes normais. Descanso permitido.'; }
+  else if (t <= 6) { label='ALERTA'; cls='alerta'; tipText='−1 Agilidade. NPCs na defensiva.'; }
+  else if (t <= 8) { label='PERIGO'; cls='perigo'; tipText='Cada teste custa +1 Suprimento.'; }
+  else             { label='TERROR'; cls='terror'; tipText='Falhas causam Trauma permanente!'; }
+
+  const text = `${label} (${t}/10)`;
+  ['tensao-status-text','tensao-status-mobile'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.textContent = text; el.className = `tensao-status ${cls}`; }
+  });
+  const tip = document.getElementById('tensao-tip');
+  if (tip) tip.textContent = tipText;
 }
 
 // ── PERÍCIAS ─────────────────────────────────────
@@ -723,31 +728,21 @@ async function salvarNota() {
     visivel_master: true
   };
 
-  let error, savedData;
-
   if (notaAtual?.id) {
-    const { error: e } = await db.from('notas_sessao').update(payload).eq('id', notaAtual.id);
-    error = e;
+    const { error } = await db.from('notas_sessao').update(payload).eq('id', notaAtual.id);
+    if (error) { console.error(error); return toast('Erro ao salvar: ' + error.message, 'err'); }
   } else {
-    const { data, error: e } = await db.from('notas_sessao').insert(payload).select().single();
-    error = e;
-    savedData = data;
+    const { data, error } = await db.from('notas_sessao').insert(payload).select().single();
+    if (error) { console.error(error); return toast('Erro ao criar: ' + error.message, 'err'); }
     if (data) notaAtual = data;
-  }
-
-  if (error) {
-    console.error('Erro ao salvar nota:', error);
-    return toast('Erro ao salvar nota!', 'err');
   }
 
   toast('Nota salva!', 'ok');
   notaEditada = false;
   await carregarNotas();
-
-  // Mantém a nota atual selecionada
   if (notaAtual?.id) {
-    const notaAtualizada = notas.find(n => n.id === notaAtual.id);
-    if (notaAtualizada) abrirNota(notaAtualizada);
+    const atualizada = notas.find(n => n.id === notaAtual.id);
+    if (atualizada) abrirNota(atualizada);
   }
 }
 
@@ -831,13 +826,22 @@ async function carregarPlayers() {
       <div style="margin-top:8px;font-size:10px;color:var(--muted)">
         <strong style="color:var(--text)">Trauma:</strong> ${ficha.trauma || '—'}
       </div>
-      <div style="margin-top:10px">
-        <button class="btn-ghost" style="font-size:10px;padding:5px 10px" onclick="verFichaCompleta('${player.id}')">Ver ficha completa</button>
+      <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn-ghost" style="font-size:10px;padding:5px 10px" onclick="verFichaCompleta('${player.id}')">📋 Ver ficha completa</button>
+        <button class="btn-ghost" style="font-size:10px;padding:5px 10px;color:var(--red);border-color:var(--red-dim)" onclick="apagarFichaPlayer('${player.id}', '${ficha?.nome || player.username}')">🗑 Apagar ficha</button>
       </div>
       ` : `<div style="font-size:12px;color:var(--muted);padding:8px 0">Ficha não criada ainda.</div>`}
     `;
     grid.appendChild(card);
   });
+}
+
+async function apagarFichaPlayer(userId, nome) {
+  if (!confirm(`Apagar a ficha de "${nome}"? Isso não pode ser desfeito.`)) return;
+  const { error } = await db.from('fichas').delete().eq('user_id', userId);
+  if (error) return toast('Erro ao apagar ficha!', 'err');
+  toast(`Ficha de ${nome} apagada.`, 'ok');
+  carregarPlayers();
 }
 
 async function verFichaCompleta(userId) {
