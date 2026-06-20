@@ -765,7 +765,7 @@ async function deletarNota() {
 //  PAINEL DO MESTRE
 // ══════════════════════════════════════════════════
 
-async function carregarPlayers() {
+async function carregarPlayers(mostrarTodos = false) {
   const grid = document.getElementById('players-grid');
   grid.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><p>Carregando...</p></div>';
 
@@ -785,53 +785,90 @@ async function carregarPlayers() {
     .select('*')
     .in('user_id', ids);
 
+  // Separa quem tem e quem não tem ficha
+  const comFicha    = profiles.filter(p => fichas?.find(f => f.user_id === p.id));
+  const semFicha    = profiles.filter(p => !fichas?.find(f => f.user_id === p.id));
+  const visiveis    = mostrarTodos ? profiles : comFicha;
+
   grid.innerHTML = '';
-  profiles.forEach(player => {
+
+  // Botão de toggle no topo
+  const toggleRow = document.createElement('div');
+  toggleRow.style.cssText = 'grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:4px';
+  toggleRow.innerHTML = `
+    <span style="font-size:11px;color:var(--muted)">
+      ${comFicha.length} com ficha · ${semFicha.length} sem ficha
+    </span>
+    <button class="btn-ghost" style="font-size:10px;padding:5px 12px" onclick="carregarPlayers(${!mostrarTodos})">
+      ${mostrarTodos ? '👁 Ocultar sem ficha' : '👁 Ver todos os players'}
+    </button>
+  `;
+  grid.appendChild(toggleRow);
+
+  if (visiveis.length === 0) {
+    const empty = document.createElement('div');
+    empty.style.cssText = 'grid-column:1/-1';
+    empty.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><p>Nenhum player criou ficha ainda.</p></div>';
+    grid.appendChild(empty);
+    return;
+  }
+
+  visiveis.forEach(player => {
     const ficha = fichas?.find(f => f.user_id === player.id);
     const card = document.createElement('div');
     card.className = 'player-card';
 
-    const pvMax = Math.max((ficha?.attr_res || 0) * 4, 4);
-    const pct = ficha ? Math.round((ficha.pv_atual / pvMax) * 100) : 0;
-    const pvColor = pct > 50 ? 'var(--green)' : pct > 25 ? 'var(--gold)' : 'var(--red)';
+    if (!ficha) {
+      card.style.opacity = '0.5';
+      card.innerHTML = `
+        <div class="player-card-header">
+          <div>
+            <div class="player-card-name">${player.username}</div>
+            <div class="player-card-prof" style="color:var(--muted)">Sem ficha criada</div>
+          </div>
+        </div>
+      `;
+    } else {
+      const pvMax = Math.max((ficha.attr_res || 0) * 4, 4);
+      const pct = Math.round((ficha.pv_atual / pvMax) * 100);
+      const pvColor = pct > 50 ? 'var(--green)' : pct > 25 ? 'var(--gold)' : 'var(--red)';
 
-    card.innerHTML = `
-      <div class="player-card-header">
-        <div>
-          <div class="player-card-name">${ficha?.nome || player.username}</div>
-          <div class="player-card-prof">${ficha?.profissao || 'Profissão não definida'} · ${player.username}</div>
+      card.innerHTML = `
+        <div class="player-card-header">
+          <div>
+            <div class="player-card-name">${ficha.nome || player.username}</div>
+            <div class="player-card-prof">${ficha.profissao || 'Profissão não definida'} · ${player.username}</div>
+          </div>
         </div>
-      </div>
-      ${ficha ? `
-      <div class="player-stat-row">
-        <div class="player-stat">
-          <div class="player-stat-label">PV</div>
-          <div class="player-stat-val pv" style="color:${pvColor}">${ficha.pv_atual}/${pvMax}</div>
+        <div class="player-stat-row">
+          <div class="player-stat">
+            <div class="player-stat-label">PV</div>
+            <div class="player-stat-val" style="color:${pvColor}">${ficha.pv_atual}/${pvMax}</div>
+          </div>
+          <div class="player-stat">
+            <div class="player-stat-label">Humanidade</div>
+            <div class="player-stat-val hum">${ficha.humanidade}/10</div>
+          </div>
+          <div class="player-stat">
+            <div class="player-stat-label">Suprimentos</div>
+            <div class="player-stat-val sup">${ficha.suprimentos}/10</div>
+          </div>
         </div>
-        <div class="player-stat">
-          <div class="player-stat-label">Humanidade</div>
-          <div class="player-stat-val hum">${ficha.humanidade}/10</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px">
+          ${['FOR','RES','COM','SOC','CON','AGI'].map((a,i) => {
+            const keys = ['attr_for','attr_res','attr_com','attr_soc','attr_con','attr_agi'];
+            return `${a}:${ficha[keys[i]]||0}`;
+          }).join(' · ')}
         </div>
-        <div class="player-stat">
-          <div class="player-stat-label">Suprimentos</div>
-          <div class="player-stat-val sup">${ficha.suprimentos}/10</div>
+        <div style="margin-top:8px;font-size:10px;color:var(--muted)">
+          <strong style="color:var(--text)">Trauma:</strong> ${ficha.trauma || '—'}
         </div>
-      </div>
-      <div style="font-size:10px;color:var(--muted);margin-top:4px">
-        ${['FOR','RES','COM','SOC','CON','AGI'].map((a,i) => {
-          const keys = ['attr_for','attr_res','attr_com','attr_soc','attr_con','attr_agi'];
-          return `${a}:${ficha[keys[i]]||0}`;
-        }).join(' · ')}
-      </div>
-      <div style="margin-top:8px;font-size:10px;color:var(--muted)">
-        <strong style="color:var(--text)">Trauma:</strong> ${ficha.trauma || '—'}
-      </div>
-      <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn-ghost" style="font-size:10px;padding:5px 10px" onclick="verFichaCompleta('${player.id}')">📋 Ver ficha completa</button>
-        <button class="btn-ghost" style="font-size:10px;padding:5px 10px;color:var(--red);border-color:var(--red-dim)" onclick="apagarFichaPlayer('${player.id}', '${ficha?.nome || player.username}')">🗑 Apagar ficha</button>
-      </div>
-      ` : `<div style="font-size:12px;color:var(--muted);padding:8px 0">Ficha não criada ainda.</div>`}
-    `;
+        <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn-ghost" style="font-size:10px;padding:5px 10px" onclick="verFichaCompleta('${player.id}')">📋 Ver ficha completa</button>
+          <button class="btn-ghost" style="font-size:10px;padding:5px 10px;color:var(--red);border-color:var(--red-dim)" onclick="apagarFichaPlayer('${player.id}', '${(ficha.nome || player.username).replace(/'/g,"\\'")}')">🗑 Apagar ficha</button>
+        </div>
+      `;
+    }
     grid.appendChild(card);
   });
 }
