@@ -26,18 +26,34 @@ async function init() {
 
   currentUser = session.user;
 
-  const { data: profile } = await db
+  const { data: profile, error: profileError } = await db
     .from('profiles')
     .select('*')
     .eq('id', currentUser.id)
     .single();
 
-  if (!profile) { window.location.href = 'index.html'; return; }
+  if (!profile) {
+    // Perfil ainda não existe — cria um básico automaticamente
+    const username = currentUser.email.split('@')[0];
+    const { data: newProfile, error: createError } = await db
+      .from('profiles')
+      .insert({ id: currentUser.id, username, is_master: false })
+      .select()
+      .single();
 
-  currentProfile = profile;
-  isMaster = profile.is_master;
+    if (createError || !newProfile) {
+      await db.auth.signOut();
+      window.location.href = 'index.html';
+      return;
+    }
+    currentProfile = newProfile;
+    isMaster = false;
+  } else {
+    currentProfile = profile;
+    isMaster = profile.is_master;
+  }
 
-  document.getElementById('topbar-username').textContent = profile.username;
+  document.getElementById('topbar-username').textContent = currentProfile.username;
   if (isMaster) {
     document.getElementById('master-badge').style.display = '';
     document.getElementById('nav-master-section').style.display = '';
