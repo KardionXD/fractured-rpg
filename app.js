@@ -517,60 +517,6 @@ async function carregarTensaoSala() {
   }
 }
 
-function appendFeedMsg(msg) {
-  const feed = document.getElementById('feed-messages');
-  const emptyState = feed.querySelector('.empty-state');
-  if (emptyState) emptyState.remove();
-
-  const div = document.createElement('div');
-  const hora = new Date(msg.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-
-  if (msg.tipo === 'roll') {
-    const c = msg.conteudo;
-    const isCrit  = c.dado === 20 && c.resultado_dado === 20;
-    const isFalha = c.dado === 20 && c.resultado_dado === 1;
-    div.className = 'feed-msg roll' + (isCrit ? ' critico' : '') + (isFalha ? ' falha-critica' : '');
-    div.innerHTML = `
-      <div class="feed-msg-header">
-        <span class="feed-msg-user">${msg.username}</span>
-        <span class="feed-msg-time">${hora}</span>
-      </div>
-      <div class="feed-msg-content">
-        <span class="roll-total">${c.total}</span>
-        ${c.dif ? `<span style="font-size:12px;color:${c.total >= c.dif ? 'var(--green)' : 'var(--red)'}"> — ${c.total >= c.dif ? '✓ SUCESSO' : '✗ FALHA'} (dif. ${c.dif})</span>` : ''}
-        ${isCrit  ? ' <span style="color:var(--gold)">⭐ CRÍTICO!</span>'       : ''}
-        ${isFalha ? ' <span style="color:var(--red)">💀 FALHA CRÍTICA!</span>' : ''}
-      </div>
-      <div class="roll-detail">
-        rolou 1d${c.dado} → ${c.resultado_dado}
-        ${c.bonus ? ` + bônus ${c.bonus > 0 ? '+' : ''}${c.bonus}` : ''}
-        ${c.label ? ` — ${c.label}` : ''}
-      </div>
-    `;
-  } else if (msg.tipo === 'tensao') {
-    div.className = 'feed-msg tensao-msg';
-    div.innerHTML = `
-      <div class="feed-msg-header">
-        <span class="feed-msg-user">⚠ MESTRE</span>
-        <span class="feed-msg-time">${hora}</span>
-      </div>
-      <div class="feed-msg-content">Tensão: ${msg.conteudo.valor}/10 — ${msg.conteudo.status}</div>
-    `;
-  } else {
-    div.className = 'feed-msg';
-    div.innerHTML = `
-      <div class="feed-msg-header">
-        <span class="feed-msg-user">${msg.username}</span>
-        <span class="feed-msg-time">${hora}</span>
-      </div>
-      <div class="feed-msg-content">${(msg.conteudo.texto || '').replace(/</g,'&lt;')}</div>
-    `;
-  }
-
-  feed.appendChild(div);
-  scrollFeedToBottom();
-}
-
 function scrollFeedToBottom() {
   const feed = document.getElementById('feed-messages');
   if (feed) feed.scrollTop = feed.scrollHeight;
@@ -954,3 +900,95 @@ async function verFichaCompleta(userId) {
 
 // ── START ─────────────────────────────────────────
 init();
+
+// ══════════════════════════════════════════════════
+//  INTEGRAÇÃO MAPA + COMBATE
+// ══════════════════════════════════════════════════
+
+function abrirMapa() {
+  document.getElementById('modal-mapa').style.display = 'flex';
+  setTimeout(() => {
+    initMapa();
+    renderMapaBestiarioQuick();
+  }, 50);
+}
+
+function fecharMapa() {
+  document.getElementById('modal-mapa').style.display = 'none';
+}
+
+function renderMapaBestiarioQuick() {
+  const lista = document.getElementById('mapa-bestiario-quick');
+  if (!lista) return;
+  lista.innerHTML = '';
+  TODOS_INIMIGOS.slice(0, 12).forEach(inimigo => {
+    const btn = document.createElement('button');
+    btn.className = 'ct-inimigo-item';
+    btn.style.cssText = 'cursor:pointer;border:none;text-align:left;width:100%';
+    btn.innerHTML = `<span style="font-size:16px">${inimigo.emoji}</span><span style="font-size:11px;flex:1">${inimigo.nome}</span><span style="font-size:9px;color:var(--muted)">PV${inimigo.pv}</span>`;
+    btn.onclick = () => adicionarTokenMapa(inimigo);
+    lista.appendChild(btn);
+  });
+}
+
+// Hook no realtime para processar tokens
+const _origAppend = typeof appendFeedMsg !== 'undefined' ? appendFeedMsg : null;
+function appendFeedMsg(msg) {
+  if (msg.tipo === 'tokens') {
+    processarMsgTokens(msg);
+    return;
+  }
+  // Chama a função original
+  const feed = document.getElementById('feed-messages');
+  if (!feed) return;
+  const emptyState = feed.querySelector('.empty-state');
+  if (emptyState) emptyState.remove();
+
+  const div = document.createElement('div');
+  const hora = new Date(msg.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+  if (msg.tipo === 'roll') {
+    const c = msg.conteudo;
+    const isCrit  = c.dado === 20 && c.resultado_dado === 20;
+    const isFalha = c.dado === 20 && c.resultado_dado === 1;
+    div.className = 'feed-msg roll' + (isCrit ? ' critico' : '') + (isFalha ? ' falha-critica' : '');
+    div.innerHTML = `
+      <div class="feed-msg-header">
+        <span class="feed-msg-user">${msg.username}</span>
+        <span class="feed-msg-time">${hora}</span>
+      </div>
+      <div class="feed-msg-content">
+        <span class="roll-total">${c.total}</span>
+        ${c.dif ? `<span style="font-size:12px;color:${c.total >= c.dif ? 'var(--green)' : 'var(--red)'}"> — ${c.total >= c.dif ? '✓ SUCESSO' : '✗ FALHA'} (dif. ${c.dif})</span>` : ''}
+        ${isCrit  ? ' <span style="color:var(--gold)">⭐ CRÍTICO!</span>'       : ''}
+        ${isFalha ? ' <span style="color:var(--red)">💀 FALHA CRÍTICA!</span>' : ''}
+      </div>
+      <div class="roll-detail">
+        rolou 1d${c.dado} → ${c.resultado_dado}
+        ${c.bonus ? ` + bônus ${c.bonus > 0 ? '+' : ''}${c.bonus}` : ''}
+        ${c.label ? ` — ${c.label}` : ''}
+      </div>
+    `;
+  } else if (msg.tipo === 'tensao') {
+    div.className = 'feed-msg tensao-msg';
+    div.innerHTML = `
+      <div class="feed-msg-header">
+        <span class="feed-msg-user">⚠ MESTRE</span>
+        <span class="feed-msg-time">${hora}</span>
+      </div>
+      <div class="feed-msg-content">Tensão: ${msg.conteudo.valor}/10 — ${msg.conteudo.status}</div>
+    `;
+  } else if (msg.tipo === 'mensagem') {
+    div.className = 'feed-msg';
+    div.innerHTML = `
+      <div class="feed-msg-header">
+        <span class="feed-msg-user">${msg.username}</span>
+        <span class="feed-msg-time">${hora}</span>
+      </div>
+      <div class="feed-msg-content">${(msg.conteudo.texto || '').replace(/</g,'&lt;')}</div>
+    `;
+  } else { return; }
+
+  feed.appendChild(div);
+  scrollFeedToBottom();
+}

@@ -19,6 +19,8 @@
       <span class="topbar-badge" id="master-badge" style="display:none">MESTRE</span>
     </div>
     <div class="topbar-right">
+      <button class="btn-combate" onclick="abrirCombate()">⚔ Combate</button>
+      <button class="btn-mapa" onclick="abrirMapa()">🗺 Mapa</button>
       <span class="topbar-user">Olá, <strong id="topbar-username">...</strong></span>
       <button class="btn-ghost" onclick="logout()">Sair</button>
     </div>
@@ -370,7 +372,123 @@
   </main>
 </div>
 
+<!-- ═══ MODAL COMBATE ══════════════════════════════ -->
+<div class="modal-overlay" id="modal-combate" style="display:none">
+  <div class="ct-modal">
+
+    <!-- Sidebar bestiário -->
+    <div class="ct-sidebar">
+      <div class="ct-sidebar-header">
+        <span>⚔ Bestiário</span>
+        <button class="btn-icon" onclick="fecharCombate()">✕</button>
+      </div>
+      <div style="padding:8px">
+        <input type="text" class="ct-filtro" id="ct-filtro" placeholder="Buscar inimigo..." oninput="renderListaInimigos()">
+      </div>
+      <div class="ct-sidebar-scroll" id="ct-bestiario-lista"></div>
+    </div>
+
+    <!-- Main tracker -->
+    <div class="ct-main">
+      <div class="ct-topbar">
+        <span class="ct-rodada-badge" id="ct-rodada">Rodada 1</span>
+        <span class="ct-turno-info" id="ct-turno-info">Combate não iniciado</span>
+        <button class="btn-ghost" onclick="iniciarCombate()" style="font-size:10px;padding:5px 10px">▶ Iniciar</button>
+        <button class="btn-ghost" onclick="proximoTurno()" style="font-size:10px;padding:5px 10px">⏭ Próximo</button>
+        <button class="btn-ghost" onclick="encerrarCombate()" style="font-size:10px;padding:5px 10px;color:var(--red);border-color:var(--red-dim)">✕ Encerrar</button>
+      </div>
+
+      <div class="ct-scroll" id="ct-lista"></div>
+
+      <!-- Adicionar PC -->
+      <div class="ct-add-pc">
+        <div style="font-size:9px;font-weight:700;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;width:100%;margin-bottom:4px">Adicionar Personagem</div>
+        <div class="field" style="flex:2">
+          <label>Nome</label>
+          <input type="text" id="ct-pc-nome" placeholder="Nome do PC...">
+        </div>
+        <div class="field" style="flex:1">
+          <label>Iniciativa</label>
+          <input type="number" id="ct-pc-ini" placeholder="10" min="1" max="30">
+        </div>
+        <div class="field" style="flex:1">
+          <label>PV Máx</label>
+          <input type="number" id="ct-pc-pv" placeholder="20" min="1">
+        </div>
+        <button class="btn-ghost" onclick="adicionarPCCombate()" style="align-self:flex-end;white-space:nowrap">+ Adicionar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL MAPA ══════════════════════════════════ -->
+<div class="modal-overlay" id="modal-mapa" style="display:none">
+  <div class="mapa-modal">
+
+    <!-- Topbar do mapa -->
+    <div class="mapa-topbar">
+      <span style="font-size:14px;font-weight:800;letter-spacing:2px;color:var(--blue)">🗺 MAPA</span>
+      <button class="btn-ghost" onclick="importarMapa()" style="font-size:10px;padding:5px 10px">📁 Importar imagem</button>
+      <button class="btn-ghost" onclick="limparMapa()" style="font-size:10px;padding:5px 10px">🗑 Limpar tokens</button>
+      <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted)">
+        Grid:
+        <button class="ct-pv-btn" onclick="alterarGrid(-5)">−</button>
+        <span id="grid-size-val">60px</span>
+        <button class="ct-pv-btn" onclick="alterarGrid(5)">+</button>
+      </div>
+      <div style="flex:1"></div>
+      <button class="btn-icon" onclick="fecharMapa()" style="font-size:18px;color:var(--muted)">✕</button>
+    </div>
+
+    <div class="mapa-body">
+      <!-- Canvas -->
+      <div class="mapa-canvas-wrap">
+        <canvas id="mapa-canvas"></canvas>
+      </div>
+
+      <!-- Sidebar do mapa -->
+      <div class="mapa-sidebar">
+
+        <!-- Info do token selecionado -->
+        <div id="token-info"></div>
+
+        <!-- Adicionar PC ao mapa -->
+        <div>
+          <div class="mapa-section-title">Adicionar PC</div>
+          <div class="field" style="margin-bottom:6px">
+            <label>Nome do personagem</label>
+            <input type="text" id="mapa-pc-nome" placeholder="Nome...">
+          </div>
+          <button class="btn-ghost" onclick="adicionarTokenPC()" style="width:100%;font-size:10px">🧑 + Adicionar PC</button>
+        </div>
+
+        <!-- Bestiário rápido no mapa -->
+        <div>
+          <div class="mapa-section-title">Inimigos Rápidos</div>
+          <div style="display:flex;flex-direction:column;gap:4px" id="mapa-bestiario-quick">
+          </div>
+        </div>
+
+        <!-- Legenda -->
+        <div>
+          <div class="mapa-section-title">Legenda</div>
+          <div style="font-size:10px;display:flex;flex-direction:column;gap:4px;color:var(--muted)">
+            <span>🔵 Azul = PC</span>
+            <span>🔴 Vermelho = Infectado</span>
+            <span>🟢 Verde = Animal</span>
+            <span>🟣 Roxo = Animal Infectado</span>
+            <span>🟠 Laranja = Humano hostil</span>
+            <span style="margin-top:4px;font-size:9px">Arraste os tokens para mover</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="supabase.js"></script>
+<script src="combate.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
