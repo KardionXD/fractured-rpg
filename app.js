@@ -1017,19 +1017,19 @@ function switchSalaAba(aba) {
 }
 
 function initSala() {
-  setTimeout(() => { initMapa(); initLayout(); }, 100);
-  renderCT();
-  renderBestiarioCT();
-  renderPlayersParaCT();
-  if (window.innerWidth <= 900) {
-    Object.values(SALA_ABAS).forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.classList.remove('aba-ativa');
-    });
-    document.getElementById('sala-col-feed')?.classList.add('aba-ativa');
-    document.getElementById('aba-feed')?.classList.add('active');
-  }
+  setTimeout(() => { initLayout(); }, 100);
 }
+
+function togglePanelMenu() {
+  const m = document.getElementById('panel-menu');
+  if (m) m.classList.toggle('open');
+}
+document.addEventListener('click', e => {
+  const m = document.getElementById('panel-menu');
+  if (m && !e.target.closest('[onclick="togglePanelMenu()"]') && !e.target.closest('#panel-menu')) {
+    m.classList.remove('open');
+  }
+});
 
 // Override navigate
 const _nav = navigate;
@@ -1064,31 +1064,12 @@ function aplicarFotoPersonagem(url) {
 
 // ── MASTER EXTRA INIT ─────────────────────────────
 function initMasterUI() {
-  // Seção mestre no CT
-  const ms = document.getElementById('ct-master-section');
-  if (ms) ms.style.display = '';
-  // Esconde botão player
-  const ps = document.getElementById('ct-player-section');
-  if (ps) ps.style.display = 'none';
-  // Botões mestre no mapa
-  ['btn-token-custom','btn-limpar-tokens','btn-importar-mapa'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.style.display = '';
-  });
+  // isMaster já está setado — o layout.js usa window.isMaster
+  // Os painéis são montados com visibilidade correta no mountPanelContent
 }
 
 function initPlayerUI() {
-  // Esconde seção mestre no CT
-  const ms = document.getElementById('ct-master-section');
-  if (ms) ms.style.display = 'none';
-  // Mostra botão de entrar no CT
-  const ps = document.getElementById('ct-player-section');
-  if (ps) ps.style.display = '';
-  // Esconde botões mestre no mapa
-  ['btn-token-custom','btn-limpar-tokens','btn-importar-mapa'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.style.display = 'none';
-  });
+  // isMaster=false — os painéis já ocultam bestiário e players automaticamente
 }
 
 // Chama no init após saber se é mestre ou player

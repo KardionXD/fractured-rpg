@@ -11,7 +11,6 @@
 
 <div class="app-layout">
 
-  <!-- TOPBAR -->
   <header class="topbar">
     <div class="topbar-brand">
       <span class="topbar-symbol">⬡</span>
@@ -24,7 +23,6 @@
     </div>
   </header>
 
-  <!-- SIDEBAR -->
   <nav class="sidebar">
     <div class="nav-section">
       <div class="nav-label">Menu</div>
@@ -46,7 +44,6 @@
         <div><div class="page-title">Ficha do Personagem</div><div class="page-sub">FRACTURED · d20</div></div>
         <button class="btn-ghost" onclick="salvarFicha()">💾 Salvar</button>
       </div>
-
       <div class="section-card">
         <div class="section-card-title">Identidade</div>
         <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap">
@@ -57,7 +54,7 @@
               <img id="char-foto-img" style="display:none;width:100%;height:100%;object-fit:cover">
             </div>
             <input type="file" id="char-foto-input" accept="image/*" style="display:none" onchange="uploadFotoPersonagem(this)">
-            <span style="font-size:8px;color:var(--muted);text-align:center">Clique para<br>trocar foto</span>
+            <span style="font-size:8px;color:var(--muted);text-align:center">Clique para trocar</span>
           </div>
           <div style="flex:1;display:flex;flex-direction:column;gap:8px;min-width:200px">
             <div class="grid-3">
@@ -78,17 +75,14 @@
           </div>
         </div>
       </div>
-
       <div class="section-card"><div class="section-card-title">Atributos — 15 pontos (máx 4)</div><div class="attr-grid" id="attr-grid"></div></div>
-
       <div class="section-card">
         <div class="section-card-title">Recursos</div>
         <div class="pip-row"><span class="pip-label">Pontos de Vida</span><div class="pips" id="pip-pv"></div><span class="pip-val" id="pip-pv-val">0/20</span></div>
-        <div style="font-size:10px;color:var(--muted);margin-bottom:10px;padding-left:108px" id="pv-formula">RES × 4 = máx 20</div>
+        <div style="font-size:10px;color:var(--muted);margin-bottom:8px;padding-left:108px" id="pv-formula">RES × 4 = máx 20</div>
         <div class="pip-row"><span class="pip-label">Suprimentos</span><div class="pips" id="pip-sup"></div><span class="pip-val" id="pip-sup-val">0/10</span></div>
-        <div class="pip-row" style="margin-top:6px"><span class="pip-label">Humanidade</span><div class="pips" id="pip-hum"></div><span class="pip-val" id="pip-hum-val">10/10</span></div>
+        <div class="pip-row" style="margin-top:5px"><span class="pip-label">Humanidade</span><div class="pips" id="pip-hum"></div><span class="pip-val" id="pip-hum-val">10/10</span></div>
       </div>
-
       <div class="section-card">
         <div class="section-card-title">Tensão</div>
         <div class="tensao-pips" id="tensao-pips-ficha"></div>
@@ -97,7 +91,6 @@
           <span><span style="color:#8e44ad">■</span> P=Perigo</span><span><span style="color:#7f8c8d">■</span> T=Terror</span>
         </div>
       </div>
-
       <div class="section-card">
         <div class="section-card-title">Veículo</div>
         <div class="grid-2">
@@ -126,7 +119,6 @@
           </div>
         </div>
       </div>
-
       <div class="section-card"><div class="section-card-title">Perícias</div><div id="pericias-list" class="gap-12"></div></div>
       <div class="section-card"><div class="section-card-title">Vínculos — Promessa &amp; Dívida</div><div id="vinculos-list"></div></div>
       <div class="grid-2">
@@ -137,197 +129,27 @@
 
     <!-- ══ SALA ══ -->
     <div id="page-sala" style="display:none">
-      <div class="page-header">
-        <div><div class="page-title">Sala de Jogo</div><div class="page-sub">Feed · Dados · Combate · Mapa</div></div>
-        <div style="display:flex;gap:6px;align-items:center">
-          <button class="btn-ghost" id="btn-layout" onclick="toggleLayoutMode()" style="font-size:10px;padding:5px 10px">✏️ Ajustar Layout</button>
-          <button class="btn-ghost" onclick="resetLayout()" style="font-size:10px;padding:5px 10px;color:var(--muted)">↺ Reset</button>
+      <!-- Topbar da sala -->
+      <div class="sala-topbar">
+        <div>
+          <div class="page-title" style="font-size:16px">Sala de Jogo</div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <!-- Menu painéis -->
+          <div style="position:relative">
+            <button class="btn-ghost" onclick="togglePanelMenu()" style="font-size:10px;padding:5px 10px">🪟 Painéis</button>
+            <div id="panel-menu" style="display:none;position:absolute;top:100%;right:0;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px;z-index:999;min-width:200px;display:flex;flex-direction:column;gap:4px">
+              <div id="panel-menu-list"></div>
+              <hr style="border-color:var(--border);margin:4px 0">
+              <button class="btn-ghost" onclick="resetAllPanels()" style="font-size:10px;padding:4px 8px;color:var(--muted)">↺ Resetar posições</button>
+            </div>
+          </div>
           <button class="btn-ghost" id="btn-limpar-historico" onclick="limparHistorico()" style="display:none;color:var(--red);border-color:var(--red-dim);font-size:10px;padding:5px 10px">🗑 Histórico</button>
         </div>
       </div>
 
-      <!-- Abas mobile -->
-      <div class="sala-abas">
-        <button class="sala-aba active" onclick="switchSalaAba('feed')"    id="aba-feed">💬</button>
-        <button class="sala-aba"        onclick="switchSalaAba('dados')"   id="aba-dados">🎲</button>
-        <button class="sala-aba"        onclick="switchSalaAba('combate')" id="aba-combate">⚔</button>
-        <button class="sala-aba"        onclick="switchSalaAba('mapa')"    id="aba-mapa">🗺</button>
-      </div>
-
-      <div class="sala-unified">
-
-        <!-- COL 1: FEED -->
-        <div class="sala-col sala-col-feed aba-ativa" id="sala-col-feed">
-          <div class="feed">
-            <div class="feed-header"><div class="feed-dot"></div>AO VIVO</div>
-            <div class="feed-messages" id="feed-messages">
-              <div class="empty-state"><div class="empty-icon">🎲</div><p>Role um dado para começar.</p></div>
-            </div>
-            <div class="feed-input-row">
-              <input type="text" class="feed-input" id="msg-input" placeholder="Mensagem..." onkeydown="if(event.key==='Enter')enviarMsg()">
-              <button class="btn-ghost" onclick="enviarMsg()">Enviar</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- COL 2: DADOS + TENSÃO -->
-        <div class="sala-col sala-col-dados" id="sala-col-dados">
-          <div style="overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:8px;padding:10px">
-            <!-- Tensão -->
-            <div class="section-card" style="margin:0">
-              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-                <span style="font-size:9px;font-weight:700;letter-spacing:2px;color:var(--muted);text-transform:uppercase">⚠ Tensão</span>
-                <div class="tensao-btns" id="tensao-master-btns" style="display:none">
-                  <button onclick="alterarTensao(-1)">−</button>
-                  <button onclick="alterarTensao(1)">+</button>
-                </div>
-              </div>
-              <div class="tensao-pips" id="tensao-pips-sala"></div>
-              <div class="tensao-status" id="tensao-status-text" style="margin-top:6px;font-size:12px">CALMA (0/10)</div>
-              <div style="font-size:9px;color:var(--muted);margin-top:2px" id="tensao-tip"></div>
-            </div>
-            <!-- Dados rápidos -->
-            <div class="section-card" style="margin:0">
-              <div class="section-card-title">Dados Rápidos</div>
-              <div class="dado-grid">
-                <button class="dado-btn" onclick="rolarDado(4)">d4</button>
-                <button class="dado-btn" onclick="rolarDado(6)">d6</button>
-                <button class="dado-btn" onclick="rolarDado(8)">d8</button>
-                <button class="dado-btn" onclick="rolarDado(10)">d10</button>
-                <button class="dado-btn" onclick="rolarDado(12)">d12</button>
-                <button class="dado-btn" onclick="rolarDado(20)">d20</button>
-                <button class="dado-btn" onclick="rolarDado(100)">d%</button>
-                <button class="dado-btn" onclick="rolarDado(6,2)">2d6</button>
-              </div>
-            </div>
-            <!-- Teste d20 -->
-            <div class="roll-formula" style="margin:0">
-              <div class="roll-formula-title">Teste — 1d20 + Mod + Perícia</div>
-              <div class="formula-grid">
-                <label class="formula-label">Atributo</label>
-                <select id="roll-atrib" class="formula-select">
-                  <option value="0">— nenhum —</option>
-                  <option value="-2">FOR −2</option><option value="-1">FOR −1</option><option value="0">FOR +0</option><option value="1">FOR +1</option><option value="2">FOR +2</option>
-                  <option value="-2">RES −2</option><option value="-1">RES −1</option><option value="0">RES +0</option><option value="1">RES +1</option><option value="2">RES +2</option>
-                  <option value="-2">COM −2</option><option value="-1">COM −1</option><option value="0">COM +0</option><option value="1">COM +1</option><option value="2">COM +2</option>
-                  <option value="-2">SOC −2</option><option value="-1">SOC −1</option><option value="0">SOC +0</option><option value="1">SOC +1</option><option value="2">SOC +2</option>
-                  <option value="-2">CON −2</option><option value="-1">CON −1</option><option value="0">CON +0</option><option value="1">CON +1</option><option value="2">CON +2</option>
-                  <option value="-2">AGI −2</option><option value="-1">AGI −1</option><option value="0">AGI +0</option><option value="1">AGI +1</option><option value="2">AGI +2</option>
-                </select>
-                <label class="formula-label">Perícia</label>
-                <select id="roll-pericia" class="formula-select">
-                  <option value="0">Sem perícia (+0)</option><option value="3">Com perícia (+3)</option>
-                </select>
-                <label class="formula-label">Situação</label>
-                <select id="roll-situacao" class="formula-select">
-                  <option value="0">Normal</option>
-                  <option value="3">+3 Vínculo Ativo</option><option value="2">+2 Ferramenta</option>
-                  <option value="2">+2 Aliado</option><option value="2">+2 Vantagem</option>
-                  <option value="-2">−2 Ferido &lt;50%</option><option value="-2">−2 Tensão Alta</option>
-                  <option value="-3">−3 Sem Equipamento</option><option value="-2">−2 Escuridão</option>
-                </select>
-                <label class="formula-label">Dificuldade</label>
-                <select id="roll-dif" class="formula-select">
-                  <option value="8">8 — Fácil</option><option value="11" selected>11 — Moderado</option>
-                  <option value="14">14 — Difícil</option><option value="17">17 — Severo</option><option value="20">20 — Extremo</option>
-                </select>
-              </div>
-              <button class="btn-primary" onclick="rolarFormula()" style="margin-top:8px">🎲 Rolar Teste</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- COL 3: COMBAT TRACKER -->
-        <div class="sala-col sala-col-combate" id="sala-col-combate">
-          <div class="ct-panel">
-            <div class="ct-panel-header">
-              <span class="ct-rodada-badge" id="ct-rodada">Rodada 1</span>
-              <span class="ct-turno-info" id="ct-turno-info">Não iniciado</span>
-            </div>
-            <div class="ct-panel-btns">
-              <button class="btn-ghost" onclick="iniciarCombate()" style="font-size:10px;padding:4px 8px">▶</button>
-              <button class="btn-ghost" onclick="proximoTurno()" style="font-size:10px;padding:4px 8px">⏭</button>
-              <button class="btn-ghost" id="btn-toggle-pv" onclick="togglePVInimigos()" style="font-size:10px;padding:4px 8px">👁 PV</button>
-              <button class="btn-ghost" onclick="encerrarCombate()" style="font-size:10px;padding:4px 8px;color:var(--red);border-color:var(--red-dim)">✕</button>
-            </div>
-
-            <!-- Busca inimigos (só mestre) -->
-            <div id="ct-master-section" style="display:none">
-              <div style="padding:5px 6px;border-bottom:1px solid var(--border)">
-                <input type="text" class="ct-filtro" id="ct-filtro" placeholder="🔍 Buscar inimigo..." oninput="renderBestiarioCT()">
-              </div>
-              <div class="ct-bestiario-mini" id="ct-bestiario-lista"></div>
-              <!-- Players com ficha -->
-              <div style="padding:4px 6px;border-bottom:1px solid var(--border)">
-                <div class="ct-categoria">Personagens dos Players</div>
-                <div id="ct-players-lista"></div>
-              </div>
-              <!-- Add PC manual -->
-              <div class="ct-add-pc">
-                <div class="field" style="flex:2"><label>Nome</label><input type="text" id="ct-pc-nome" placeholder="PC..."></div>
-                <div class="field" style="flex:1"><label>Ini</label><input type="number" id="ct-pc-ini" placeholder="10" min="1" max="30"></div>
-                <div class="field" style="flex:1"><label>PV</label><input type="number" id="ct-pc-pv" placeholder="20" min="1"></div>
-                <button class="btn-ghost" onclick="adicionarPCCT()" style="align-self:flex-end;font-size:10px;padding:5px">+PC</button>
-              </div>
-            </div>
-
-            <!-- Botão player: adicionar próprio personagem -->
-            <div id="ct-player-section" style="display:none;padding:8px">
-              <button class="btn-primary" onclick="adicionarMeuPersonagem()" style="margin:0">🧑 Entrar no Mapa</button>
-            </div>
-
-            <!-- Lista combatentes -->
-            <div class="ct-scroll" id="ct-lista"></div>
-          </div>
-        </div>
-
-        <!-- COL 4: MAPA (maior) -->
-        <div class="sala-col sala-col-mapa" id="sala-col-mapa">
-          <div class="mapa-wrap">
-            <!-- Toolbar linha 1 -->
-            <div class="mapa-toolbar">
-              <button class="btn-ghost" onclick="importarMapaImg()" style="font-size:10px;padding:4px 8px" id="btn-importar-mapa" title="Importar imagem de mapa">📁 Mapa</button>
-              <button class="btn-ghost" id="btn-grid" onclick="toggleGrid()" style="font-size:10px;padding:4px 8px">⬛ Ocultar Grid</button>
-              <button class="btn-ghost" id="btn-regua" onclick="toggleRegua()" style="font-size:10px;padding:4px 8px">📏 Régua</button>
-              <div style="display:flex;align-items:center;gap:3px;font-size:10px;color:var(--muted)">
-                <button class="ct-pv-btn" onclick="alterarGrid(-5)" title="Diminuir grid">−</button>
-                <span id="grid-size-val" style="min-width:32px;text-align:center">60px</span>
-                <button class="ct-pv-btn" onclick="alterarGrid(5)" title="Aumentar grid">+</button>
-              </div>
-              <div style="display:flex;align-items:center;gap:3px;font-size:10px;color:var(--muted)">
-                <span>1cel=</span>
-                <input type="number" value="1.5" min="0.5" max="10" step="0.5"
-                  style="width:40px;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:3px;font-size:10px;text-align:center"
-                  onchange="metrosPorCelula=parseFloat(this.value)||1.5">
-                <span>m</span>
-              </div>
-              <!-- Zoom -->
-              <div style="display:flex;align-items:center;gap:3px;font-size:10px;color:var(--muted);margin-left:auto">
-                <button class="ct-pv-btn" onclick="mapaZoom=Math.max(0.3,mapaZoom-0.2);desenharMapa()" title="Zoom out">−</button>
-                <span style="min-width:34px;text-align:center" id="zoom-label">100%</span>
-                <button class="ct-pv-btn" onclick="mapaZoom=Math.min(4,mapaZoom+0.2);desenharMapa()" title="Zoom in">+</button>
-                <button class="ct-pv-btn" onclick="resetZoom()" title="Reset zoom" style="font-size:9px;width:auto;padding:0 5px">↺</button>
-              </div>
-            </div>
-            <!-- Toolbar linha 2 -->
-            <div class="mapa-toolbar" style="border-top:none;padding-top:2px;padding-bottom:6px">
-              <button class="btn-ghost" onclick="adicionarMeuPersonagem()" style="font-size:10px;padding:4px 8px">🧑 Entrar no Mapa</button>
-              <button class="btn-ghost" id="btn-token-custom" onclick="abrirCriarTokenCustom()" style="font-size:10px;padding:4px 8px;display:none">⭐ +Token</button>
-              <button class="btn-ghost" onclick="limparTokens()" id="btn-limpar-tokens" style="font-size:10px;padding:4px 8px;display:none;color:var(--red);border-color:var(--red-dim)">🗑 Limpar</button>
-              <span style="font-size:9px;color:var(--muted);margin-left:auto">Alt+Arrastar = mover mapa · Scroll = zoom</span>
-            </div>
-
-            <!-- Canvas -->
-            <div class="mapa-canvas-area">
-              <canvas id="mapa-canvas"></canvas>
-            </div>
-
-            <!-- Info token -->
-            <div id="token-info" style="display:none;padding:10px;background:var(--surface2);border-top:1px solid var(--border);flex-shrink:0"></div>
-          </div>
-        </div>
-
-      </div>
+      <!-- Canvas flutuante -->
+      <div id="sala-canvas"></div>
     </div>
 
     <!-- ══ NOTAS ══ -->
