@@ -236,14 +236,65 @@ async function adicionarMeuPersonagem() {
 }
 
 function definirControlador(combId) {
-  const nome = prompt('Nome do player que vai controlar (deixe vazio para remover):');
+  // Abre modal de atribuição
   const c = combatentes.find(x => x.id === combId);
   if (!c) return;
-  c.controlador = nome?.trim() || null;
-  // Atualiza token também
+
+  const modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px';
+  modal.innerHTML = `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px;width:100%;max-width:320px">
+      <div style="font-size:13px;font-weight:700;margin-bottom:12px">👤 Atribuir Controle — ${c.nome}</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:10px">Quem vai controlar este token?</div>
+      <div id="ctrl-players-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">
+        <div style="font-size:11px;color:var(--muted)">Carregando players...</div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn-ghost" style="flex:1" onclick="this.closest('[style*=fixed]').remove()">Cancelar</button>
+        <button class="btn-ghost" style="color:var(--red);border-color:var(--red-dim)" onclick="removerControlador('${combId}');this.closest('[style*=fixed]').remove()">Remover controle</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); });
+
+  // Carrega lista de players
+  db.from('profiles').select('id,username').eq('is_master',false).then(({data}) => {
+    const lista = document.getElementById('ctrl-players-list');
+    if (!lista || !data?.length) return;
+    lista.innerHTML = '';
+    data.forEach(p => {
+      const btn = document.createElement('button');
+      btn.className = 'ct-inimigo-item';
+      btn.style.cssText = 'cursor:pointer;border:none;text-align:left;width:100%;background:var(--surface2)';
+      btn.innerHTML = `<span style="font-size:18px">🧑</span><span style="font-size:12px;flex:1">${p.username}</span><span style="font-size:10px;color:var(--muted)">${c.controlador===p.username?'✓ Atual':''}</span>`;
+      btn.onclick = () => {
+        atribuirControlador(combId, p.username);
+        modal.remove();
+      };
+      lista.appendChild(btn);
+    });
+  });
+}
+
+function atribuirControlador(combId, username) {
+  const c = combatentes.find(x => x.id === combId);
+  if (!c) return;
+  c.controlador = username;
   const t = tokens.find(x => x.id === combId);
-  if (t) { t.controladorNome = c.controlador; salvarMapaDB(); }
+  if (t) { t.controladorNome = username; salvarMapaDB(); }
   renderCT();
+  toast(`Controle de "${c.nome}" atribuído a ${username}!`, 'ok');
+}
+
+function removerControlador(combId) {
+  const c = combatentes.find(x => x.id === combId);
+  if (!c) return;
+  c.controlador = null;
+  const t = tokens.find(x => x.id === combId);
+  if (t) { t.controladorNome = null; salvarMapaDB(); }
+  renderCT();
+  toast('Controle removido.', 'ok');
 }
 
 function adicionarPCCT() {
@@ -733,15 +784,31 @@ function limparTokens(){
 
 // ── PERSISTÊNCIA ──────────────────────────────────
 async function salvarMapaDB(){
-  if(!isMaster) return;
+  // Players podem salvar seus próprios tokens (posição + PV)
+  // Mestre salva tudo (grid, mapa, todos os tokens)
   try{
-    await db.from('mapa_estado').upsert({
-      id:'sessao_atual',
-      tokens:tokens.map(t=>({...t})),
-      grid_size:gridSize, grid_visivel:gridVisivel,
-      mapa_url:mapaUrl||null,
-      updated_at:new Date().toISOString()
-    });
+    if(isMaster){
+      await db.from('mapa_estado').upsert({
+        id:'sessao_atual',
+        tokens:tokens.map(t=>({...t})),
+        grid_size:gridSize, grid_visivel:gridVisivel,
+        mapa_url:mapaUrl||null,
+        updated_at:new Date().toISOString()
+      });
+    } else {
+      // Player: carrega estado atual e atualiza apenas seus tokens
+      const { data } = await db.from('mapa_estado').select('tokens').eq('id','sessao_atual').single();
+      let tokensAtuais = data?.tokens || [];
+      // Remove tokens desse player e adiciona os novos
+      tokensAtuais = tokensAtuais.filter(t => t.userId !== currentUser.id);
+      const meusTokens = tokens.filter(t => t.userId === currentUser.id);
+      tokensAtuais = [...tokensAtuais, ...meusTokens];
+      await db.from('mapa_estado').upsert({
+        id:'sessao_atual',
+        tokens:tokensAtuais,
+        updated_at:new Date().toISOString()
+      });
+    }
   }catch(e){console.error('salvarMapaDB:',e);}
 }
 

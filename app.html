@@ -139,7 +139,11 @@
     <div id="page-sala" style="display:none">
       <div class="page-header">
         <div><div class="page-title">Sala de Jogo</div><div class="page-sub">Feed · Dados · Combate · Mapa</div></div>
-        <button class="btn-ghost" id="btn-limpar-historico" onclick="limparHistorico()" style="display:none;color:var(--red);border-color:var(--red-dim)">🗑 Histórico</button>
+        <div style="display:flex;gap:6px;align-items:center">
+          <button class="btn-ghost" id="btn-layout" onclick="toggleLayoutMode()" style="font-size:10px;padding:5px 10px">✏️ Ajustar Layout</button>
+          <button class="btn-ghost" onclick="resetLayout()" style="font-size:10px;padding:5px 10px;color:var(--muted)">↺ Reset</button>
+          <button class="btn-ghost" id="btn-limpar-historico" onclick="limparHistorico()" style="display:none;color:var(--red);border-color:var(--red-dim);font-size:10px;padding:5px 10px">🗑 Histórico</button>
+        </div>
       </div>
 
       <!-- Abas mobile -->
@@ -394,6 +398,7 @@
 
 <script src="supabase.js"></script>
 <script src="combate.js"></script>
+<script src="layout.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

@@ -1017,13 +1017,10 @@ function switchSalaAba(aba) {
 }
 
 function initSala() {
-  // Inicializa mapa
-  setTimeout(() => { initMapa(); }, 100);
-  // CT
+  setTimeout(() => { initMapa(); initLayout(); }, 100);
   renderCT();
   renderBestiarioCT();
   renderPlayersParaCT();
-  // No mobile, mostra só feed
   if (window.innerWidth <= 900) {
     Object.values(SALA_ABAS).forEach(id => {
       const el = document.getElementById(id);
