@@ -57,6 +57,7 @@ async function init() {
     document.getElementById('master-badge').style.display = '';
     document.getElementById('nav-master-section').style.display = '';
     document.getElementById('btn-limpar-historico').style.display = '';
+    document.getElementById('btn-token-custom').style.display = '';
     const mb = document.getElementById('tensao-master-btns-mobile');
     if (mb) mb.style.display = '';
   }
@@ -1073,6 +1074,13 @@ window.navigate = function(page) {
       initMapa();
       renderCT();
       renderBestiarioCT();
+      // no desktop, mostra todas as colunas
+      if (window.innerWidth > 900) {
+        Object.values(SALA_ABAS).forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.style.display = 'flex';
+        });
+      }
     }, 80);
   }
 };

@@ -296,7 +296,7 @@
                 <input type="text" id="mapa-pc-nome" placeholder="Nome do PC..." style="font-size:11px;padding:5px 8px">
               </div>
               <button class="btn-ghost" onclick="adicionarTokenPC()" style="font-size:10px;padding:5px 8px;white-space:nowrap">🧑 +PC</button>
-              ${isMaster?`<button class="btn-ghost" onclick="abrirCriarTokenCustom()" style="font-size:10px;padding:5px 8px;white-space:nowrap">⭐ +Custom</button>`:''}
+              <button class="btn-ghost" id="btn-token-custom" onclick="abrirCriarTokenCustom()" style="font-size:10px;padding:5px 8px;white-space:nowrap;display:none">⭐ +Custom</button>
               <button class="btn-ghost" onclick="limparTokens()" style="font-size:10px;padding:5px 8px;color:var(--red);border-color:var(--red-dim)">🗑</button>
             </div>
 

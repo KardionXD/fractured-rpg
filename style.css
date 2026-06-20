@@ -1244,3 +1244,28 @@ h1,h2,h3 { letter-spacing: .04em; }
   z-index: 200;
   display: none;
 }
+
+/* ── SALA DESKTOP — forçar visibilidade das colunas ── */
+@media (min-width: 901px) {
+  .sala-col { display: flex !important; }
+  .sala-abas { display: none !important; }
+  .sala-unified {
+    grid-template-columns: minmax(260px,1fr) 260px 280px minmax(300px,1.2fr);
+  }
+}
+
+/* ── SALA MOBILE — só mostra aba ativa ─────────────── */
+@media (max-width: 900px) {
+  .sala-abas { display: flex; }
+  .sala-unified { grid-template-columns: 1fr; }
+  .sala-col { display: none; height: 480px; }
+  .sala-col.aba-ativa { display: flex; }
+  .sala-col-mapa.aba-ativa { height: 520px; }
+}
+
+/* Histório button no topo direito da sala */
+#btn-limpar-historico {
+  position: absolute;
+  top: 0; right: 0;
+}
+.page-header { position: relative; }
