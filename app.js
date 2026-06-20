@@ -21,12 +21,12 @@ const TENSAO_TYPES = ['C','C','C','A','A','A','P','P','T','T'];
 
 // ── INIT ──────────────────────────────────────────
 async function init() {
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { session } } = await db.auth.getSession();
   if (!session) { window.location.href = 'index.html'; return; }
 
   currentUser = session.user;
 
-  const { data: profile } = await supabase
+  const { data: profile } = await db
     .from('profiles')
     .select('*')
     .eq('id', currentUser.id)
@@ -80,7 +80,7 @@ function toast(msg, tipo = 'ok') {
 
 // ── LOGOUT ────────────────────────────────────────
 async function logout() {
-  await supabase.auth.signOut();
+  await db.auth.signOut();
   window.location.href = 'index.html';
 }
 
@@ -382,7 +382,7 @@ function aplicarFicha(d) {
 }
 
 async function carregarFicha() {
-  const { data } = await supabase
+  const { data } = await db
     .from('fichas')
     .select('*')
     .eq('user_id', currentUser.id)
@@ -405,9 +405,9 @@ async function salvarFicha(silencioso = false) {
   let error;
 
   if (fichaId) {
-    ({ error } = await supabase.from('fichas').update(dados).eq('id', fichaId));
+    ({ error } = await db.from('fichas').update(dados).eq('id', fichaId));
   } else {
-    const { data, error: e } = await supabase.from('fichas').insert(dados).select().single();
+    const { data, error: e } = await db.from('fichas').insert(dados).select().single();
     error = e;
     if (data) fichaId = data.id;
   }
@@ -430,7 +430,7 @@ function subscribeToSala() {
   carregarTensaoSala();
 
   // Subscribe realtime
-  realtimeSub = supabase
+  realtimeSub = db
     .channel('sala-publica')
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'sala' }, payload => {
       const msg = payload.new;
@@ -444,7 +444,7 @@ function subscribeToSala() {
 }
 
 async function carregarFeed() {
-  const { data } = await supabase
+  const { data } = await db
     .from('sala')
     .select('*')
     .order('created_at', { ascending: true })
@@ -461,7 +461,7 @@ async function carregarFeed() {
 }
 
 async function carregarTensaoSala() {
-  const { data } = await supabase
+  const { data } = await db
     .from('sala')
     .select('conteudo')
     .eq('tipo', 'tensao')
@@ -535,7 +535,7 @@ function scrollFeedToBottom() {
 }
 
 async function publicarSala(tipo, conteudo) {
-  await supabase.from('sala').insert({
+  await db.from('sala').insert({
     user_id: currentUser.id,
     username: currentProfile.username,
     tipo,
@@ -612,7 +612,7 @@ async function alterarTensao(delta) {
 let notas = [];
 
 async function carregarNotas() {
-  const { data } = await supabase
+  const { data } = await db
     .from('notas_sessao')
     .select('*')
     .eq('user_id', currentUser.id)
@@ -667,9 +667,9 @@ async function salvarNota() {
   let error;
 
   if (notaAtual?.id) {
-    ({ error } = await supabase.from('notas_sessao').update(payload).eq('id', notaAtual.id));
+    ({ error } = await db.from('notas_sessao').update(payload).eq('id', notaAtual.id));
   } else {
-    const { data, error: e } = await supabase.from('notas_sessao').insert(payload).select().single();
+    const { data, error: e } = await db.from('notas_sessao').insert(payload).select().single();
     error = e;
     if (data) notaAtual = data;
   }
@@ -683,7 +683,7 @@ async function salvarNota() {
 async function deletarNota() {
   if (!notaAtual?.id) return;
   if (!confirm('Excluir esta nota?')) return;
-  await supabase.from('notas_sessao').delete().eq('id', notaAtual.id);
+  await db.from('notas_sessao').delete().eq('id', notaAtual.id);
   notaAtual = null;
   document.getElementById('nota-titulo').value = '';
   document.getElementById('nota-corpo').value = '';
@@ -699,7 +699,7 @@ async function carregarPlayers() {
   const grid = document.getElementById('players-grid');
   grid.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><p>Carregando...</p></div>';
 
-  const { data: profiles } = await supabase
+  const { data: profiles } = await db
     .from('profiles')
     .select('id, username, is_master')
     .eq('is_master', false);
@@ -710,7 +710,7 @@ async function carregarPlayers() {
   }
 
   const ids = profiles.map(p => p.id);
-  const { data: fichas } = await supabase
+  const { data: fichas } = await db
     .from('fichas')
     .select('*')
     .in('user_id', ids);
