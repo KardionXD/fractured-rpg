@@ -901,7 +901,6 @@ async function verFichaCompleta(userId) {
 }
 
 // ── START ─────────────────────────────────────────
-init();
 
 // ══════════════════════════════════════════════════
 //  INTEGRAÇÃO MAPA + COMBATE
@@ -995,10 +994,16 @@ function appendFeedMsg(msg) {
   scrollFeedToBottom();
 }
 
+
 // ══════════════════════════════════════════════════
-//  SALA — ABAS MOBILE
+//  SALA ABAS + FOTO + INTEGRAÇÃO
 // ══════════════════════════════════════════════════
-const SALA_ABAS = { feed:'sala-col-feed', dados:'sala-col-dados', combate:'sala-col-combate', mapa:'sala-col-mapa' };
+const SALA_ABAS = {
+  feed:    'sala-col-feed',
+  dados:   'sala-col-dados',
+  combate: 'sala-col-combate',
+  mapa:    'sala-col-mapa'
+};
 
 function switchSalaAba(aba) {
   Object.entries(SALA_ABAS).forEach(([key, colId]) => {
@@ -1007,52 +1012,48 @@ function switchSalaAba(aba) {
     if (col) col.classList.toggle('aba-ativa', key === aba);
     if (btn) btn.classList.toggle('active', key === aba);
   });
-  if (aba === 'mapa') { setTimeout(() => { if (!canvas) initMapa(); else desenharMapa(); }, 50); }
-  if (aba === 'combate') { renderCT(); renderBestiarioCT(); }
+  if (aba === 'mapa') setTimeout(() => { initMapa(); desenharMapa(); }, 50);
+  if (aba === 'combate') { renderCT(); renderBestiarioCT(); renderPlayersParaCT(); }
 }
 
-// ── Inicializa abas no mobile ──────────────────────
-function initSalaAbas() {
-  // No desktop todas as colunas ficam visíveis
-  // No mobile mostra só o feed por padrão
+function initSala() {
+  // Inicializa mapa
+  setTimeout(() => { initMapa(); }, 100);
+  // CT
+  renderCT();
+  renderBestiarioCT();
+  renderPlayersParaCT();
+  // No mobile, mostra só feed
   if (window.innerWidth <= 900) {
     Object.values(SALA_ABAS).forEach(id => {
       const el = document.getElementById(id);
       if (el) el.classList.remove('aba-ativa');
     });
     document.getElementById('sala-col-feed')?.classList.add('aba-ativa');
+    document.getElementById('aba-feed')?.classList.add('active');
   }
 }
 
-// ══════════════════════════════════════════════════
-//  FOTO DO PERSONAGEM
-// ══════════════════════════════════════════════════
+// Override navigate
+const _nav = navigate;
+window.navigate = function(page) {
+  _nav(page);
+  if (page === 'sala') initSala();
+};
+
+// ── FOTO DO PERSONAGEM ────────────────────────────
 async function uploadFotoPersonagem(input) {
   const file = input.files[0]; if (!file) return;
-  const ext = file.name.split('.').pop();
+  const ext  = file.name.split('.').pop();
   const path = `${currentUser.id}/personagem.${ext}`;
-
   const { error } = await db.storage.from('tokens').upload(path, file, { upsert: true });
-  if (error) { toast('Erro no upload: ' + error.message, 'err'); return; }
-
+  if (error) { toast('Erro: ' + error.message, 'err'); return; }
   const { data } = db.storage.from('tokens').getPublicUrl(path);
   const url = data.publicUrl;
-
-  // Atualiza UI
-  const img = document.getElementById('char-foto-img');
-  const ph  = document.getElementById('char-foto-placeholder');
-  if (img) { img.src = url; img.style.display = 'block'; }
-  if (ph)  ph.style.display = 'none';
-
-  // Salva na ficha
-  if (fichaId) {
-    await db.from('fichas').update({ foto_url: url, updated_at: new Date().toISOString() }).eq('id', fichaId);
-  }
-
-  // Atualiza token do player no mapa se existir
-  const tokenPlayer = tokens.find(t => t.isPC && t.userId === currentUser.id);
-  if (tokenPlayer) { tokenPlayer.imgUrl = url; desenharMapa(); salvarMapaDB(); }
-
+  aplicarFotoPersonagem(url);
+  if (fichaId) await db.from('fichas').update({ foto_url: url }).eq('id', fichaId);
+  const t = tokens.find(x => x.isPC && x.userId === currentUser.id);
+  if (t) { t.imgUrl = url; desenharMapa(); salvarMapaDB(); }
   toast('Foto atualizada!', 'ok');
 }
 
@@ -1064,23 +1065,39 @@ function aplicarFotoPersonagem(url) {
   if (ph)  ph.style.display = 'none';
 }
 
-// ── Hook na navigate para inicializar mapa e CT ───
-const _origNavigate = navigate;
-window.navigate = function(page) {
-  _origNavigate(page);
-  if (page === 'sala') {
-    setTimeout(() => {
-      initSalaAbas();
-      initMapa();
-      renderCT();
-      renderBestiarioCT();
-      // no desktop, mostra todas as colunas
-      if (window.innerWidth > 900) {
-        Object.values(SALA_ABAS).forEach(id => {
-          const el = document.getElementById(id);
-          if (el) el.style.display = 'flex';
-        });
-      }
-    }, 80);
-  }
+// ── MASTER EXTRA INIT ─────────────────────────────
+function initMasterUI() {
+  // Seção mestre no CT
+  const ms = document.getElementById('ct-master-section');
+  if (ms) ms.style.display = '';
+  // Esconde botão player
+  const ps = document.getElementById('ct-player-section');
+  if (ps) ps.style.display = 'none';
+  // Botões mestre no mapa
+  ['btn-token-custom','btn-limpar-tokens','btn-importar-mapa'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = '';
+  });
+}
+
+function initPlayerUI() {
+  // Esconde seção mestre no CT
+  const ms = document.getElementById('ct-master-section');
+  if (ms) ms.style.display = 'none';
+  // Mostra botão de entrar no CT
+  const ps = document.getElementById('ct-player-section');
+  if (ps) ps.style.display = '';
+  // Esconde botões mestre no mapa
+  ['btn-token-custom','btn-limpar-tokens','btn-importar-mapa'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+}
+
+// Chama no init após saber se é mestre ou player
+const _origInit = init;
+window.init = async function() {
+  await _origInit();
+  if (isMaster) initMasterUI(); else initPlayerUI();
 };
+init();
