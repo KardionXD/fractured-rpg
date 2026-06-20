@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FRACTURED RPG</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="login-page">
+
+<div class="login-container">
+  <div class="login-brand">
+    <div class="brand-symbol">⬡</div>
+    <h1 class="brand-title">FRACTURED</h1>
+    <p class="brand-sub">RPG DE SOBREVIVÊNCIA · SISTEMA D20</p>
+    <p class="brand-quote">"Não é o fungo que te destrói.<br>É o que você se torna para sobreviver a ele."</p>
+  </div>
+
+  <div class="login-card">
+    <div class="tab-row">
+      <button class="tab active" onclick="switchTab('login')">Entrar</button>
+      <button class="tab" onclick="switchTab('register')">Cadastrar</button>
+    </div>
+
+    <!-- LOGIN -->
+    <div id="tab-login">
+      <div class="field">
+        <label>Email</label>
+        <input type="email" id="login-email" placeholder="seu@email.com">
+      </div>
+      <div class="field">
+        <label>Senha</label>
+        <input type="password" id="login-password" placeholder="••••••••">
+      </div>
+      <button class="btn-primary" onclick="login()">Entrar</button>
+    </div>
+
+    <!-- REGISTER -->
+    <div id="tab-register" style="display:none">
+      <div class="field">
+        <label>Nome do Jogador</label>
+        <input type="text" id="reg-username" placeholder="Como você quer ser chamado">
+      </div>
+      <div class="field">
+        <label>Email</label>
+        <input type="email" id="reg-email" placeholder="seu@email.com">
+      </div>
+      <div class="field">
+        <label>Senha</label>
+        <input type="password" id="reg-password" placeholder="mínimo 6 caracteres">
+      </div>
+      <div class="field">
+        <label>Código do Mestre <span class="muted">(deixe em branco se for player)</span></label>
+        <input type="text" id="reg-master" placeholder="Código secreto do mestre">
+      </div>
+      <button class="btn-primary" onclick="register()">Criar Conta</button>
+    </div>
+
+    <div id="auth-msg" class="auth-msg"></div>
+  </div>
+</div>
+
+<script src="supabase.js"></script>
+<script>
+function switchTab(tab) {
+  document.getElementById('tab-login').style.display = tab === 'login' ? 'block' : 'none';
+  document.getElementById('tab-register').style.display = tab === 'register' ? 'block' : 'none';
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', (i===0) === (tab==='login')));
+  document.getElementById('auth-msg').textContent = '';
+}
+
+function showMsg(msg, err=false) {
+  const el = document.getElementById('auth-msg');
+  el.textContent = msg;
+  el.className = 'auth-msg ' + (err ? 'error' : 'success');
+}
+
+async function login() {
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  if (!email || !password) return showMsg('Preencha email e senha.', true);
+
+  showMsg('Entrando...');
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) return showMsg(error.message, true);
+  window.location.href = 'app.html';
+}
+
+async function register() {
+  const username = document.getElementById('reg-username').value.trim();
+  const email = document.getElementById('reg-email').value.trim();
+  const password = document.getElementById('reg-password').value;
+  const masterCode = document.getElementById('reg-master').value.trim();
+
+  if (!username || !email || !password) return showMsg('Preencha todos os campos obrigatórios.', true);
+  if (password.length < 6) return showMsg('Senha precisa ter pelo menos 6 caracteres.', true);
+
+  const isMaster = masterCode === 'GUARDA2024';
+
+  showMsg('Criando conta...');
+  const { data, error } = await supabase.auth.signUp({ email, password });
+  if (error) return showMsg(error.message, true);
+
+  const { error: profileError } = await supabase.from('profiles').insert({
+    id: data.user.id,
+    username,
+    is_master: isMaster
+  });
+
+  if (profileError) return showMsg('Conta criada! Faça login.', false);
+  showMsg('Conta criada! Entrando...', false);
+  setTimeout(() => window.location.href = 'app.html', 1000);
+}
+
+// Se já logado, redireciona
+supabase.auth.getSession().then(({ data }) => {
+  if (data.session) window.location.href = 'app.html';
+});
+</script>
+</body>
+</html>

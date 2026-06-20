@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FRACTURED RPG</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="app-layout">
+
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <div class="topbar-brand">
+      <span class="topbar-symbol">⬡</span>
+      <span class="topbar-title">FRACTURED</span>
+      <span class="topbar-badge" id="master-badge" style="display:none">MESTRE</span>
+    </div>
+    <div class="topbar-right">
+      <span class="topbar-user">Olá, <strong id="topbar-username">...</strong></span>
+      <button class="btn-ghost" onclick="logout()">Sair</button>
+    </div>
+  </header>
+
+  <!-- SIDEBAR -->
+  <nav class="sidebar">
+    <div class="nav-section">
+      <div class="nav-label">Jogador</div>
+      <button class="nav-item active" onclick="navigate('ficha')" id="nav-ficha">
+        <span class="icon">📋</span> Ficha
+      </button>
+      <button class="nav-item" onclick="navigate('sala')" id="nav-sala">
+        <span class="icon">🎲</span> Sala
+      </button>
+      <button class="nav-item" onclick="navigate('notas')" id="nav-notas">
+        <span class="icon">📓</span> Notas
+      </button>
+    </div>
+    <div class="nav-section" id="nav-master-section" style="display:none">
+      <div class="nav-label">Mestre</div>
+      <button class="nav-item" onclick="navigate('master')" id="nav-master">
+        <span class="icon">👁</span> Players
+      </button>
+    </div>
+  </nav>
+
+  <!-- MAIN -->
+  <main class="main-content">
+
+    <!-- ═══ FICHA ══════════════════════════════════ -->
+    <div id="page-ficha">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Ficha do Personagem</div>
+          <div class="page-sub">FRACTURED · Sistema d20</div>
+        </div>
+        <button class="btn-ghost" onclick="salvarFicha()">💾 Salvar</button>
+      </div>
+
+      <!-- IDENTIDADE -->
+      <div class="section-card">
+        <div class="section-card-title">Identidade</div>
+        <div class="grid-3" style="margin-bottom:10px">
+          <div class="field">
+            <label>Nome do Personagem</label>
+            <input type="text" id="f-nome" placeholder="..." oninput="autoSave()">
+          </div>
+          <div class="field">
+            <label>Jogador</label>
+            <input type="text" id="f-jogador" placeholder="..." oninput="autoSave()">
+          </div>
+          <div class="field">
+            <label>Profissão</label>
+            <select id="f-profissao" onchange="autoSave()">
+              <option value="">Selecionar...</option>
+              <option>Médico de Campo</option>
+              <option>Mecânico</option>
+              <option>Ex-Policial</option>
+              <option>Engenheiro Civil</option>
+              <option>Jornalista</option>
+              <option>Atirador Militar</option>
+              <option>Agricultor / Botânico</option>
+              <option>Psicólogo / Conselheiro</option>
+              <option>Químico / Farmacêutico</option>
+              <option>Líder Comunitário</option>
+              <option>Ladrão / Arrombador</option>
+              <option>Sem Profissão Definida</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label>Trauma Central</label>
+          <input type="text" id="f-trauma" placeholder="O evento que te assombra..." oninput="autoSave()">
+        </div>
+      </div>
+
+      <!-- ATRIBUTOS -->
+      <div class="section-card">
+        <div class="section-card-title">Atributos — distribua 15 pontos (máx 4 por atributo)</div>
+        <div class="attr-grid" id="attr-grid"></div>
+      </div>
+
+      <!-- RECURSOS -->
+      <div class="section-card">
+        <div class="section-card-title">Recursos</div>
+        <div class="pip-row">
+          <span class="pip-label">Pontos de Vida</span>
+          <div class="pips" id="pip-pv"></div>
+          <span class="pip-val" id="pip-pv-val">0/20</span>
+        </div>
+        <div style="font-size:10px;color:var(--muted);margin-bottom:10px;margin-left:108px" id="pv-formula">RES × 4 = máx 20</div>
+        <div class="pip-row">
+          <span class="pip-label">Suprimentos</span>
+          <div class="pips" id="pip-sup"></div>
+          <span class="pip-val" id="pip-sup-val">0/10</span>
+        </div>
+        <div class="pip-row" style="margin-top:6px">
+          <span class="pip-label">Humanidade</span>
+          <div class="pips" id="pip-hum"></div>
+          <span class="pip-val" id="pip-hum-val">10/10</span>
+        </div>
+      </div>
+
+      <!-- TENSÃO -->
+      <div class="section-card">
+        <div class="section-card-title">Tensão</div>
+        <div class="tensao-pips" id="tensao-pips-ficha"></div>
+        <div style="margin-top:8px;font-size:9px;color:var(--muted);display:flex;gap:14px;flex-wrap:wrap">
+          <span><span style="color:#e67e22">■</span> C = Calma (1-3)</span>
+          <span><span style="color:#c0392b">■</span> A = Alerta (4-6)</span>
+          <span><span style="color:#8e44ad">■</span> P = Perigo (7-8)</span>
+          <span><span style="color:#7f8c8d">■</span> T = Terror (9-10)</span>
+        </div>
+      </div>
+
+      <!-- VEÍCULO -->
+      <div class="section-card">
+        <div class="section-card-title">Veículo</div>
+        <div class="grid-2" style="margin-bottom:10px">
+          <div class="field">
+            <label>Tipo</label>
+            <select id="f-veiculo-tipo" onchange="autoSave()">
+              <option value="">Nenhum</option>
+              <option>Bicicleta</option>
+              <option>Motocicleta</option>
+              <option>Sedan / Utilitário</option>
+              <option>Caminhonete / Pickup</option>
+              <option>Ônibus / Caminhão</option>
+              <option>Barco a Motor</option>
+            </select>
+          </div>
+          <div style="display:flex;gap:8px">
+            <div class="field" style="flex:1">
+              <label>Integridade</label>
+              <div style="display:flex;gap:4px;align-items:center">
+                <input type="number" id="f-vti-a" min="0" max="20" placeholder="0" style="text-align:center" oninput="autoSave()">
+                <span style="color:var(--muted)">/</span>
+                <input type="number" id="f-vti-m" min="0" max="20" placeholder="0" style="text-align:center" oninput="autoSave()">
+              </div>
+            </div>
+            <div class="field" style="flex:1">
+              <label>Combustível</label>
+              <div style="display:flex;gap:4px;align-items:center">
+                <input type="number" id="f-vcomb-a" min="0" max="20" placeholder="0" style="text-align:center" oninput="autoSave()">
+                <span style="color:var(--muted)">/</span>
+                <input type="number" id="f-vcomb-m" min="0" max="20" placeholder="0" style="text-align:center" oninput="autoSave()">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PERÍCIAS -->
+      <div class="section-card">
+        <div class="section-card-title">Perícias Ativas</div>
+        <div id="pericias-list" class="gap-12"></div>
+      </div>
+
+      <!-- VÍNCULOS -->
+      <div class="section-card">
+        <div class="section-card-title">Vínculos — Promessa &amp; Dívida</div>
+        <div id="vinculos-list"></div>
+      </div>
+
+      <!-- INVENTÁRIO / NOTAS -->
+      <div class="grid-2">
+        <div class="section-card">
+          <div class="section-card-title">Inventário</div>
+          <textarea id="f-inventario" placeholder="Itens, armas, equipamentos..." rows="5" oninput="autoSave()" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--font);font-size:12px;padding:10px;resize:vertical;width:100%;outline:none;line-height:1.7" onfocus="this.style.borderColor='var(--red)'" onblur="this.style.borderColor='var(--border)'"></textarea>
+        </div>
+        <div class="section-card">
+          <div class="section-card-title">Notas / Trauma / Memórias</div>
+          <textarea id="f-notas" placeholder="Memórias, traumas, observações..." rows="5" oninput="autoSave()" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--font);font-size:12px;padding:10px;resize:vertical;width:100%;outline:none;line-height:1.7" onfocus="this.style.borderColor='var(--red)'" onblur="this.style.borderColor='var(--border)'"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ SALA ════════════════════════════════════ -->
+    <div id="page-sala" style="display:none">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Sala de Jogo</div>
+          <div class="page-sub">Rolls e tensão em tempo real</div>
+        </div>
+      </div>
+      <div class="sala-layout">
+        <!-- FEED -->
+        <div class="feed">
+          <div class="feed-header">
+            <div class="feed-dot"></div>
+            AO VIVO — SALA DE JOGO
+          </div>
+          <div class="feed-messages" id="feed-messages">
+            <div class="empty-state">
+              <div class="empty-icon">🎲</div>
+              <p>Role um dado para começar.</p>
+            </div>
+          </div>
+          <div class="feed-input-row">
+            <input type="text" class="feed-input" id="msg-input" placeholder="Mensagem para a sala..." onkeydown="if(event.key==='Enter')enviarMsg()">
+            <button class="btn-ghost" onclick="enviarMsg()">Enviar</button>
+          </div>
+        </div>
+
+        <!-- PAINEL DIREITO -->
+        <div class="dados-panel">
+          <!-- DADOS RÁPIDOS -->
+          <div class="section-card" style="margin:0">
+            <div class="section-card-title">Dados Rápidos</div>
+            <div class="dado-grid">
+              <button class="dado-btn" onclick="rolarDado(4)">d4</button>
+              <button class="dado-btn" onclick="rolarDado(6)">d6</button>
+              <button class="dado-btn" onclick="rolarDado(8)">d8</button>
+              <button class="dado-btn" onclick="rolarDado(10)">d10</button>
+              <button class="dado-btn" onclick="rolarDado(12)">d12</button>
+              <button class="dado-btn" onclick="rolarDado(20)">d20</button>
+              <button class="dado-btn" onclick="rolarDado(100)">d100</button>
+              <button class="dado-btn" onclick="rolarDado(6,2)">2d6</button>
+            </div>
+          </div>
+
+          <!-- FÓRMULA D20 -->
+          <div class="roll-formula">
+            <div class="roll-formula-title">Teste — 1d20 + Mod + Perícia</div>
+            <div class="formula-row">
+              <select id="roll-atrib">
+                <option value="0">Atributo (mod)</option>
+                <option value="-2">FOR −2</option>
+                <option value="-1">FOR −1</option>
+                <option value="0">FOR +0</option>
+                <option value="1">FOR +1</option>
+                <option value="2">FOR +2</option>
+                <option value="-2">RES −2</option>
+                <option value="-1">RES −1</option>
+                <option value="0">RES +0</option>
+                <option value="1">RES +1</option>
+                <option value="2">RES +2</option>
+                <option value="-2">COM −2</option>
+                <option value="-1">COM −1</option>
+                <option value="0">COM +0</option>
+                <option value="1">COM +1</option>
+                <option value="2">COM +2</option>
+                <option value="-2">SOC −2</option>
+                <option value="-1">SOC −1</option>
+                <option value="0">SOC +0</option>
+                <option value="1">SOC +1</option>
+                <option value="2">SOC +2</option>
+                <option value="-2">CON −2</option>
+                <option value="-1">CON −1</option>
+                <option value="0">CON +0</option>
+                <option value="1">CON +1</option>
+                <option value="2">CON +2</option>
+                <option value="-2">AGI −2</option>
+                <option value="-1">AGI −1</option>
+                <option value="0">AGI +0</option>
+                <option value="1">AGI +1</option>
+                <option value="2">AGI +2</option>
+              </select>
+            </div>
+            <div class="formula-row">
+              <span class="formula-plus">Perícia</span>
+              <select id="roll-pericia">
+                <option value="0">Sem perícia (+0)</option>
+                <option value="3">Com perícia (+3)</option>
+              </select>
+            </div>
+            <div class="formula-row">
+              <span class="formula-plus">Situação</span>
+              <select id="roll-situacao">
+                <option value="0">Normal</option>
+                <option value="3">+3 Vínculo Ativo</option>
+                <option value="2">+2 Ferramenta</option>
+                <option value="2">+2 Aliado Ajuda</option>
+                <option value="2">+2 Vantagem</option>
+                <option value="-2">−2 Ferido PV&lt;50%</option>
+                <option value="-2">−2 Tensão Alta</option>
+                <option value="-3">−3 Sem Equipamento</option>
+                <option value="-2">−2 Escuridão</option>
+              </select>
+            </div>
+            <div class="formula-row">
+              <span class="formula-plus">Dif.</span>
+              <select id="roll-dif">
+                <option value="8">8 — Fácil</option>
+                <option value="11" selected>11 — Moderado</option>
+                <option value="14">14 — Difícil</option>
+                <option value="17">17 — Severo</option>
+                <option value="20">20 — Extremo</option>
+              </select>
+              <button class="btn-ghost" onclick="rolarFormula()" style="white-space:nowrap">Rolar!</button>
+            </div>
+          </div>
+
+          <!-- TENSÃO COMPARTILHADA -->
+          <div class="tensao-shared" id="tensao-shared-panel">
+            <div class="tensao-shared-title">⚠ Tensão da Sessão</div>
+            <div class="tensao-pips" id="tensao-pips-sala" style="margin-bottom:8px"></div>
+            <div class="tensao-status" id="tensao-status-text">CALMA</div>
+            <div class="tensao-btns" id="tensao-master-btns" style="display:none">
+              <button onclick="alterarTensao(-1)">− Baixar</button>
+              <button onclick="alterarTensao(1)">+ Subir</button>
+            </div>
+            <div style="font-size:9px;color:var(--muted);margin-top:6px" id="tensao-tip"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ NOTAS ═══════════════════════════════════ -->
+    <div id="page-notas" style="display:none">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Notas de Sessão</div>
+          <div class="page-sub">Suas anotações pessoais</div>
+        </div>
+      </div>
+      <div class="notas-grid">
+        <div class="notas-list">
+          <div class="notas-list-header">
+            <span style="font-size:11px;font-weight:700;letter-spacing:1px;color:var(--muted);text-transform:uppercase">Sessões</span>
+            <button class="btn-icon" onclick="novaNota()" title="Nova nota">＋</button>
+          </div>
+          <div id="notas-lista"></div>
+        </div>
+        <div class="nota-editor">
+          <div class="nota-editor-header">
+            <input type="text" id="nota-titulo" placeholder="Título da nota..." style="background:transparent;border:none;color:var(--text);font-size:14px;font-weight:700;flex:1;outline:none" oninput="notaEditada=true">
+            <input type="number" id="nota-sessao" placeholder="Sessão #" min="1" style="background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--muted);font-size:12px;padding:5px 8px;width:80px;outline:none" oninput="notaEditada=true">
+          </div>
+          <textarea class="nota-editor-body" id="nota-corpo" placeholder="Escreva suas notas aqui..." oninput="notaEditada=true"></textarea>
+          <div class="nota-editor-footer">
+            <button class="btn-ghost" onclick="deletarNota()" style="color:var(--red);border-color:var(--red-dim)">Excluir</button>
+            <button class="btn-ghost" onclick="salvarNota()">Salvar nota</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ MASTER ══════════════════════════════════ -->
+    <div id="page-master" style="display:none">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Painel do Mestre</div>
+          <div class="page-sub">Visão geral dos sobreviventes</div>
+        </div>
+        <button class="btn-ghost" onclick="carregarPlayers()">↻ Atualizar</button>
+      </div>
+      <div class="players-grid" id="players-grid">
+        <div class="empty-state">
+          <div class="empty-icon">👥</div>
+          <p>Carregando players...</p>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script src="supabase.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
