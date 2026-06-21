@@ -622,30 +622,140 @@ function onMUp(){
 }
 
 // Touch: mover token OU pinch zoom
+// ── TOUCH: 1 dedo = pan do mapa, 2 dedos = zoom ─
+let touchStartPos = null;
+let touchMoved = false;
+let touchPanActive = false;
+
 function onTStart(e){
   e.preventDefault();
   if(e.touches.length===2){
-    lastTouchDist=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+    // Pinch zoom
+    dragTok = null; touchPanActive = false;
+    lastTouchDist=Math.hypot(
+      e.touches[0].clientX-e.touches[1].clientX,
+      e.touches[0].clientY-e.touches[1].clientY
+    );
     return;
   }
-  const t=e.touches[0]; onMDown({clientX:t.clientX,clientY:t.clientY,button:0});
+  const t = e.touches[0];
+  const sp = getCanvasPos({clientX:t.clientX, clientY:t.clientY});
+  const wp = screenToWorld(sp);
+  touchStartPos = sp;
+  touchMoved = false;
+
+  // Verifica se tocou num token que pode mover
+  const tok = getTokenAt(wp.x, wp.y);
+  if(tok && podeMoverToken(tok)){
+    // Inicia drag do token
+    dragTok = tok;
+    dragOX = wp.x - tok.x;
+    dragOY = wp.y - tok.y;
+    tokenSel = tok;
+    touchPanActive = false;
+    desenharMapa();
+  } else {
+    // Vai ser pan do mapa
+    touchPanActive = true;
+    isPanning = true;
+    panStart = sp;
+    tokenSel = null;
+  }
 }
+
 function onTMove(e){
   e.preventDefault();
   if(e.touches.length===2){
-    const dist=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
-    if(lastTouchDist){mapaZoom=Math.max(0.3,Math.min(4,mapaZoom*(dist/lastTouchDist)));desenharMapa();}
+    // Pinch zoom
+    dragTok = null; touchPanActive = false; isPanning = false;
+    const dist=Math.hypot(
+      e.touches[0].clientX-e.touches[1].clientX,
+      e.touches[0].clientY-e.touches[1].clientY
+    );
+    if(lastTouchDist){
+      const cx = (e.touches[0].clientX + e.touches[1].clientX)/2;
+      const cy = (e.touches[0].clientY + e.touches[1].clientY)/2;
+      const rect = canvas.getBoundingClientRect();
+      const mx = (cx-rect.left)*(canvas.width/rect.width);
+      const my = (cy-rect.top)*(canvas.height/rect.height);
+      const factor = dist/lastTouchDist;
+      mapaZoom = Math.max(0.3, Math.min(4, mapaZoom*factor));
+      mapaOffX = mx - (mx-mapaOffX)*factor;
+      mapaOffY = my - (my-mapaOffY)*factor;
+      desenharMapa();
+    }
     lastTouchDist=dist; return;
   }
-  const t=e.touches[0]; onMMove({clientX:t.clientX,clientY:t.clientY});
+
+  const t = e.touches[0];
+  const sp = getCanvasPos({clientX:t.clientX, clientY:t.clientY});
+
+  if(touchStartPos){
+    const dx = Math.abs(sp.x - touchStartPos.x);
+    const dy = Math.abs(sp.y - touchStartPos.y);
+    if(dx > 5 || dy > 5) touchMoved = true;
+  }
+
+  if(dragTok){
+    // Move token
+    const wp = screenToWorld(sp);
+    dragTok.x = Math.max(0, Math.min(CW-gridSize, wp.x-dragOX));
+    dragTok.y = Math.max(0, Math.min(CH-gridSize, wp.y-dragOY));
+    desenharMapa();
+  } else if(isPanning && panStart){
+    // Pan do mapa
+    mapaOffX += (sp.x - panStart.x);
+    mapaOffY += (sp.y - panStart.y);
+    panStart = sp;
+    desenharMapa();
+  }
 }
-function onTEnd(e){lastTouchDist=null; onMUp();}
+
+function onTEnd(e){
+  lastTouchDist = null;
+
+  if(dragTok){
+    // Finaliza drag de token
+    dragTok.x = snap(dragTok.x);
+    dragTok.y = snap(dragTok.y);
+    mostrarInfoToken(dragTok);
+    dragTok = null;
+    desenharMapa();
+    salvarMapaDB();
+  } else if(!touchMoved && touchStartPos){
+    // Tap sem movimento — mostra info do token se tocou em um
+    const wp = screenToWorld(touchStartPos);
+    const tok = getTokenAt(wp.x, wp.y);
+    if(tok){
+      tokenSel = tok;
+      mostrarInfoToken(tok);
+      desenharMapa();
+    } else {
+      tokenSel = null;
+      esconderInfoToken();
+    }
+  }
+
+  isPanning = false; panStart = null;
+  touchPanActive = false; touchStartPos = null;
+}
 
 // ── INFO TOKEN ────────────────────────────────────
 function mostrarInfoToken(t){
   const el=document.getElementById('token-info'); if(!el) return;
+  
+  // Players: só mostram info do próprio token se for mestre ou controlador
+  // Para o próprio PC do player, não mostra o painel (já tem a foto na ficha)
+  // Só mostra se for mestre, ou se for token de NPC que o player controla
+  const ehMeuPC = t.isPC && t.userId === currentUser?.id;
+  if(ehMeuPC && !isMaster){
+    // Player tocou no próprio token — só move, não abre painel
+    el.style.display='none';
+    return;
+  }
+  
   el.style.display='block';
-  const podeEditar=isMaster||(t.isPC&&t.userId===currentUser?.id)||(t.controladorNome===currentProfile?.username);
+  const podeEditar=isMaster||(t.controladorNome===currentProfile?.username);
   el.innerHTML=`
     <div class="token-info-header">
       ${t.imgUrl?`<img src="${t.imgUrl}" style="width:36px;height:36px;border-radius:50%;object-fit:cover">`:`<span style="font-size:22px">${t.emoji||'?'}</span>`}
