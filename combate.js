@@ -136,28 +136,6 @@ function subscribeCT() {
     });
 }
 
-// ── ESTADO MAPA ───────────────────────────────────
-let tokens      = [];
-let tokenSel    = null;
-let dragTok     = null;
-let dragOX = 0, dragOY = 0;
-let gridSize    = 60;
-let gridVisivel = true;
-let mapaImg     = null;
-let mapaUrl     = null;
-let metrosPorCelula = 1.5;
-let medindoDistancia = false;
-let medirStart  = null;
-let medirEnd    = null;
-let mapaZoom    = 1;
-let mapaOffX    = 0;
-let mapaOffY    = 0;
-let isPanning   = false;
-let panStart    = null;
-let tokenCustomImg = null;
-
-let canvas, ctx;
-const CW = 1600, CH = 900;
 
 // ══════════════════════════════════════════════════
 //  COMBAT TRACKER
@@ -546,7 +524,7 @@ async function renderPlayersParaCT() {
 //  MAPA — Engine v4 (coordenadas limpas)
 // ══════════════════════════════════════════════════
 
-// Estado
+// Estado do mapa
 let mapaImg     = null;
 let mapaUrl     = null;
 let mapaZoom    = 1;
@@ -556,28 +534,22 @@ let gridSize    = 60;
 let gridVisivel = true;
 let gridOpacity = 0.25;
 let gridColor   = '#c0392b';
-let snapToGrid  = true;   // false = movimento livre
+let snapToGrid  = true;
 let metrosPorCelula = 1.5;
-
 let tokens      = [];
 let tokenSel    = null;
 let dragTok     = null;
 let dragOX = 0, dragOY = 0;
 let dragMoved   = false;
-
 let isPanning   = false;
 let panLast     = null;
-
 let medindoDistancia = false;
 let medirA = null, medirB = null;
-
-// Touch
 let lastTouchDist = null;
-let touchTok      = null;   // token sendo arrastado no touch
 let touchPanStart = null;
-
+let tokenCustomImg = null;
+let mouseDownCanvasPos = null;
 const tokenImgCache = {};
-
 let canvas, ctx;
 
 // ── INIT ─────────────────────────────────────────
