@@ -361,6 +361,9 @@ function buildPanelContent(id, container) {
 }
 
 function buildFeed(c) {
+  const limparBtn = isMaster
+    ? '<div style="padding:4px 8px;border-top:1px solid var(--border);flex-shrink:0"><button class="btn-ghost" onclick="limparHistorico()" style="font-size:10px;padding:4px 8px;color:var(--red);border-color:var(--red-dim);width:100%">🗑 Limpar histórico</button></div>'
+    : '';
   c.innerHTML = `
     <div style="display:flex;flex-direction:column;height:100%">
       <div id="feed-messages" style="flex:1;overflow-y:auto;padding:10px;min-height:0">
@@ -370,9 +373,7 @@ function buildFeed(c) {
         <input type="text" class="feed-input" id="msg-input" placeholder="Mensagem..." onkeydown="if(event.key==='Enter')enviarMsg()" style="flex:1">
         <button class="btn-ghost" onclick="enviarMsg()" style="font-size:11px;padding:5px 10px">Enviar</button>
       </div>
-      ${isMaster?`<div style="padding:4px 8px;border-top:1px solid var(--border);flex-shrink:0">
-        <button class="btn-ghost" onclick="limparHistorico()" style="font-size:10px;padding:4px 8px;color:var(--red);border-color:var(--red-dim);width:100%">🗑 Limpar histórico</button>
-      </div>`:''}
+      ${limparBtn}
     </div>`;
 }
 
@@ -381,10 +382,10 @@ function buildTensaoPanel(c) {
     <div style="padding:12px;display:flex;flex-direction:column;gap:10px;height:100%;overflow-y:auto">
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">
         <span style="font-size:9px;font-weight:700;letter-spacing:2px;color:var(--muted);text-transform:uppercase">Tensão da Sessão</span>
-        ${isMaster?`<div class="tensao-btns" id="tensao-master-btns">
+        <div class="tensao-btns" id="tensao-master-btns" style="display:${isMaster?'flex':'none'}">
           <button onclick="alterarTensao(-1)">− Baixar</button>
           <button onclick="alterarTensao(1)">+ Subir</button>
-        </div>`:''}
+        </div>
       </div>
       <div class="tensao-pips" id="tensao-pips-sala"></div>
       <div class="tensao-status" id="tensao-status-text">CALMA (0/10)</div>
@@ -477,11 +478,18 @@ function buildTrackerPanel(c) {
   setTimeout(()=>renderCT(),50);
 }
 function buildMapaPanel(c) {
-  c.style.padding='0';
+  c.style.padding = '0';
+  // Build toolbar HTML - avoid isMaster inside template literals
+  const masterBtns = isMaster
+    ? `<button class="btn-ghost" onclick="importarMapaImg()" style="font-size:10px;padding:3px 7px">📁 Mapa</button>
+       <button class="btn-ghost" onclick="navigate('npcs')" style="font-size:10px;padding:3px 7px">🎬 Cenas</button>
+       <button class="btn-ghost" onclick="abrirCriarTokenCustom()" style="font-size:10px;padding:3px 7px">⭐ Token</button>
+       <button class="btn-ghost" onclick="limparTokens()" style="font-size:10px;padding:3px 7px;color:var(--red);border-color:var(--red-dim)">🗑</button>`
+    : '';
+
   c.innerHTML = `
     <div style="display:flex;flex-direction:column;height:100%;min-height:0">
       <div class="mapa-toolbar" style="flex-shrink:0;padding:5px 8px;gap:5px;flex-wrap:wrap">
-        ${isMaster?'<button class="btn-ghost" onclick="importarMapaImg()" style="font-size:10px;padding:3px 7px">📁 Mapa</button>':''}
         <button class="btn-ghost" id="btn-grid" onclick="toggleGrid()" style="font-size:10px;padding:3px 7px">⬛ Grid</button>
         <button class="btn-ghost" id="btn-regua" onclick="toggleRegua()" style="font-size:10px;padding:3px 7px">📏 Régua</button>
         <div style="display:flex;align-items:center;gap:3px;font-size:10px;color:var(--muted)">
@@ -498,9 +506,7 @@ function buildMapaPanel(c) {
       </div>
       <div class="mapa-toolbar" style="flex-shrink:0;padding:3px 8px;border-top:none;gap:5px">
         <button class="btn-ghost" onclick="adicionarMeuPersonagem()" style="font-size:10px;padding:3px 7px">🧑 Entrar</button>
-        ${isMaster?`<button class="btn-ghost" onclick="navigate('npcs')" style="font-size:10px;padding:3px 7px" title="Gerenciar cenas e NPCs">🎬 Cenas</button>`:''}
-        ${isMaster?'<button class="btn-ghost" onclick="abrirCriarTokenCustom()" style="font-size:10px;padding:3px 7px">⭐ Token</button>':''}
-        ${isMaster?'<button class="btn-ghost" onclick="limparTokens()" style="font-size:10px;padding:3px 7px;color:var(--red);border-color:var(--red-dim)">🗑 Limpar</button>':''}
+        ${masterBtns}
         <div style="display:flex;align-items:center;gap:3px;font-size:10px;color:var(--muted);margin-left:auto">
           <span>1cel=</span>
           <input type="number" value="1.5" min="0.5" max="10" step="0.5" onchange="metrosPorCelula=parseFloat(this.value)||1.5"
@@ -508,21 +514,12 @@ function buildMapaPanel(c) {
           <span>m</span>
         </div>
       </div>
-      <div style="flex:1;overflow:hidden;position:relative;min-height:0;display:flex">
-        <canvas id="mapa-canvas" style="display:block;touch-action:none;flex:1;min-width:0;height:100%"></canvas>
-        <!-- Sidebar de cenas (só mestre) -->
-        <div id="cenas-sidebar" style="width:160px;background:var(--surface);border-left:1px solid var(--border);display:none;flex-direction:column;flex-shrink:0;overflow:hidden"></div>
-        <!-- Token info overlay -->
-        <div id="token-info" style="display:none;position:absolute;bottom:0;left:0;right:0;padding:8px;background:rgba(16,16,26,0.95);border-top:1px solid var(--border);max-height:130px;overflow-y:auto;backdrop-filter:blur(4px);z-index:10"></div>
+      <div style="flex:1;overflow:hidden;position:relative;min-height:0">
+        <canvas id="mapa-canvas" style="display:block;touch-action:none;width:100%;height:100%"></canvas>
+        <div id="token-info" style="display:none;position:absolute;bottom:0;left:0;right:0;padding:8px;background:rgba(16,16,26,0.95);border-top:1px solid var(--border);max-height:130px;overflow-y:auto;z-index:10"></div>
       </div>
-  setTimeout(()=>{ 
-    canvas=null; initMapa();
-    if(window.isMaster) {
-      const cs=document.getElementById('cenas-sidebar');
-      if(cs) cs.style.display='flex';
-      if(typeof carregarCenas==='function') carregarCenas();
-    }
-  },80);
+    </div>`;
+  setTimeout(() => { canvas = null; initMapa(); }, 80);
 }
 
 function buildPlayersPanel(c) {
