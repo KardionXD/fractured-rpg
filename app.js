@@ -1040,11 +1040,16 @@ function aplicarFotoPersonagem(url) {
 
 // ── INIT MASTER/PLAYER UI ─────────────────────────
 function initMasterUI() {
-  const mb = document.getElementById('mnav-master');
-  if (mb) mb.style.display = '';
-  const mn = document.getElementById('mnav-npcs');
-  if (mn) mn.style.display = '';
-  subscribeCenas();
+  // Show master buttons in mobile nav
+  ['mnav-master', 'mnav-npcs'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = '';
+  });
+  // Show master nav items in sidebar
+  const section = document.getElementById('nav-master-section');
+  if (section) section.style.display = '';
+  // Load cenas subscription
+  if (typeof subscribeCenas === 'function') subscribeCenas();
 }
 function initPlayerUI() { /* nada extra */ }
 

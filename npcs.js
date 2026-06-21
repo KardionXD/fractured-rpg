@@ -122,6 +122,13 @@ function abrirFormNPC(npc = null) {
   const modal = document.getElementById('modal-npc');
   if (!modal) return;
 
+  // Populate pasta datalist with existing folders
+  const dl = document.getElementById('npc-pastas-list');
+  if (dl) {
+    const pastas = [...new Set(npcList.map(n => n.pasta || 'Geral'))];
+    dl.innerHTML = pastas.map(p => `<option value="${p}">`).join('');
+  }
+
   document.getElementById('npc-form-titulo').textContent = npc ? 'Editar NPC' : 'Criar NPC';
   document.getElementById('npc-f-nome').value      = npc?.nome || '';
   document.getElementById('npc-f-pasta').value     = npc?.pasta || 'Geral';
