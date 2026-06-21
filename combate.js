@@ -69,6 +69,60 @@ let rodadaAtual       = 1;
 let combateAtivo      = false;
 let mostrarPVInimigos = true;
 
+// ── SYNC COMBAT TRACKER ───────────────────────────
+let ctRealtimeSub = null;
+let ctSaving = false;
+
+async function salvarCT() {
+  if (ctSaving || !isMaster) return;
+  ctSaving = true;
+  try {
+    await db.from('mapa_estado').upsert({
+      id: 'combat_tracker',
+      tokens: combatentes,
+      grid_size: rodadaAtual,
+      grid_visivel: combateAtivo,
+      mapa_url: JSON.stringify({ turnoAtual, mostrarPVInimigos }),
+      updated_at: new Date().toISOString()
+    });
+  } catch(e) { console.error('salvarCT:', e); }
+  ctSaving = false;
+}
+
+async function carregarCT() {
+  try {
+    const { data } = await db.from('mapa_estado').select('*').eq('id','combat_tracker').single();
+    if (!data) return;
+    combatentes = data.tokens || [];
+    rodadaAtual = data.grid_size || 1;
+    combateAtivo = data.grid_visivel || false;
+    const extra = data.mapa_url ? JSON.parse(data.mapa_url) : {};
+    turnoAtual = extra.turnoAtual || 0;
+    mostrarPVInimigos = extra.mostrarPVInimigos !== false;
+    renderCT();
+  } catch(e) {}
+}
+
+function subscribeCT() {
+  if (ctRealtimeSub) return;
+  // Carrega estado atual primeiro
+  carregarCT();
+  // Escuta mudanças em tempo real
+  ctRealtimeSub = db.channel('ct-realtime')
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'mapa_estado' }, payload => {
+      if (payload.new?.id !== 'combat_tracker') return;
+      const d = payload.new;
+      combatentes = d.tokens || [];
+      rodadaAtual = d.grid_size || 1;
+      combateAtivo = d.grid_visivel || false;
+      const extra = d.mapa_url ? JSON.parse(d.mapa_url) : {};
+      turnoAtual = extra.turnoAtual || 0;
+      mostrarPVInimigos = extra.mostrarPVInimigos !== false;
+      renderCT();
+    })
+    .subscribe();
+}
+
 // ── ESTADO MAPA ───────────────────────────────────
 let tokens      = [];
 let tokenSel    = null;
@@ -126,8 +180,21 @@ function renderCT() {
 
     const div = document.createElement('div');
     div.className = 'ct-item'+(isAtual?' ct-ativo':'')+(c.pvAtual<=0&&c.pvMax?' ct-morto':'');
+    div.draggable = isMaster;
+    div.dataset.id = c.id;
+    if (isMaster) {
+      div.addEventListener('dragstart', e => { e.dataTransfer.setData('text/plain', c.id); div.style.opacity='0.4'; });
+      div.addEventListener('dragend',   () => { div.style.opacity='1'; });
+      div.addEventListener('dragover',  e => { e.preventDefault(); div.style.borderColor='var(--gold)'; });
+      div.addEventListener('dragleave', () => { div.style.borderColor=''; });
+      div.addEventListener('drop', e => {
+        e.preventDefault(); div.style.borderColor='';
+        const fromId = e.dataTransfer.getData('text/plain');
+        reordenarCT(fromId, c.id);
+      });
+    }
     div.innerHTML = `
-      <div class="ct-ordem">${isAtual?'▶':idx+1}</div>
+      <div class="ct-ordem" style="cursor:${isMaster?'grab':'default'}" title="${isMaster?'Arraste para reordenar':''}">${isAtual?'▶':idx+1}</div>
       ${imgTag}
       <div class="ct-info">
         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
@@ -135,7 +202,13 @@ function renderCT() {
           ${estado?`<span>${estado}</span>`:''}
           ${ctrlLabel}
         </div>
-        <div class="ct-ini">INI: <strong>${c.iniciativa}</strong></div>
+        <div class="ct-ini" style="display:flex;align-items:center;gap:4px">
+          INI:
+          ${isMaster
+            ? `<input type="number" value="${c.iniciativa}" min="1" max="30" style="width:44px;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:12px;font-weight:700;padding:2px 4px;text-align:center" onchange="editarIniciativa('${c.id}',this.value)">`
+            : `<strong>${c.iniciativa}</strong>`
+          }
+        </div>
         ${c.pvMax && !ocultarPV ? `
         <div class="ct-bar-wrap"><div class="ct-bar" style="width:${pct}%;background:${barCol}"></div></div>
         <div class="ct-pv-row">
@@ -163,6 +236,29 @@ function renderCT() {
   document.getElementById('ct-turno-info').textContent = combateAtivo
     ? `▶ ${[...combatentes].sort((a,b)=>b.iniciativa-a.iniciativa)[turnoAtual]?.nome||'—'}`
     : 'Não iniciado';
+}
+
+function reordenarCT(fromId, toId) {
+  if (fromId === toId) return;
+  const fromIdx = combatentes.findIndex(x => x.id === fromId);
+  const toIdx   = combatentes.findIndex(x => x.id === toId);
+  if (fromIdx < 0 || toIdx < 0) return;
+  const [item] = combatentes.splice(fromIdx, 1);
+  combatentes.splice(toIdx, 0, item);
+  // Reajusta iniciativas para preservar a ordem visual
+  const total = combatentes.length;
+  combatentes.forEach((c, i) => { c.iniciativa = total - i; });
+  turnoAtual = 0;
+  renderCT();
+  salvarCT();
+}
+
+function editarIniciativa(id, val) {
+  const c = combatentes.find(x => x.id === id);
+  if (!c) return;
+  c.iniciativa = parseInt(val) || 1;
+  renderCT();
+  salvarCT();
 }
 
 function adicionarInimigoCT(inimigo) {
@@ -308,12 +404,12 @@ function adicionarPCCT() {
     tipo:'pc', isPC:true, condicoes:[], controlador: nome,
   });
   if (document.getElementById('ct-pc-nome')) document.getElementById('ct-pc-nome').value='';
-  renderCT();
+  renderCT(); salvarCT();
 }
 
 function iniciarCombate() {
   if (!combatentes.length) return;
-  combateAtivo=true; turnoAtual=0; rodadaAtual=1; renderCT();
+  combateAtivo=true; turnoAtual=0; rodadaAtual=1; renderCT(); salvarCT();
 }
 
 function proximoTurno() {
@@ -330,7 +426,7 @@ function proximoTurno() {
 
 function encerrarCombate() {
   if (!confirm('Encerrar combate e limpar lista?')) return;
-  combatentes=[]; turnoAtual=0; rodadaAtual=1; combateAtivo=false; renderCT();
+  combatentes=[]; turnoAtual=0; rodadaAtual=1; combateAtivo=false; renderCT(); salvarCT();
 }
 
 function alterarPV(id,delta) {
@@ -358,13 +454,13 @@ function toggleCond(id,cond) {
   if(!c.condicoes)c.condicoes=[];
   const i=c.condicoes.indexOf(cond);
   if(i>=0)c.condicoes.splice(i,1); else c.condicoes.push(cond);
-  renderCT();
+  renderCT(); salvarCT();
 }
 
 function removerComb(id) {
   combatentes=combatentes.filter(c=>c.id!==id);
   if(turnoAtual>=combatentes.length)turnoAtual=0;
-  renderCT();
+  renderCT(); salvarCT();
 }
 
 function togglePVInimigos() {

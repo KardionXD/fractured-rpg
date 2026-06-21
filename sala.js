@@ -24,7 +24,7 @@ async function initSala() {
   buildTensaoPips('tensao-pips-sala', tensaoSala, false);
 
   // CT + Bestiário
-  renderCT();
+  subscribeCT();
   if (isMaster) {
     renderBestiarioCT();
     renderPlayersParaCT();
