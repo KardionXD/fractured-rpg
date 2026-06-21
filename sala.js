@@ -516,8 +516,9 @@ function buildMapaPanel(c) {
       </div>
       <div style="flex:1;overflow:hidden;position:relative;min-height:0">
         <canvas id="mapa-canvas" style="display:block;touch-action:none;width:100%;height:100%"></canvas>
+        <!-- Token info como overlay flutuante — não afeta o tamanho do canvas -->
+        <div id="token-info" style="display:none;position:absolute;bottom:0;left:0;right:0;padding:8px;background:rgba(16,16,26,0.95);border-top:1px solid var(--border);max-height:130px;overflow-y:auto;backdrop-filter:blur(4px);z-index:10"></div>
       </div>
-      <div id="token-info" style="display:none;padding:8px;background:var(--surface2);border-top:1px solid var(--border);flex-shrink:0;max-height:140px;overflow-y:auto"></div>
     </div>`;
   setTimeout(()=>{ canvas=null; initMapa(); },80);
 }

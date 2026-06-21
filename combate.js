@@ -693,6 +693,7 @@ let lastTouchDist=null;
 
 function onMDown(e){
   const sp=getCanvasPos(e);
+  mouseDownPos = {x: e.clientX||0, y: e.clientY||0};
   if(medindoDistancia){medirStart=sp;medirEnd=sp;return;}
 
   const wp=screenToWorld(sp);
@@ -702,7 +703,8 @@ function onMDown(e){
 
   if(t&&podeMoverToken(t)){
     dragTok=t; dragOX=wp.x-t.x; dragOY=wp.y-t.y;
-    tokenSel=t; desenharMapa(); mostrarInfoToken(t);
+    tokenSel=t; desenharMapa();
+    // Não mostra info no mousedown — só no mouseup se não houve drag
   } else {
     tokenSel=null; desenharMapa(); esconderInfoToken();
   }
@@ -717,17 +719,32 @@ function onMMove(e){
   }
   if(!dragTok) return;
   const wp=screenToWorld(sp);
+  // Smooth drag — sem snap durante o movimento
   dragTok.x=Math.max(0,Math.min(CW-gridSize,wp.x-dragOX));
   dragTok.y=Math.max(0,Math.min(CH-gridSize,wp.y-dragOY));
   desenharMapa();
 }
 
-function onMUp(){
+let mouseDownPos = null;
+
+function onMUp(e){
   if(isPanning){isPanning=false;canvas.style.cursor='crosshair';panStart=null;return;}
   if(medindoDistancia) return;
-  if(!dragTok) return;
-  dragTok.x=snap(dragTok.x); dragTok.y=snap(dragTok.y);
-  dragTok=null; desenharMapa(); salvarMapaDB();
+  
+  if(dragTok){
+    dragTok.x=snap(dragTok.x); dragTok.y=snap(dragTok.y);
+    // Só mostra info se foi um clique (não drag)
+    const wasDrag = mouseDownPos && e && (
+      Math.abs((e.clientX||0) - mouseDownPos.x) > 5 ||
+      Math.abs((e.clientY||0) - mouseDownPos.y) > 5
+    );
+    if(!wasDrag) mostrarInfoToken(dragTok);
+    dragTok=null; desenharMapa(); salvarMapaDB();
+  } else if(tokenSel) {
+    // Clique num token sem drag - mostra info
+    mostrarInfoToken(tokenSel);
+  }
+  mouseDownPos = null;
 }
 
 // Touch: mover token OU pinch zoom
