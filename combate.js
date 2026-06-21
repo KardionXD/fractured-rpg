@@ -802,8 +802,6 @@ function alterarZoomBtn(delta) {
 }
 
 // ── MOUSE ────────────────────────────────────────
-let mouseDownCanvasPos = null;
-
 function onMDown(e) {
   const c = telaParaCanvas(e.clientX, e.clientY);
   mouseDownCanvasPos = c;
@@ -1117,7 +1115,6 @@ function importarMapaImg() {
 }
 
 // Token custom
-let tokenCustomImg = null;
 
 function abrirCriarTokenCustom() {
   if (!isMaster) return;
