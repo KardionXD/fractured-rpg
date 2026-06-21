@@ -344,11 +344,20 @@ function savePStates(){try{localStorage.setItem('fractured_panels',JSON.stringif
 function loadPStates(){try{const s=localStorage.getItem('fractured_panels');if(s)pStates=JSON.parse(s);}catch(e){}}
 
 function resizeMapCanvas(){
-  const body=document.getElementById('fp-body-mapa');
   const cvs=document.getElementById('mapa-canvas');
-  if(!body||!cvs) return;
-  const r=body.getBoundingClientRect();
-  if(r.width>10&&r.height>10){cvs.width=r.width;cvs.height=r.height;if(typeof desenharMapa==='function')desenharMapa();}
+  if(!cvs) return;
+  // Find the canvas container (div wrapping the canvas)
+  const container = cvs.parentElement;
+  if(!container) return;
+  const r=container.getBoundingClientRect();
+  if(r.width>10&&r.height>10){
+    // Only resize if dimensions actually changed to avoid redraw loop
+    if(cvs.width !== Math.floor(r.width) || cvs.height !== Math.floor(r.height)){
+      cvs.width = Math.floor(r.width);
+      cvs.height = Math.floor(r.height);
+      if(typeof desenharMapa==='function') desenharMapa();
+    }
+  }
 }
 
 // ══════════════════════════════════════════════════

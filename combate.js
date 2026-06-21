@@ -563,21 +563,23 @@ function initMapa() {
 
 function desenharMapa() {
   if(!ctx) return;
+  const W=canvas.width, H=canvas.height;
   ctx.save();
-  ctx.clearRect(0,0,CW,CH);
-  ctx.fillStyle='#05050a'; ctx.fillRect(0,0,CW,CH);
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#05050a'; ctx.fillRect(0,0,W,H);
 
   // Zoom e pan
   ctx.translate(mapaOffX, mapaOffY);
   ctx.scale(mapaZoom, mapaZoom);
 
-  if(mapaImg) ctx.drawImage(mapaImg,0,0,CW,CH);
+  if(mapaImg) ctx.drawImage(mapaImg,0,0,canvas.width/mapaZoom,canvas.height/mapaZoom);
 
   // Grid
   if(gridVisivel) {
+    const W=canvas.width/mapaZoom, H=canvas.height/mapaZoom;
     ctx.strokeStyle='rgba(192,57,43,0.18)'; ctx.lineWidth=1/mapaZoom;
-    for(let x=0;x<=CW;x+=gridSize){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,CH);ctx.stroke();}
-    for(let y=0;y<=CH;y+=gridSize){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(CW,y);ctx.stroke();}
+    for(let x=0;x<=W+gridSize;x+=gridSize){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H+gridSize);ctx.stroke();}
+    for(let y=0;y<=H+gridSize;y+=gridSize){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W+gridSize,y);ctx.stroke();}
   }
 
   // Régua
@@ -597,9 +599,13 @@ function desenharMapa() {
   ctx.restore();
 
   // HUD zoom
+  const _W=canvas.width, _H=canvas.height;
   ctx.font='11px sans-serif'; ctx.fillStyle='rgba(255,255,255,0.3)';
   ctx.textAlign='right'; ctx.textBaseline='bottom';
-  ctx.fillText(`Zoom: ${Math.round(mapaZoom*100)}%`, CW-8, CH-6);
+  ctx.fillText(`Zoom: ${Math.round(mapaZoom*100)}%`, _W-8, _H-6);
+  // Update zoom label
+  const zl=document.getElementById('zoom-label');
+  if(zl) zl.textContent=Math.round(mapaZoom*100)+'%';
 }
 
 function desenharToken(t) {
@@ -613,13 +619,36 @@ function desenharToken(t) {
   }
 
   if(t.imgUrl){
-    const img=tokenImgCache[t.imgUrl]||(()=>{const i=new Image();i.onload=()=>{tokenImgCache[t.imgUrl]=i;desenharMapa();};i.src=t.imgUrl;return i;})();
-    ctx.save();
-    ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.clip();
-    try{ctx.drawImage(img,cx-r,cy-r,r*2,r*2);}catch(e){}
-    ctx.restore();
-    ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2);
-    ctx.strokeStyle=cor; ctx.lineWidth=2.5/mapaZoom; ctx.stroke();
+    const img=tokenImgCache[t.imgUrl];
+    if(!img){
+      // Load image and cache
+      const i=new Image();
+      i.crossOrigin='anonymous';
+      i.onload=()=>{tokenImgCache[t.imgUrl]=i;desenharMapa();};
+      i.onerror=()=>{tokenImgCache[t.imgUrl]=null;};
+      i.src=t.imgUrl;
+      // Draw placeholder while loading
+      ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2);
+      ctx.fillStyle=cor; ctx.fill();
+    } else if(img===null){
+      // Failed to load, draw emoji
+      ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2);
+      ctx.fillStyle=cor; ctx.fill();
+      ctx.font=`${r*0.9}px serif`;
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillStyle='#fff'; ctx.fillText(t.emoji||'?',cx,cy);
+    } else {
+      // Draw circular clipped image - square source to avoid distortion
+      ctx.save();
+      ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.clip();
+      // Draw square image centered (prevents stretching)
+      const size = r*2;
+      ctx.drawImage(img, cx-r, cy-r, size, size);
+      ctx.restore();
+      // Border
+      ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2);
+      ctx.strokeStyle=cor; ctx.lineWidth=2.5/mapaZoom; ctx.stroke();
+    }
   } else {
     ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2);
     ctx.fillStyle=cor; ctx.fill();
@@ -674,7 +703,11 @@ function screenToWorld(p){
 }
 function getCanvasPos(e){
   const r=canvas.getBoundingClientRect();
-  return{x:(e.clientX-r.left)*(CW/r.width),y:(e.clientY-r.top)*(CH/r.height)};
+  // Use actual canvas pixel dimensions, not CW/CH constants
+  return{
+    x:(e.clientX-r.left)*(canvas.width/r.width),
+    y:(e.clientY-r.top)*(canvas.height/r.height)
+  };
 }
 
 function snap(v){return Math.round(v/gridSize)*gridSize;}
@@ -720,8 +753,9 @@ function onMMove(e){
   if(!dragTok) return;
   const wp=screenToWorld(sp);
   // Smooth drag — sem snap durante o movimento
-  dragTok.x=Math.max(0,Math.min(CW-gridSize,wp.x-dragOX));
-  dragTok.y=Math.max(0,Math.min(CH-gridSize,wp.y-dragOY));
+  const _maxX=canvas.width/mapaZoom-gridSize, _maxY=canvas.height/mapaZoom-gridSize;
+  dragTok.x=Math.max(0,Math.min(_maxX,wp.x-dragOX));
+  dragTok.y=Math.max(0,Math.min(_maxY,wp.y-dragOY));
   desenharMapa();
 }
 
