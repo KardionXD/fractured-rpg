@@ -435,3 +435,81 @@ function subscribeCenas() {
     })
     .subscribe();
 }
+
+// ══════════════════════════════════════════════════
+//  MODAL CENAS (dentro da sala, sem sair do mapa)
+// ══════════════════════════════════════════════════
+function abrirModalCenas() {
+  let modal = document.getElementById('modal-cenas-inline');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'modal-cenas-inline';
+    modal.style.cssText = 'position:fixed;top:60px;right:16px;width:280px;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.6);z-index:9999;overflow:hidden';
+    modal.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--surface2);border-bottom:1px solid var(--border)">
+        <span style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:var(--text);text-transform:uppercase">🎬 Cenas de Mapa</span>
+        <button onclick="fecharModalCenas()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px">✕</button>
+      </div>
+      <div style="padding:10px;max-height:400px;overflow-y:auto">
+        <div id="cenas-lista-inline" style="display:flex;flex-direction:column;gap:5px;margin-bottom:8px"></div>
+        <button class="btn-ghost" onclick="criarCena()" style="width:100%;font-size:10px;padding:5px;margin-bottom:4px">＋ Nova Cena com mapa atual</button>
+        <button class="btn-ghost" onclick="salvarCenaAtual()" style="width:100%;font-size:10px;padding:5px">💾 Salvar cena atual</button>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    // Fecha ao clicar fora
+    setTimeout(() => {
+      document.addEventListener('click', fecharModalCenasFora);
+    }, 100);
+  }
+  modal.style.display = 'block';
+  renderCenasInline();
+  if (typeof carregarCenas === 'function') carregarCenas().then(renderCenasInline);
+}
+
+function fecharModalCenas() {
+  const m = document.getElementById('modal-cenas-inline');
+  if (m) m.style.display = 'none';
+  document.removeEventListener('click', fecharModalCenasFora);
+}
+
+function fecharModalCenasFora(e) {
+  const m = document.getElementById('modal-cenas-inline');
+  if (m && !m.contains(e.target) && !e.target.closest('[onclick*="abrirModalCenas"]')) {
+    fecharModalCenas();
+  }
+}
+
+function renderCenasInline() {
+  const lista = document.getElementById('cenas-lista-inline');
+  if (!lista) return;
+  lista.innerHTML = '';
+  if (!cenas.length) {
+    lista.innerHTML = '<div style="font-size:11px;color:var(--muted);text-align:center;padding:8px">Nenhuma cena ainda.</div>';
+    return;
+  }
+  cenas.forEach(cena => {
+    const div = document.createElement('div');
+    div.className = 'cena-item' + (cena.ativa ? ' cena-ativa' : '');
+    div.innerHTML = `
+      <div class="cena-thumb">
+        ${cena.mapa_url ? `<img src="${cena.mapa_url}" style="width:100%;height:100%;object-fit:cover;border-radius:4px">` : '<span style="font-size:16px">🗺️</span>'}
+      </div>
+      <div class="cena-info">
+        <div class="cena-nome">${cena.nome}</div>
+        ${cena.ativa ? '<span class="cena-badge-ativa">● AO VIVO</span>' : ''}
+      </div>
+      <div class="cena-btns">
+        <button class="ct-pv-btn" onclick="ativarCena('${cena.id}');renderCenasInline()" title="Ativar para todos">▶</button>
+        <button class="ct-pv-btn" onclick="deletarCena('${cena.id}')" style="color:var(--red)" title="Deletar">✕</button>
+      </div>
+    `;
+    lista.appendChild(div);
+  });
+}
+
+// Inicializa NPC page quando abre
+function initNPCs() {
+  carregarNPCs();
+  carregarCenas();
+}
