@@ -343,22 +343,7 @@ function resetPanels(){
 function savePStates(){try{localStorage.setItem('fractured_panels',JSON.stringify(pStates));}catch(e){}}
 function loadPStates(){try{const s=localStorage.getItem('fractured_panels');if(s)pStates=JSON.parse(s);}catch(e){}}
 
-function resizeMapCanvas(){
-  const cvs=document.getElementById('mapa-canvas');
-  if(!cvs) return;
-  // Find the canvas container (div wrapping the canvas)
-  const container = cvs.parentElement;
-  if(!container) return;
-  const r=container.getBoundingClientRect();
-  if(r.width>10&&r.height>10){
-    // Only resize if dimensions actually changed to avoid redraw loop
-    if(cvs.width !== Math.floor(r.width) || cvs.height !== Math.floor(r.height)){
-      cvs.width = Math.floor(r.width);
-      cvs.height = Math.floor(r.height);
-      if(typeof desenharMapa==='function') desenharMapa();
-    }
-  }
-}
+// resizeMapCanvas is defined in combate.js
 
 // ══════════════════════════════════════════════════
 //  PANEL CONTENT — compartilhado mobile/desktop
@@ -506,9 +491,9 @@ function buildMapaPanel(c) {
           <button class="ct-pv-btn" onclick="alterarGrid(5)">+</button>
         </div>
         <div style="display:flex;align-items:center;gap:3px;font-size:10px;color:var(--muted);margin-left:auto">
-          <button class="ct-pv-btn" onclick="mapaZoom=Math.max(0.3,mapaZoom-0.2);desenharMapa()">−</button>
+          <button class="ct-pv-btn" onclick="alterarZoomBtn(-0.2)">−</button>
           <span id="zoom-label" style="min-width:34px;text-align:center">100%</span>
-          <button class="ct-pv-btn" onclick="mapaZoom=Math.min(4,mapaZoom+0.2);desenharMapa()">+</button>
+          <button class="ct-pv-btn" onclick="alterarZoomBtn(0.2)">+</button>
           <button class="ct-pv-btn" onclick="resetZoom()" style="font-size:9px;width:auto;padding:0 4px">↺</button>
         </div>
       </div>

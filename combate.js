@@ -542,519 +542,701 @@ async function renderPlayersParaCT() {
 // ══════════════════════════════════════════════════
 //  MAPA
 // ══════════════════════════════════════════════════
+// ══════════════════════════════════════════════════
+//  MAPA — Engine v4 (coordenadas limpas)
+// ══════════════════════════════════════════════════
+
+// Estado
+let mapaImg     = null;
+let mapaUrl     = null;
+let mapaZoom    = 1;
+let mapaOffX    = 0;
+let mapaOffY    = 0;
+let gridSize    = 60;
+let gridVisivel = true;
+let gridOpacity = 0.25;
+let gridColor   = '#c0392b';
+let snapToGrid  = true;   // false = movimento livre
+let metrosPorCelula = 1.5;
+
+let tokens      = [];
+let tokenSel    = null;
+let dragTok     = null;
+let dragOX = 0, dragOY = 0;
+let dragMoved   = false;
+
+let isPanning   = false;
+let panLast     = null;
+
+let medindoDistancia = false;
+let medirA = null, medirB = null;
+
+// Touch
+let lastTouchDist = null;
+let touchTok      = null;   // token sendo arrastado no touch
+let touchPanStart = null;
+
+const tokenImgCache = {};
+
+let canvas, ctx;
+
+// ── INIT ─────────────────────────────────────────
 function initMapa() {
-  if (canvas) return; // já inicializado
-  canvas=document.getElementById('mapa-canvas'); if(!canvas) return;
-  ctx=canvas.getContext('2d');
-  canvas.width=CW; canvas.height=CH;
+  canvas = document.getElementById('mapa-canvas');
+  if (!canvas) return;
+  ctx = canvas.getContext('2d');
+
+  // Tamanho inicial = container
+  resizeMapCanvas();
 
   // Mouse
-  canvas.addEventListener('mousedown', onMDown);
-  canvas.addEventListener('mousemove', onMMove);
-  canvas.addEventListener('mouseup',   onMUp);
-  canvas.addEventListener('wheel',     onWheel, {passive:false});
+  canvas.addEventListener('mousedown',  onMDown);
+  canvas.addEventListener('mousemove',  onMMove);
+  canvas.addEventListener('mouseup',    onMUp);
+  canvas.addEventListener('mouseleave', onMUp);
+  canvas.addEventListener('wheel',      onWheel, { passive: false });
+
   // Touch
-  canvas.addEventListener('touchstart',onTStart,{passive:false});
-  canvas.addEventListener('touchmove', onTMove, {passive:false});
-  canvas.addEventListener('touchend',  onTEnd);
+  canvas.addEventListener('touchstart', onTStart, { passive: false });
+  canvas.addEventListener('touchmove',  onTMove,  { passive: false });
+  canvas.addEventListener('touchend',   onTEnd,   { passive: false });
 
   carregarMapaDB();
 }
 
-function desenharMapa() {
-  if(!ctx) return;
-  const W=canvas.width, H=canvas.height;
-  ctx.save();
-  ctx.clearRect(0,0,W,H);
-  ctx.fillStyle='#05050a'; ctx.fillRect(0,0,W,H);
-
-  // Zoom e pan
-  ctx.translate(mapaOffX, mapaOffY);
-  ctx.scale(mapaZoom, mapaZoom);
-
-  if(mapaImg) ctx.drawImage(mapaImg,0,0,canvas.width/mapaZoom,canvas.height/mapaZoom);
-
-  // Grid
-  if(gridVisivel) {
-    const W=canvas.width/mapaZoom, H=canvas.height/mapaZoom;
-    ctx.strokeStyle='rgba(192,57,43,0.18)'; ctx.lineWidth=1/mapaZoom;
-    for(let x=0;x<=W+gridSize;x+=gridSize){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H+gridSize);ctx.stroke();}
-    for(let y=0;y<=H+gridSize;y+=gridSize){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W+gridSize,y);ctx.stroke();}
+// ── RESIZE ───────────────────────────────────────
+// Chamado quando o painel é redimensionado
+window.resizeMapCanvas = function() {
+  if (!canvas) return;
+  const container = canvas.parentElement;
+  if (!container) return;
+  const r = container.getBoundingClientRect();
+  const w = Math.floor(r.width);
+  const h = Math.floor(r.height);
+  if (w > 10 && h > 10 && (canvas.width !== w || canvas.height !== h)) {
+    canvas.width  = w;
+    canvas.height = h;
+    desenharMapa();
   }
+};
 
-  // Régua
-  if(medindoDistancia&&medirStart&&medirEnd){
-    const s=screenToWorld(medirStart), e=screenToWorld(medirEnd);
-    ctx.beginPath(); ctx.moveTo(s.x,s.y); ctx.lineTo(e.x,e.y);
-    ctx.strokeStyle='#f1c40f'; ctx.lineWidth=2/mapaZoom;
-    ctx.setLineDash([6/mapaZoom,4/mapaZoom]); ctx.stroke(); ctx.setLineDash([]);
-    const dx=e.x-s.x, dy=e.y-s.y;
-    const metros=(Math.sqrt(dx*dx+dy*dy)/gridSize*metrosPorCelula).toFixed(1);
-    ctx.font=`bold ${14/mapaZoom}px sans-serif`; ctx.fillStyle='#f1c40f';
-    ctx.textAlign='center'; ctx.textBaseline='bottom';
-    ctx.fillText(`${metros}m`, (s.x+e.x)/2, (s.y+e.y)/2-4/mapaZoom);
-  }
-
-  tokens.forEach(t=>desenharToken(t));
-  ctx.restore();
-
-  // HUD zoom
-  const _W=canvas.width, _H=canvas.height;
-  ctx.font='11px sans-serif'; ctx.fillStyle='rgba(255,255,255,0.3)';
-  ctx.textAlign='right'; ctx.textBaseline='bottom';
-  ctx.fillText(`Zoom: ${Math.round(mapaZoom*100)}%`, _W-8, _H-6);
-  // Update zoom label
-  const zl=document.getElementById('zoom-label');
-  if(zl) zl.textContent=Math.round(mapaZoom*100)+'%';
+// ── COORDENADAS ───────────────────────────────────
+// Tela (px CSS) → canvas (px físicos)
+function telaParaCanvas(cx, cy) {
+  const r    = canvas.getBoundingClientRect();
+  const scaleX = canvas.width  / r.width;
+  const scaleY = canvas.height / r.height;
+  return { x: (cx - r.left) * scaleX, y: (cy - r.top) * scaleY };
 }
 
-function desenharToken(t) {
-  const r=gridSize*0.42;
-  const cx=t.x+gridSize/2, cy=t.y+gridSize/2;
-  const cor=corTipo(t.tipo);
-
-  if(tokenSel?.id===t.id){
-    ctx.beginPath(); ctx.arc(cx,cy,r+5/mapaZoom,0,Math.PI*2);
-    ctx.strokeStyle='#f1c40f'; ctx.lineWidth=3/mapaZoom; ctx.stroke();
-  }
-
-  if(t.imgUrl){
-    const img=tokenImgCache[t.imgUrl];
-    if(!img){
-      // Load image and cache
-      const i=new Image();
-      i.crossOrigin='anonymous';
-      i.onload=()=>{tokenImgCache[t.imgUrl]=i;desenharMapa();};
-      i.onerror=()=>{tokenImgCache[t.imgUrl]=null;};
-      i.src=t.imgUrl;
-      // Draw placeholder while loading
-      ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2);
-      ctx.fillStyle=cor; ctx.fill();
-    } else if(img===null){
-      // Failed to load, draw emoji
-      ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2);
-      ctx.fillStyle=cor; ctx.fill();
-      ctx.font=`${r*0.9}px serif`;
-      ctx.textAlign='center'; ctx.textBaseline='middle';
-      ctx.fillStyle='#fff'; ctx.fillText(t.emoji||'?',cx,cy);
-    } else {
-      // Draw circular clipped image - square source to avoid distortion
-      ctx.save();
-      ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.clip();
-      // Draw square image centered (prevents stretching)
-      const size = r*2;
-      ctx.drawImage(img, cx-r, cy-r, size, size);
-      ctx.restore();
-      // Border
-      ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2);
-      ctx.strokeStyle=cor; ctx.lineWidth=2.5/mapaZoom; ctx.stroke();
-    }
-  } else {
-    ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2);
-    ctx.fillStyle=cor; ctx.fill();
-    ctx.strokeStyle='rgba(255,255,255,0.2)'; ctx.lineWidth=1.5/mapaZoom; ctx.stroke();
-    ctx.font=`${gridSize*0.36}px serif`;
-    ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.fillText(t.emoji||'?',cx,cy);
-  }
-
-  // Nome
-  ctx.font=`bold ${Math.max(9,gridSize*0.13)}px sans-serif`;
-  ctx.strokeStyle='rgba(0,0,0,0.9)'; ctx.lineWidth=3/mapaZoom;
-  ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.textBaseline='top';
-  const nome=t.nome.substring(0,10);
-  ctx.strokeText(nome,cx,t.y+gridSize-14);
-  ctx.fillText(nome,cx,t.y+gridSize-14);
-
-  // PV bar — players veem a própria, mestre vê todas, outros ocultam inimigos
-  const devePV=t.pvMax&&(t.isPC||(isMaster)||(mostrarPVInimigos));
-  if(devePV){
-    const bw=gridSize-8,bh=5,bx=t.x+4,by=t.y+3;
-    const pct=Math.max(0,t.pvAtual/t.pvMax);
-    ctx.fillStyle='rgba(0,0,0,0.6)'; ctx.fillRect(bx,by,bw,bh);
-    ctx.fillStyle=pct>0.5?'#27ae60':pct>0.25?'#f39c12':'#c0392b';
-    ctx.fillRect(bx,by,bw*pct,bh);
-  }
+// Canvas (px físicos) → mundo (coordenadas dos tokens/grid)
+function canvasParaMundo(cx, cy) {
+  return { x: (cx - mapaOffX) / mapaZoom, y: (cy - mapaOffY) / mapaZoom };
 }
 
-const tokenImgCache = {};
-function corTipo(tipo){
-  return{pc:'#2980b9',infectado:'#c0392b',animal:'#27ae60',animal_infectado:'#8e44ad',humano:'#e67e22',custom:'#7f8c8d'}[tipo]||'#555';
+// Mundo → canvas
+function mundoParaCanvas(wx, wy) {
+  return { x: wx * mapaZoom + mapaOffX, y: wy * mapaZoom + mapaOffY };
 }
 
-// ── ZOOM + PAN ────────────────────────────────────
-function onWheel(e){
-  e.preventDefault();
-  const delta=e.deltaY<0?1.1:0.9;
-  const rect=canvas.getBoundingClientRect();
-  const mx=(e.clientX-rect.left)*(CW/rect.width);
-  const my=(e.clientY-rect.top)*(CH/rect.height);
-  mapaZoom=Math.max(0.3,Math.min(4,mapaZoom*delta));
-  mapaOffX=mx-(mx-mapaOffX)*delta;
-  mapaOffY=my-(my-mapaOffY)*delta;
-  desenharMapa();
+// Evento de mouse/touch → mundo
+function eventoParaMundo(e) {
+  const c = telaParaCanvas(e.clientX, e.clientY);
+  return canvasParaMundo(c.x, c.y);
 }
 
-function resetZoom(){mapaZoom=1;mapaOffX=0;mapaOffY=0;desenharMapa();}
-
-// Converte coord de tela → mundo
-function screenToWorld(p){
-  return{x:(p.x-mapaOffX)/mapaZoom, y:(p.y-mapaOffY)/mapaZoom};
-}
-function getCanvasPos(e){
-  const r=canvas.getBoundingClientRect();
-  // Use actual canvas pixel dimensions, not CW/CH constants
-  return{
-    x:(e.clientX-r.left)*(canvas.width/r.width),
-    y:(e.clientY-r.top)*(canvas.height/r.height)
-  };
+// Snap ao grid (se ativo)
+function snapGrid(v) {
+  return snapToGrid ? Math.round(v / gridSize) * gridSize : v;
 }
 
-function snap(v){return Math.round(v/gridSize)*gridSize;}
-function getTokenAt(wx,wy){
-  return tokens.slice().reverse().find(t=>wx>=t.x&&wx<=t.x+gridSize&&wy>=t.y&&wy<=t.y+gridSize);
+// Token em posição mundo?
+function getTokenAt(wx, wy) {
+  return tokens.slice().reverse().find(t =>
+    wx >= t.x && wx <= t.x + gridSize &&
+    wy >= t.y && wy <= t.y + gridSize
+  );
 }
-function podeMoverToken(t){
-  if(isMaster) return true;
-  if(t.isPC&&t.userId===currentUser?.id) return true;
-  if(t.controladorNome===currentProfile?.username) return true;
+
+function podeMoverToken(t) {
+  if (isMaster) return true;
+  if (t.isPC && t.userId === currentUser?.id) return true;
+  if (t.controladorNome === currentProfile?.username) return true;
   return false;
 }
 
-// ── MOUSE / TOUCH ─────────────────────────────────
-let lastTouchDist=null;
+// ── DESENHO ───────────────────────────────────────
+function desenharMapa() {
+  if (!ctx || !canvas) return;
+  const W = canvas.width, H = canvas.height;
 
-function onMDown(e){
-  const sp=getCanvasPos(e);
-  mouseDownPos = {x: e.clientX||0, y: e.clientY||0};
-  if(medindoDistancia){medirStart=sp;medirEnd=sp;return;}
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#05050a';
+  ctx.fillRect(0, 0, W, H);
 
-  const wp=screenToWorld(sp);
-  const t=getTokenAt(wp.x,wp.y);
+  ctx.save();
+  ctx.translate(mapaOffX, mapaOffY);
+  ctx.scale(mapaZoom, mapaZoom);
 
-  if(e.button===1||e.altKey){isPanning=true;panStart=sp;canvas.style.cursor='grabbing';return;}
+  // Imagem de fundo
+  if (mapaImg) {
+    ctx.drawImage(mapaImg, 0, 0);
+  }
 
-  if(t&&podeMoverToken(t)){
-    dragTok=t; dragOX=wp.x-t.x; dragOY=wp.y-t.y;
-    tokenSel=t; desenharMapa();
-    // Não mostra info no mousedown — só no mouseup se não houve drag
+  // Grid
+  if (gridVisivel) {
+    // Área visível em coordenadas mundo
+    const wx0 = -mapaOffX / mapaZoom;
+    const wy0 = -mapaOffY / mapaZoom;
+    const wx1 = (W - mapaOffX) / mapaZoom;
+    const wy1 = (H - mapaOffY) / mapaZoom;
+
+    // Cor com opacidade
+    const hex = gridColor.replace('#','');
+    const r = parseInt(hex.slice(0,2),16);
+    const g = parseInt(hex.slice(2,4),16);
+    const b = parseInt(hex.slice(4,6),16);
+    ctx.strokeStyle = `rgba(${r},${g},${b},${gridOpacity})`;
+    ctx.lineWidth = 1 / mapaZoom;
+
+    const startX = Math.floor(wx0 / gridSize) * gridSize;
+    const startY = Math.floor(wy0 / gridSize) * gridSize;
+
+    for (let x = startX; x <= wx1 + gridSize; x += gridSize) {
+      ctx.beginPath(); ctx.moveTo(x, wy0); ctx.lineTo(x, wy1); ctx.stroke();
+    }
+    for (let y = startY; y <= wy1 + gridSize; y += gridSize) {
+      ctx.beginPath(); ctx.moveTo(wx0, y); ctx.lineTo(wx1, y); ctx.stroke();
+    }
+  }
+
+  // Régua
+  if (medindoDistancia && medirA && medirB) {
+    ctx.beginPath();
+    ctx.moveTo(medirA.x, medirA.y);
+    ctx.lineTo(medirB.x, medirB.y);
+    ctx.strokeStyle = '#f1c40f';
+    ctx.lineWidth = 2 / mapaZoom;
+    ctx.setLineDash([6 / mapaZoom, 4 / mapaZoom]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    const dx = medirB.x - medirA.x, dy = medirB.y - medirA.y;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    const metros = (dist / gridSize * metrosPorCelula).toFixed(1);
+    const mx = (medirA.x + medirB.x) / 2;
+    const my = (medirA.y + medirB.y) / 2 - 8 / mapaZoom;
+    ctx.font = `bold ${14 / mapaZoom}px sans-serif`;
+    ctx.fillStyle = '#f1c40f';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(`${metros}m`, mx, my);
+  }
+
+  // Tokens
+  tokens.forEach(t => desenharToken(t));
+
+  ctx.restore();
+
+  // HUD
+  const zl = document.getElementById('zoom-label');
+  if (zl) zl.textContent = Math.round(mapaZoom * 100) + '%';
+}
+
+function desenharToken(t) {
+  const r  = gridSize * 0.42;
+  const cx = t.x + gridSize / 2;
+  const cy = t.y + gridSize / 2;
+  const cor = { pc:'#2980b9', infectado:'#c0392b', animal:'#27ae60',
+                animal_infectado:'#8e44ad', humano:'#e67e22', custom:'#7f8c8d' }[t.tipo] || '#555';
+
+  // Seleção
+  if (tokenSel?.id === t.id) {
+    ctx.beginPath(); ctx.arc(cx, cy, r + 4 / mapaZoom, 0, Math.PI * 2);
+    ctx.strokeStyle = '#f1c40f'; ctx.lineWidth = 2 / mapaZoom; ctx.stroke();
+  }
+
+  // Corpo
+  if (t.imgUrl) {
+    const cached = tokenImgCache[t.imgUrl];
+    if (cached === undefined) {
+      // Ainda carregando — placeholder
+      tokenImgCache[t.imgUrl] = null;
+      const img = new Image(); img.crossOrigin = 'anonymous';
+      img.onload = () => { tokenImgCache[t.imgUrl] = img; desenharMapa(); };
+      img.onerror = () => { tokenImgCache[t.imgUrl] = 'err'; desenharMapa(); };
+      img.src = t.imgUrl;
+    } else if (cached && cached !== 'err') {
+      ctx.save();
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.clip();
+      ctx.drawImage(cached, cx - r, cy - r, r * 2, r * 2);
+      ctx.restore();
+    } else {
+      // Erro ou carregando
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.fillStyle = cor; ctx.fill();
+    }
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.strokeStyle = cor; ctx.lineWidth = 2 / mapaZoom; ctx.stroke();
   } else {
-    tokenSel=null; desenharMapa(); esconderInfoToken();
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fillStyle = cor; ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.2)'; ctx.lineWidth = 1.5 / mapaZoom; ctx.stroke();
+    ctx.font = `${r * 0.9}px serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(t.emoji || '?', cx, cy);
+  }
+
+  // Nome
+  ctx.font = `bold ${Math.max(8, gridSize * 0.13)}px sans-serif`;
+  ctx.strokeStyle = 'rgba(0,0,0,0.85)'; ctx.lineWidth = 3 / mapaZoom;
+  ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  ctx.strokeText(t.nome.substring(0, 10), cx, t.y + gridSize - 14);
+  ctx.fillText(t.nome.substring(0, 10), cx, t.y + gridSize - 14);
+
+  // Barra PV
+  const devePV = t.pvMax && (t.isPC || isMaster || mostrarPVInimigos);
+  if (devePV) {
+    const bw = gridSize - 8, bh = 4, bx = t.x + 4, by = t.y + 3;
+    const pct = Math.max(0, t.pvAtual / t.pvMax);
+    ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(bx, by, bw, bh);
+    ctx.fillStyle = pct > 0.5 ? '#27ae60' : pct > 0.25 ? '#f39c12' : '#c0392b';
+    ctx.fillRect(bx, by, bw * pct, bh);
   }
 }
 
-function onMMove(e){
-  const sp=getCanvasPos(e);
-  if(medindoDistancia&&medirStart){medirEnd=sp;desenharMapa();return;}
-  if(isPanning&&panStart){
-    mapaOffX+=(sp.x-panStart.x); mapaOffY+=(sp.y-panStart.y);
-    panStart=sp; desenharMapa(); return;
-  }
-  if(!dragTok) return;
-  const wp=screenToWorld(sp);
-  // Smooth drag — sem snap durante o movimento
-  const _maxX=canvas.width/mapaZoom-gridSize, _maxY=canvas.height/mapaZoom-gridSize;
-  dragTok.x=Math.max(0,Math.min(_maxX,wp.x-dragOX));
-  dragTok.y=Math.max(0,Math.min(_maxY,wp.y-dragOY));
+// ── ZOOM ─────────────────────────────────────────
+function onWheel(e) {
+  e.preventDefault();
+  const factor = e.deltaY < 0 ? 1.12 : 0.88;
+  const c = telaParaCanvas(e.clientX, e.clientY);
+  const novoZoom = Math.max(0.2, Math.min(5, mapaZoom * factor));
+  // Zoom centrado no cursor
+  mapaOffX = c.x - (c.x - mapaOffX) * (novoZoom / mapaZoom);
+  mapaOffY = c.y - (c.y - mapaOffY) * (novoZoom / mapaZoom);
+  mapaZoom = novoZoom;
   desenharMapa();
 }
 
-let mouseDownPos = null;
+function resetZoom() { mapaZoom = 1; mapaOffX = 0; mapaOffY = 0; desenharMapa(); }
 
-function onMUp(e){
-  if(isPanning){isPanning=false;canvas.style.cursor='crosshair';panStart=null;return;}
-  if(medindoDistancia) return;
-  
-  if(dragTok){
-    dragTok.x=snap(dragTok.x); dragTok.y=snap(dragTok.y);
-    // Só mostra info se foi um clique (não drag)
-    const wasDrag = mouseDownPos && e && (
-      Math.abs((e.clientX||0) - mouseDownPos.x) > 5 ||
-      Math.abs((e.clientY||0) - mouseDownPos.y) > 5
-    );
-    if(!wasDrag) mostrarInfoToken(dragTok);
-    dragTok=null; desenharMapa(); salvarMapaDB();
-  } else if(tokenSel) {
-    // Clique num token sem drag - mostra info
+function alterarZoomBtn(delta) {
+  const novoZoom = Math.max(0.2, Math.min(5, mapaZoom + delta));
+  const cx = canvas.width / 2, cy = canvas.height / 2;
+  mapaOffX = cx - (cx - mapaOffX) * (novoZoom / mapaZoom);
+  mapaOffY = cy - (cy - mapaOffY) * (novoZoom / mapaZoom);
+  mapaZoom = novoZoom;
+  desenharMapa();
+}
+
+// ── MOUSE ────────────────────────────────────────
+let mouseDownCanvasPos = null;
+
+function onMDown(e) {
+  const c = telaParaCanvas(e.clientX, e.clientY);
+  mouseDownCanvasPos = c;
+  dragMoved = false;
+
+  if (medindoDistancia) {
+    medirA = canvasParaMundo(c.x, c.y);
+    medirB = { ...medirA };
+    return;
+  }
+
+  // Alt+drag ou botão do meio = pan
+  if (e.button === 1 || e.altKey || e.button === 2) {
+    isPanning = true; panLast = c;
+    canvas.style.cursor = 'grabbing'; return;
+  }
+
+  const w = canvasParaMundo(c.x, c.y);
+  const t = getTokenAt(w.x, w.y);
+
+  if (t && podeMoverToken(t)) {
+    dragTok = t; dragOX = w.x - t.x; dragOY = w.y - t.y;
+    tokenSel = t; desenharMapa();
+  } else {
+    // Clique em área vazia = pan
+    isPanning = true; panLast = c;
+    canvas.style.cursor = 'grab';
+    if (tokenSel) { tokenSel = null; esconderInfoToken(); desenharMapa(); }
+  }
+}
+
+function onMMove(e) {
+  const c = telaParaCanvas(e.clientX, e.clientY);
+
+  if (mouseDownCanvasPos) {
+    const dx = c.x - mouseDownCanvasPos.x;
+    const dy = c.y - mouseDownCanvasPos.y;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) dragMoved = true;
+  }
+
+  if (medindoDistancia && medirA) {
+    medirB = canvasParaMundo(c.x, c.y); desenharMapa(); return;
+  }
+
+  if (isPanning && panLast) {
+    mapaOffX += c.x - panLast.x;
+    mapaOffY += c.y - panLast.y;
+    panLast = c; desenharMapa(); return;
+  }
+
+  if (dragTok) {
+    const w = canvasParaMundo(c.x, c.y);
+    dragTok.x = Math.max(0, w.x - dragOX);
+    dragTok.y = Math.max(0, w.y - dragOY);
+    desenharMapa();
+  }
+}
+
+function onMUp(e) {
+  canvas.style.cursor = 'default';
+
+  if (isPanning) { isPanning = false; panLast = null; return; }
+  if (medindoDistancia) return;
+
+  if (dragTok) {
+    // Snap só no soltar
+    if (snapToGrid) {
+      dragTok.x = snapGrid(dragTok.x);
+      dragTok.y = snapGrid(dragTok.y);
+    }
+    // Mostrar info só se foi clique (não drag)
+    if (!dragMoved) mostrarInfoToken(dragTok);
+    dragTok = null; desenharMapa(); salvarMapaDB();
+  } else if (!dragMoved && tokenSel) {
     mostrarInfoToken(tokenSel);
   }
-  mouseDownPos = null;
+
+  mouseDownCanvasPos = null; dragMoved = false;
 }
 
-// Touch: mover token OU pinch zoom
-// ── TOUCH: 1 dedo = pan do mapa, 2 dedos = zoom ─
-let touchStartPos = null;
-let touchMoved = false;
-let touchPanActive = false;
-
-function onTStart(e){
+// ── TOUCH ────────────────────────────────────────
+function onTStart(e) {
   e.preventDefault();
-  if(e.touches.length===2){
+
+  if (e.touches.length === 2) {
     // Pinch zoom
-    dragTok = null; touchPanActive = false;
-    lastTouchDist=Math.hypot(
-      e.touches[0].clientX-e.touches[1].clientX,
-      e.touches[0].clientY-e.touches[1].clientY
+    dragTok = null; isPanning = false;
+    lastTouchDist = Math.hypot(
+      e.touches[0].clientX - e.touches[1].clientX,
+      e.touches[0].clientY - e.touches[1].clientY
     );
+    const mx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+    const my = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+    touchPanStart = telaParaCanvas(mx, my);
     return;
   }
-  const t = e.touches[0];
-  const sp = getCanvasPos({clientX:t.clientX, clientY:t.clientY});
-  const wp = screenToWorld(sp);
-  touchStartPos = sp;
-  touchMoved = false;
 
-  // Verifica se tocou num token que pode mover
-  const tok = getTokenAt(wp.x, wp.y);
-  if(tok && podeMoverToken(tok)){
-    // Inicia drag do token
-    dragTok = tok;
-    dragOX = wp.x - tok.x;
-    dragOY = wp.y - tok.y;
-    tokenSel = tok;
-    touchPanActive = false;
-    desenharMapa();
+  const t0 = e.touches[0];
+  const c   = telaParaCanvas(t0.clientX, t0.clientY);
+  const w   = canvasParaMundo(c.x, c.y);
+  mouseDownCanvasPos = c; dragMoved = false;
+
+  if (medindoDistancia) {
+    medirA = w; medirB = { ...w }; return;
+  }
+
+  const tok = getTokenAt(w.x, w.y);
+  if (tok && podeMoverToken(tok)) {
+    dragTok = tok; dragOX = w.x - tok.x; dragOY = w.y - tok.y;
+    tokenSel = tok; desenharMapa();
   } else {
-    // Vai ser pan do mapa
-    touchPanActive = true;
-    isPanning = true;
-    panStart = sp;
-    tokenSel = null;
+    isPanning = true; panLast = c;
+    if (tokenSel) { tokenSel = null; esconderInfoToken(); desenharMapa(); }
   }
 }
 
-function onTMove(e){
+function onTMove(e) {
   e.preventDefault();
-  if(e.touches.length===2){
-    // Pinch zoom
-    dragTok = null; touchPanActive = false; isPanning = false;
-    const dist=Math.hypot(
-      e.touches[0].clientX-e.touches[1].clientX,
-      e.touches[0].clientY-e.touches[1].clientY
+
+  if (e.touches.length === 2) {
+    // Pinch zoom centrado entre os dois dedos
+    const dist = Math.hypot(
+      e.touches[0].clientX - e.touches[1].clientX,
+      e.touches[0].clientY - e.touches[1].clientY
     );
-    if(lastTouchDist){
-      const cx = (e.touches[0].clientX + e.touches[1].clientX)/2;
-      const cy = (e.touches[0].clientY + e.touches[1].clientY)/2;
-      const rect = canvas.getBoundingClientRect();
-      const mx = (cx-rect.left)*(canvas.width/rect.width);
-      const my = (cy-rect.top)*(canvas.height/rect.height);
-      const factor = dist/lastTouchDist;
-      mapaZoom = Math.max(0.3, Math.min(4, mapaZoom*factor));
-      mapaOffX = mx - (mx-mapaOffX)*factor;
-      mapaOffY = my - (my-mapaOffY)*factor;
+    if (lastTouchDist && dist > 0) {
+      const mx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+      const my = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+      const c  = telaParaCanvas(mx, my);
+      const factor = dist / lastTouchDist;
+      const novoZoom = Math.max(0.2, Math.min(5, mapaZoom * factor));
+      mapaOffX = c.x - (c.x - mapaOffX) * (novoZoom / mapaZoom);
+      mapaOffY = c.y - (c.y - mapaOffY) * (novoZoom / mapaZoom);
+      mapaZoom = novoZoom;
       desenharMapa();
     }
-    lastTouchDist=dist; return;
+    lastTouchDist = dist; return;
   }
 
-  const t = e.touches[0];
-  const sp = getCanvasPos({clientX:t.clientX, clientY:t.clientY});
+  const t0 = e.touches[0];
+  const c  = telaParaCanvas(t0.clientX, t0.clientY);
 
-  if(touchStartPos){
-    const dx = Math.abs(sp.x - touchStartPos.x);
-    const dy = Math.abs(sp.y - touchStartPos.y);
-    if(dx > 5 || dy > 5) touchMoved = true;
+  if (mouseDownCanvasPos) {
+    const dx = c.x - mouseDownCanvasPos.x;
+    const dy = c.y - mouseDownCanvasPos.y;
+    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) dragMoved = true;
   }
 
-  if(dragTok){
-    // Move token
-    const wp = screenToWorld(sp);
-    dragTok.x = Math.max(0, Math.min(CW-gridSize, wp.x-dragOX));
-    dragTok.y = Math.max(0, Math.min(CH-gridSize, wp.y-dragOY));
-    desenharMapa();
-  } else if(isPanning && panStart){
-    // Pan do mapa
-    mapaOffX += (sp.x - panStart.x);
-    mapaOffY += (sp.y - panStart.y);
-    panStart = sp;
-    desenharMapa();
+  if (medindoDistancia && medirA) {
+    medirB = canvasParaMundo(c.x, c.y); desenharMapa(); return;
+  }
+
+  if (dragTok) {
+    const w = canvasParaMundo(c.x, c.y);
+    dragTok.x = Math.max(0, w.x - dragOX);
+    dragTok.y = Math.max(0, w.y - dragOY);
+    desenharMapa(); return;
+  }
+
+  if (isPanning && panLast) {
+    mapaOffX += c.x - panLast.x;
+    mapaOffY += c.y - panLast.y;
+    panLast = c; desenharMapa();
   }
 }
 
-function onTEnd(e){
+function onTEnd(e) {
   lastTouchDist = null;
 
-  if(dragTok){
-    // Finaliza drag de token
-    dragTok.x = snap(dragTok.x);
-    dragTok.y = snap(dragTok.y);
-    mostrarInfoToken(dragTok);
-    dragTok = null;
-    desenharMapa();
-    salvarMapaDB();
-  } else if(!touchMoved && touchStartPos){
-    // Tap sem movimento — mostra info do token se tocou em um
-    const wp = screenToWorld(touchStartPos);
-    const tok = getTokenAt(wp.x, wp.y);
-    if(tok){
-      tokenSel = tok;
-      mostrarInfoToken(tok);
-      desenharMapa();
-    } else {
-      tokenSel = null;
-      esconderInfoToken();
+  if (dragTok) {
+    if (snapToGrid) { dragTok.x = snapGrid(dragTok.x); dragTok.y = snapGrid(dragTok.y); }
+    if (!dragMoved) mostrarInfoToken(dragTok);
+    dragTok = null; desenharMapa(); salvarMapaDB();
+  } else if (isPanning) {
+    isPanning = false; panLast = null;
+  } else if (!dragMoved) {
+    // Tap sem drag = mostra info se tocou token
+    const t0 = e.changedTouches[0];
+    if (t0) {
+      const c = telaParaCanvas(t0.clientX, t0.clientY);
+      const w = canvasParaMundo(c.x, c.y);
+      const tok = getTokenAt(w.x, w.y);
+      if (tok) { tokenSel = tok; mostrarInfoToken(tok); desenharMapa(); }
     }
   }
 
-  isPanning = false; panStart = null;
-  touchPanActive = false; touchStartPos = null;
+  mouseDownCanvasPos = null; dragMoved = false;
 }
 
-// ── INFO TOKEN ────────────────────────────────────
-function mostrarInfoToken(t){
-  const el=document.getElementById('token-info'); if(!el) return;
-  
-  // Players: só mostram info do próprio token se for mestre ou controlador
-  // Para o próprio PC do player, não mostra o painel (já tem a foto na ficha)
-  // Só mostra se for mestre, ou se for token de NPC que o player controla
-  const ehMeuPC = t.isPC && t.userId === currentUser?.id;
-  if(ehMeuPC && !isMaster){
-    // Player tocou no próprio token — só move, não abre painel
-    el.style.display='none';
-    return;
+// ── REGUA MOBILE ─────────────────────────────────
+// Ativa régua com dois toques rápidos (double tap)
+let lastTapTime = 0;
+canvas?.addEventListener('touchend', e => {
+  if (!medindoDistancia) return;
+  const now = Date.now();
+  if (now - lastTapTime < 300) {
+    // Double tap cancela régua
+    toggleRegua();
   }
-  
-  el.style.display='block';
-  const podeEditar=isMaster||(t.controladorNome===currentProfile?.username);
-  el.innerHTML=`
-    <div class="token-info-header">
-      ${t.imgUrl?`<img src="${t.imgUrl}" style="width:36px;height:36px;border-radius:50%;object-fit:cover">`:`<span style="font-size:22px">${t.emoji||'?'}</span>`}
-      <div style="flex:1"><div style="font-weight:700;font-size:12px">${t.nome}</div><div style="font-size:9px;color:var(--muted)">${t.tipo}</div></div>
-      ${podeEditar?`<button class="btn-icon" onclick="removerToken('${t.id}')" title="Remover token">🗑</button>`:''}
+  lastTapTime = now;
+}, { passive: true });
+
+// ── CONTROLES GRID ───────────────────────────────
+function toggleGrid() {
+  gridVisivel = !gridVisivel;
+  const btn = document.getElementById('btn-grid');
+  if (btn) btn.textContent = gridVisivel ? '⬛ Ocultar Grid' : '⬛ Mostrar Grid';
+  desenharMapa();
+}
+
+function alterarGrid(delta) {
+  gridSize = Math.max(20, Math.min(200, gridSize + delta));
+  const el = document.getElementById('grid-size-val');
+  if (el) el.textContent = gridSize + 'px';
+  desenharMapa();
+}
+
+function toggleRegua() {
+  medindoDistancia = !medindoDistancia;
+  medirA = null; medirB = null;
+  const btn = document.getElementById('btn-regua');
+  if (btn) {
+    btn.textContent = medindoDistancia ? '📏 Cancelar' : '📏 Régua';
+    btn.style.color = medindoDistancia ? 'var(--gold)' : '';
+  }
+  canvas.style.cursor = medindoDistancia ? 'crosshair' : 'default';
+  if (!medindoDistancia) desenharMapa();
+}
+
+// ── TOKENS ────────────────────────────────────────
+function adicionarTokenMapa(inimigo) {
+  if (!isMaster) { toast('Só o mestre pode adicionar inimigos.', 'err'); return; }
+  const id = inimigo.id + '_' + Date.now();
+  // Posiciona no centro visível do mapa
+  const cx = (canvas.width  / 2 - mapaOffX) / mapaZoom;
+  const cy = (canvas.height / 2 - mapaOffY) / mapaZoom;
+  tokens.push({
+    id, nome: inimigo.nome, emoji: inimigo.emoji, tipo: inimigo.tipo,
+    x: snapGrid(cx - gridSize / 2), y: snapGrid(cy - gridSize / 2),
+    pvMax: inimigo.pv, pvAtual: inimigo.pv,
+    habilidades: inimigo.habilidades, isPC: false,
+  });
+  desenharMapa(); salvarMapaDB();
+}
+
+function removerToken(id) {
+  tokens = tokens.filter(t => t.id !== id);
+  tokenSel = null; esconderInfoToken(); desenharMapa(); salvarMapaDB();
+}
+
+function alterarPVToken(id, delta) {
+  const t = tokens.find(x => x.id === id); if (!t) return;
+  t.pvAtual = Math.max(0, Math.min(t.pvMax, t.pvAtual + delta));
+  const c = combatentes.find(x => x.id === id);
+  if (c) { c.pvAtual = t.pvAtual; renderCT(); }
+  mostrarInfoToken(t); desenharMapa(); salvarMapaDB();
+}
+
+function setPVToken(id, val) {
+  const t = tokens.find(x => x.id === id); if (!t) return;
+  t.pvAtual = Math.max(0, Math.min(t.pvMax, parseInt(val) || 0));
+  const c = combatentes.find(x => x.id === id);
+  if (c) { c.pvAtual = t.pvAtual; renderCT(); }
+  desenharMapa(); salvarMapaDB();
+}
+
+async function uploadTokenImg(tokenId, input) {
+  const file = input.files[0]; if (!file) return;
+  const ext  = file.name.split('.').pop();
+  const path = `${currentUser.id}/${tokenId}.${ext}`;
+  const { error } = await db.storage.from('tokens').upload(path, file, { upsert: true });
+  if (error) { toast('Erro: ' + error.message, 'err'); return; }
+  const { data } = db.storage.from('tokens').getPublicUrl(path);
+  const t = tokens.find(x => x.id === tokenId);
+  if (t) {
+    delete tokenImgCache[t.imgUrl];
+    t.imgUrl = data.publicUrl;
+    mostrarInfoToken(t); desenharMapa(); salvarMapaDB();
+  }
+  toast('Imagem atualizada!', 'ok');
+}
+
+function limparTokens() {
+  if (!isMaster) { toast('Só o mestre pode limpar.', 'err'); return; }
+  if (!confirm('Limpar todos os tokens?')) return;
+  tokens = []; tokenSel = null; esconderInfoToken(); desenharMapa(); salvarMapaDB();
+}
+
+function importarMapaImg() {
+  if (!isMaster) return;
+  const input = document.createElement('input');
+  input.type = 'file'; input.accept = 'image/*';
+  input.onchange = e => {
+    const file = e.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const img = new Image();
+      img.onload = () => {
+        mapaImg = img;
+        mapaUrl = ev.target.result;
+        // Reset view para mostrar o mapa inteiro
+        resetZoom();
+        desenharMapa();
+        salvarMapaDB();
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
+  input.click();
+}
+
+// Token custom
+let tokenCustomImg = null;
+
+function abrirCriarTokenCustom() {
+  if (!isMaster) return;
+  const m = document.getElementById('modal-token-custom');
+  if (m) m.style.display = 'flex';
+}
+function fecharCriarTokenCustom() {
+  const m = document.getElementById('modal-token-custom');
+  if (m) m.style.display = 'none';
+}
+function tokenCustomImgPreview(input) {
+  const file = input.files[0]; if (!file) return;
+  tokenCustomImg = file;
+  const r = new FileReader();
+  r.onload = e => {
+    const p = document.getElementById('token-custom-preview');
+    if (p) { p.src = e.target.result; p.style.display = 'block'; }
+  };
+  r.readAsDataURL(file);
+}
+async function criarTokenCustom() {
+  const nome  = document.getElementById('tc-nome')?.value.trim() || 'Token';
+  const pvMax = parseInt(document.getElementById('tc-pv')?.value) || 0;
+  const tipo  = document.getElementById('tc-tipo')?.value || 'custom';
+  const emoji = document.getElementById('tc-emoji')?.value || '⭐';
+  const id    = 'custom_' + Date.now();
+  let imgUrl  = null;
+  if (tokenCustomImg) {
+    const ext  = tokenCustomImg.name.split('.').pop();
+    const path = `${currentUser.id}/${id}.${ext}`;
+    const { error } = await db.storage.from('tokens').upload(path, tokenCustomImg, { upsert: true });
+    if (!error) {
+      const { data } = db.storage.from('tokens').getPublicUrl(path);
+      imgUrl = data.publicUrl;
+    }
+  }
+  const cx = (canvas.width  / 2 - mapaOffX) / mapaZoom;
+  const cy = (canvas.height / 2 - mapaOffY) / mapaZoom;
+  tokens.push({
+    id, nome, emoji, tipo, imgUrl,
+    x: snapGrid(cx - gridSize / 2), y: snapGrid(cy - gridSize / 2),
+    pvMax: pvMax || undefined, pvAtual: pvMax || undefined, isPC: false,
+  });
+  tokenCustomImg = null;
+  fecharCriarTokenCustom();
+  desenharMapa(); salvarMapaDB();
+  toast('Token criado!', 'ok');
+}
+
+// ── TOKEN INFO ────────────────────────────────────
+function mostrarInfoToken(t) {
+  const el = document.getElementById('token-info'); if (!el) return;
+
+  // Players não veem info do próprio token PC
+  const ehMeuPC = t.isPC && t.userId === currentUser?.id;
+  if (ehMeuPC && !isMaster) { el.style.display = 'none'; return; }
+
+  el.style.display = 'block';
+  const podeEditar = isMaster || t.controladorNome === currentProfile?.username;
+
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+      ${t.imgUrl && tokenImgCache[t.imgUrl] && tokenImgCache[t.imgUrl] !== 'err'
+        ? `<img src="${t.imgUrl}" style="width:34px;height:34px;border-radius:50%;object-fit:cover;flex-shrink:0">`
+        : `<span style="font-size:22px;flex-shrink:0">${t.emoji || '?'}</span>`}
+      <div style="flex:1">
+        <div style="font-weight:700;font-size:12px">${t.nome}</div>
+        <div style="font-size:9px;color:var(--muted)">${t.tipo}</div>
+      </div>
+      ${podeEditar ? `<button class="btn-icon" onclick="removerToken('${t.id}')" title="Remover">🗑</button>` : ''}
     </div>
-    ${t.pvMax?`<div class="token-pv-row">
+    ${t.pvMax ? `<div style="display:flex;align-items:center;gap:5px;margin-bottom:6px">
       <span style="font-size:9px;color:var(--muted)">PV</span>
       <button class="ct-pv-btn" onclick="alterarPVToken('${t.id}',-1)">−</button>
       <input type="number" value="${t.pvAtual}" min="0" max="${t.pvMax}" onchange="setPVToken('${t.id}',this.value)"
         style="width:40px;text-align:center;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:3px;font-size:12px">
       <span style="color:var(--muted);font-size:11px">/${t.pvMax}</span>
       <button class="ct-pv-btn" onclick="alterarPVToken('${t.id}',1)">+</button>
-    </div>`:``}
-    ${podeEditar?`<div style="margin-top:6px">
-      <input type="file" accept="image/*" style="display:none" id="tok-img-${t.id}" onchange="uploadTokenImg('${t.id}',this)">
-      <button class="btn-ghost" style="width:100%;font-size:9px;padding:4px" onclick="document.getElementById('tok-img-${t.id}').click()">📷 Trocar imagem</button>
-    </div>`:''}
+    </div>` : ''}
+    ${podeEditar ? `
+    <input type="file" accept="image/*" style="display:none" id="tok-img-${t.id}" onchange="uploadTokenImg('${t.id}',this)">
+    <button class="btn-ghost" style="width:100%;font-size:9px;padding:4px" onclick="document.getElementById('tok-img-${t.id}').click()">📷 Trocar imagem</button>
+    ` : ''}
   `;
 }
 
-function esconderInfoToken(){const el=document.getElementById('token-info');if(el)el.style.display='none';}
-
-function alterarPVToken(id,delta){
-  const t=tokens.find(x=>x.id===id); if(!t) return;
-  t.pvAtual=Math.max(0,Math.min(t.pvMax,t.pvAtual+delta));
-  const c=combatentes.find(x=>x.id===id); if(c){c.pvAtual=t.pvAtual;renderCT();}
-  mostrarInfoToken(t); desenharMapa(); salvarMapaDB();
+function esconderInfoToken() {
+  const el = document.getElementById('token-info');
+  if (el) el.style.display = 'none';
 }
 
-function setPVToken(id,val){
-  const t=tokens.find(x=>x.id===id); if(!t) return;
-  t.pvAtual=Math.max(0,Math.min(t.pvMax,parseInt(val)||0));
-  const c=combatentes.find(x=>x.id===id); if(c){c.pvAtual=t.pvAtual;renderCT();}
-  desenharMapa(); salvarMapaDB();
-}
-
-function removerToken(id){
-  tokens=tokens.filter(t=>t.id!==id); tokenSel=null;
-  esconderInfoToken(); desenharMapa(); salvarMapaDB();
-}
-
-async function uploadTokenImg(tokenId,input){
-  const file=input.files[0]; if(!file) return;
-  const ext=file.name.split('.').pop();
-  const path=`${currentUser.id}/${tokenId}.${ext}`;
-  const{error}=await db.storage.from('tokens').upload(path,file,{upsert:true});
-  if(error){toast('Erro: '+error.message,'err');return;}
-  const{data}=db.storage.from('tokens').getPublicUrl(path);
-  const t=tokens.find(x=>x.id===tokenId);
-  if(t){t.imgUrl=data.publicUrl;delete tokenImgCache[data.publicUrl];mostrarInfoToken(t);desenharMapa();salvarMapaDB();}
-  toast('Imagem atualizada!','ok');
-}
-
-// ── ADICIONAR TOKENS ──────────────────────────────
-function adicionarTokenMapa(inimigo){
-  if(!isMaster){toast('Só o mestre pode adicionar inimigos.','err');return;}
-  const id=inimigo.id+'_'+Date.now();
-  tokens.push({
-    id,nome:inimigo.nome,emoji:inimigo.emoji,tipo:inimigo.tipo,
-    x:snap(Math.random()*(CW/2)),y:snap(Math.random()*(CH/2)),
-    pvMax:inimigo.pv,pvAtual:inimigo.pv,
-    habilidades:inimigo.habilidades,isPC:false,
-  });
-  desenharMapa(); salvarMapaDB();
-}
-
-// Token custom pelo mestre
-function abrirCriarTokenCustom(){
-  if(!isMaster) return;
-  const m=document.getElementById('modal-token-custom'); if(m)m.style.display='flex';
-}
-function fecharCriarTokenCustom(){const m=document.getElementById('modal-token-custom');if(m)m.style.display='none';}
-
-function tokenCustomImgPreview(input){
-  const file=input.files[0]; if(!file) return;
-  tokenCustomImg=file;
-  const r=new FileReader();
-  r.onload=e=>{const p=document.getElementById('token-custom-preview');if(p){p.src=e.target.result;p.style.display='block';}};
-  r.readAsDataURL(file);
-}
-
-async function criarTokenCustom(){
-  const nome=document.getElementById('tc-nome')?.value.trim()||'Token';
-  const pvMax=parseInt(document.getElementById('tc-pv')?.value)||0;
-  const tipo=document.getElementById('tc-tipo')?.value||'custom';
-  const emoji=document.getElementById('tc-emoji')?.value||'⭐';
-  const id='custom_'+Date.now();
-  let imgUrl=null;
-  if(tokenCustomImg){
-    const ext=tokenCustomImg.name.split('.').pop();
-    const path=`${currentUser.id}/${id}.${ext}`;
-    const{error}=await db.storage.from('tokens').upload(path,tokenCustomImg,{upsert:true});
-    if(!error){const{data}=db.storage.from('tokens').getPublicUrl(path);imgUrl=data.publicUrl;}
-  }
-  tokens.push({id,nome,emoji,tipo,imgUrl,x:snap(CW/2),y:snap(CH/2),pvMax:pvMax||undefined,pvAtual:pvMax||undefined,isPC:false});
-  tokenCustomImg=null;
-  fecharCriarTokenCustom();
-  desenharMapa(); salvarMapaDB(); toast('Token criado!','ok');
-}
-
-// ── CONTROLES MAPA ────────────────────────────────
-function toggleGrid(){
-  gridVisivel=!gridVisivel;
-  const btn=document.getElementById('btn-grid');
-  if(btn)btn.textContent=gridVisivel?'⬛ Ocultar Grid':'⬛ Mostrar Grid';
-  desenharMapa();
-}
-
-function alterarGrid(delta){
-  gridSize=Math.max(30,Math.min(120,gridSize+delta));
-  const el=document.getElementById('grid-size-val'); if(el)el.textContent=gridSize+'px';
-  desenharMapa();
-}
-
-function toggleRegua(){
-  medindoDistancia=!medindoDistancia; medirStart=null; medirEnd=null;
-  const btn=document.getElementById('btn-regua');
-  if(btn){btn.textContent=medindoDistancia?'📏 Cancelar':'📏 Régua';btn.style.color=medindoDistancia?'var(--gold)':'';}
-  if(!medindoDistancia)desenharMapa();
-}
-
-function importarMapaImg(){
-  if(!isMaster) return;
-  const input=document.createElement('input'); input.type='file'; input.accept='image/*';
-  input.onchange=e=>{
-    const file=e.target.files[0]; if(!file) return;
-    const r=new FileReader();
-    r.onload=ev=>{const img=new Image();img.onload=()=>{mapaImg=img;desenharMapa();salvarMapaDB();};img.src=ev.target.result;mapaUrl=ev.target.result;};
-    r.readAsDataURL(file);
-  };
-  input.click();
-}
-
-function limparTokens(){
-  if(!isMaster){toast('Só o mestre pode limpar.','err');return;}
-  if(!confirm('Limpar todos os tokens?')) return;
-  tokens=[]; tokenSel=null; esconderInfoToken(); desenharMapa(); salvarMapaDB();
-}
 
 // ── PERSISTÊNCIA ──────────────────────────────────
 async function salvarMapaDB(){
