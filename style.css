@@ -1813,3 +1813,257 @@ h1,h2,h3 { letter-spacing: .04em; }
 @media (min-width: 769px) {
   .mobile-bottom-nav { display: none !important; }
 }
+
+/* ══════════════════════════════════════════════════
+   NPCs + CENAS
+══════════════════════════════════════════════════ */
+.npcs-layout {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 0;
+  height: calc(100vh - 56px - 60px);
+  overflow: hidden;
+}
+
+@media (max-width: 600px) {
+  .npcs-layout { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+}
+
+.npcs-sidebar {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.npcs-sidebar-header {
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.npcs-pasta-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 9px 12px;
+  text-align: left;
+  transition: all .15s;
+}
+.npcs-pasta-btn:hover { background: var(--surface2); color: var(--text); }
+.npcs-pasta-btn.active { background: rgba(192,57,43,.12); color: var(--red); font-weight: 600; }
+
+.npcs-content {
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.npcs-content-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.npc-grupo-title {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.npcs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 10px;
+}
+
+.npc-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: border-color .15s;
+}
+.npc-card:hover { border-color: var(--border2); }
+
+.npc-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.npc-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+  margin-top: 2px;
+}
+
+/* Modal NPC */
+.modal-npc-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+@media (max-width: 500px) { .modal-npc-body { grid-template-columns: 1fr; } }
+
+/* Cenas */
+.cena-item {
+  padding: 8px 10px;
+  border-radius: 7px;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  transition: all .15s;
+  margin-bottom: 5px;
+}
+.cena-item:hover { border-color: var(--border2); }
+.cena-ativa { border-color: var(--blue) !important; background: rgba(41,128,185,.1) !important; }
+
+.cenas-panel {
+  border-top: 1px solid var(--border);
+  padding: 8px;
+  flex-shrink: 0;
+}
+
+/* ══════════════════════════════════════════════════
+   NPCs + CENAS
+══════════════════════════════════════════════════ */
+.npc-pasta-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 6px 10px;
+  text-align: left;
+  transition: all .15s;
+  width: 100%;
+}
+.npc-pasta-btn:hover { background: var(--surface2); color: var(--text); }
+.npc-pasta-btn.ativa  { background: rgba(192,57,43,.12); color: var(--red); border-color: rgba(192,57,43,.3); }
+
+.npc-grupo-header {
+  font-size: 9px; font-weight: 700; letter-spacing: 2px;
+  color: var(--muted); text-transform: uppercase;
+  padding: 10px 4px 4px; display: flex; align-items: center; gap: 6px;
+}
+.npc-count {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 10px; font-size: 9px; padding: 1px 6px; color: var(--muted);
+}
+
+.npc-card {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  transition: border-color .15s;
+}
+.npc-card:hover { border-color: var(--border2); }
+.npc-tipo-inimigo   { border-left: 3px solid var(--red); }
+.npc-tipo-aliado    { border-left: 3px solid var(--green); }
+.npc-tipo-neutro    { border-left: 3px solid var(--muted); }
+.npc-tipo-infectado { border-left: 3px solid #8e44ad; }
+.npc-tipo-animal    { border-left: 3px solid #27ae60; }
+
+.npc-card-header { display: flex; align-items: center; gap: 10px; }
+.npc-avatar {
+  width: 40px; height: 40px; border-radius: 50%;
+  background: var(--surface3); border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; overflow: hidden;
+}
+.npc-info { flex: 1; min-width: 0; }
+.npc-nome { font-size: 13px; font-weight: 700; }
+.npc-meta { display: flex; align-items: center; gap: 6px; margin-top: 2px; flex-wrap: wrap; }
+.npc-tipo-badge {
+  font-size: 9px; font-weight: 700; letter-spacing: 1px;
+  text-transform: uppercase; padding: 2px 6px; border-radius: 10px;
+}
+.npc-tipo-badge.npc-tipo-inimigo   { background: rgba(192,57,43,.15); color: var(--red); }
+.npc-tipo-badge.npc-tipo-aliado    { background: rgba(39,174,96,.15);  color: var(--green); }
+.npc-tipo-badge.npc-tipo-neutro    { background: var(--surface3);       color: var(--muted); }
+.npc-tipo-badge.npc-tipo-infectado { background: rgba(142,68,173,.15);  color: #9b59b6; }
+.npc-tipo-badge.npc-tipo-animal    { background: rgba(39,174,96,.15);   color: var(--green); }
+
+.npc-acoes { display: flex; gap: 4px; }
+.npc-btn {
+  background: transparent; border: 1px solid var(--border);
+  border-radius: 4px; cursor: pointer; font-size: 13px;
+  width: 26px; height: 26px; display: flex; align-items: center; justify-content: center;
+  transition: all .12s;
+}
+.npc-btn:hover { background: var(--surface3); }
+
+.npc-hab { font-size: 10px; color: var(--muted); margin: 6px 0 4px; line-height: 1.5; }
+
+.npc-footer { display: flex; gap: 5px; margin-top: 8px; flex-wrap: wrap; }
+.npc-add-btn {
+  background: var(--surface3); border: 1px solid var(--border);
+  border-radius: 5px; color: var(--text); cursor: pointer;
+  font-size: 10px; font-weight: 700; padding: 4px 10px;
+  transition: all .12s;
+}
+.npc-add-btn:hover { border-color: var(--red); color: var(--red); }
+.npc-add-both:hover { border-color: var(--gold); color: var(--gold); }
+
+.npc-empty {
+  text-align: center; color: var(--muted); font-size: 13px;
+  padding: 40px 20px; line-height: 1.8;
+}
+
+/* Cenas */
+.cena-item {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 6px; padding: 6px 8px;
+  display: flex; align-items: center; gap: 6px;
+  cursor: pointer; transition: all .12s;
+}
+.cena-item:hover { border-color: var(--border2); }
+.cena-item.cena-ativa { border-color: var(--green); background: rgba(39,174,96,.08); }
+.cena-thumb {
+  width: 36px; height: 36px; flex-shrink: 0;
+  background: var(--surface3); border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+}
+.cena-info { flex: 1; min-width: 0; }
+.cena-nome { font-size: 11px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cena-badge-ativa { font-size: 8px; color: var(--green); font-weight: 700; }
+.cena-btns { display: flex; gap: 3px; }
+
+/* Mobile NPC page */
+@media (max-width: 600px) {
+  #page-npcs > div:last-child { grid-template-columns: 1fr; }
+}

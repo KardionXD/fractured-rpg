@@ -33,6 +33,7 @@
     <div class="nav-section" id="nav-master-section" style="display:none">
       <div class="nav-label">Mestre</div>
       <button class="nav-item" onclick="navigate('master')" id="nav-master"><span class="icon">👁</span> Players</button>
+      <button class="nav-item" onclick="navigate('npcs')" id="nav-npcs"><span class="icon">👥</span> NPCs</button>
     </div>
   </nav>
 
@@ -145,6 +146,22 @@
       <div id="sala-root" style="flex:1;overflow:hidden;min-height:0"></div>
     </div>
 
+
+    <!-- NPCs -->
+    <div id="page-npcs" style="display:none">
+      <!-- Rendered by npcs.js -->
+    </div>
+
+
+    <!-- NPCs DO MESTRE -->
+    <div id="page-npcs" style="display:none">
+      <div class="page-header" style="padding:12px 16px 8px">
+        <div><div class="page-title">Fichas de NPCs</div><div class="page-sub">Personagens e criaturas do mestre</div></div>
+        <button class="btn-ghost" onclick="abrirModalNPC(null)" style="font-size:11px">+ Criar NPC</button>
+      </div>
+      <div id="npcs-root" style="height:calc(100vh - 56px - 60px);overflow:hidden"></div>
+    </div>
+
     <!-- NOTAS -->
     <div id="page-notas" style="display:none">
       <div class="page-header">
@@ -166,6 +183,33 @@
             <button class="btn-ghost" onclick="deletarNota()" style="color:var(--red);border-color:var(--red-dim)">Excluir</button>
             <button class="btn-ghost" onclick="salvarNota()">💾 Salvar</button>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- NPCs -->
+    <div id="page-npcs" style="display:none">
+      <div class="page-header">
+        <div><div class="page-title">Fichas de NPCs</div><div class="page-sub">Aliados, Inimigos e Neutros</div></div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn-ghost" onclick="abrirFormNPC()" style="color:var(--green);border-color:var(--green)">＋ NPC</button>
+          <button class="btn-ghost" onclick="carregarNPCs()">↻ Atualizar</button>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:200px 1fr;gap:12px;height:calc(100vh - 56px - 80px);min-height:400px">
+        <!-- Pastas -->
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow-y:auto;padding:8px">
+          <div style="font-size:9px;font-weight:700;letter-spacing:2px;color:var(--muted);text-transform:uppercase;padding:4px 6px;margin-bottom:6px">Pastas</div>
+          <div id="npc-pastas" style="display:flex;flex-direction:column;gap:3px"></div>
+          <hr style="border-color:var(--border);margin:10px 0">
+          <div style="font-size:9px;font-weight:700;letter-spacing:2px;color:var(--muted);text-transform:uppercase;padding:4px 6px;margin-bottom:6px">Cenas de Mapa</div>
+          <div id="cenas-lista" style="display:flex;flex-direction:column;gap:5px"></div>
+          <button class="btn-ghost" onclick="criarCena()" style="width:100%;margin-top:8px;font-size:10px;padding:5px">＋ Nova Cena</button>
+          <button class="btn-ghost" onclick="salvarCenaAtual()" style="width:100%;margin-top:4px;font-size:10px;padding:5px">💾 Salvar Cena Atual</button>
+        </div>
+        <!-- Lista NPCs -->
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow-y:auto;padding:12px">
+          <div id="npc-lista"></div>
         </div>
       </div>
     </div>
@@ -193,10 +237,123 @@
   <button class="mobile-nav-btn" id="mnav-notas" onclick="navigate('notas')">
     <span style="font-size:20px">📓</span><span>Notas</span>
   </button>
+  <button class="mobile-nav-btn" id="mnav-npcs" onclick="navigate('npcs')" style="display:none">
+    <span style="font-size:20px">👥</span><span>NPCs</span>
+  </button>
   <button class="mobile-nav-btn" id="mnav-master" onclick="navigate('master')" style="display:none">
     <span style="font-size:20px">👁</span><span>Mestre</span>
   </button>
 </nav>
+
+
+<!-- Modal NPC -->
+<div class="modal-overlay" id="modal-npc" style="display:none;align-items:center;justify-content:center">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;width:100%;max-width:560px;margin:16px;max-height:90vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div id="npc-modal-title" style="font-size:15px;font-weight:800">Criar NPC</div>
+      <button class="btn-icon" onclick="fecharModalNPC()">✕</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <!-- Foto e identidade -->
+      <div style="display:flex;gap:12px;align-items:flex-start">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0">
+          <div onclick="document.getElementById('npc-img-input').click()"
+            style="width:64px;height:64px;border-radius:50%;background:var(--surface2);border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer;overflow:hidden">
+            <img id="npc-img-preview" style="display:none;width:100%;height:100%;object-fit:cover">
+            <span>👤</span>
+          </div>
+          <input type="file" id="npc-img-input" accept="image/*" style="display:none" onchange="npcImgPreview(this)">
+          <span style="font-size:8px;color:var(--muted)">Foto</span>
+        </div>
+        <div style="flex:1;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div class="field" style="grid-column:1/-1"><label>Nome</label><input type="text" id="npc-nome" placeholder="Nome do NPC..."></div>
+          <div class="field"><label>Emoji</label><input type="text" id="npc-emoji" placeholder="👤" maxlength="2" style="font-size:18px;text-align:center"></div>
+          <div class="field"><label>Tipo</label>
+            <select id="npc-tipo">
+              <option value="inimigo">⚔️ Inimigo</option>
+              <option value="aliado">🤝 Aliado</option>
+              <option value="neutro">😐 Neutro</option>
+              <option value="boss">💀 Boss</option>
+            </select>
+          </div>
+          <div class="field" style="grid-column:1/-1"><label>Pasta</label>
+            <select id="npc-pasta"><option value="Geral">Geral</option></select>
+          </div>
+        </div>
+      </div>
+      <!-- Atributos -->
+      <div style="font-size:9px;font-weight:700;letter-spacing:2px;color:var(--red);text-transform:uppercase">Atributos</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">
+        <div class="field"><label>PV Máx</label><input type="number" id="npc-pv" placeholder="10" min="1"></div>
+        <div class="field"><label>COM</label><input type="number" id="npc-com" placeholder="0"></div>
+        <div class="field"><label>AGI</label><input type="number" id="npc-agi" placeholder="0"></div>
+        <div class="field"><label>RES</label><input type="number" id="npc-res" placeholder="0"></div>
+        <div class="field"><label>FOR</label><input type="number" id="npc-for" placeholder="0"></div>
+        <div class="field"><label>SOC</label><input type="number" id="npc-soc" placeholder="0"></div>
+        <div class="field"><label>CON</label><input type="number" id="npc-con" placeholder="0"></div>
+      </div>
+      <!-- Habilidades -->
+      <div class="field"><label>Habilidades (uma por linha)</label>
+        <textarea id="npc-hab" placeholder="Ex: Enxame: 3+ atacam o mesmo alvo&#10;Hesitação: para 1 round ao ver rosto familiar" rows="3" class="textarea-bare"></textarea>
+      </div>
+      <div class="field"><label>Fraqueza</label><input type="text" id="npc-fraqueza" placeholder="Ex: Fogo e impacto contundente"></div>
+      <div class="field"><label>Notas do Mestre</label>
+        <textarea id="npc-notas" placeholder="Contexto, personalidade, objetivos..." rows="2" class="textarea-bare"></textarea>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn-ghost" onclick="fecharModalNPC()">Cancelar</button>
+        <button class="btn-primary" onclick="salvarModalNPC()" style="margin:0;width:auto;padding:8px 20px">💾 Salvar NPC</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal NPC -->
+<div class="modal-overlay" id="modal-npc" style="display:none;align-items:center;justify-content:center">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;width:100%;max-width:560px;margin:20px;max-height:90vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div id="npc-form-titulo" style="font-size:14px;font-weight:800">Criar NPC</div>
+      <button class="btn-icon" onclick="fecharFormNPC()">✕</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="field" style="grid-column:span 2"><label>Nome *</label><input type="text" id="npc-f-nome" placeholder="Nome do NPC..."></div>
+      <div class="field"><label>Pasta / Grupo</label><input type="text" id="npc-f-pasta" placeholder="Ex: Guardiões" value="Geral"></div>
+      <div class="field"><label>Tipo</label>
+        <select id="npc-f-tipo">
+          <option value="inimigo">😈 Inimigo</option>
+          <option value="aliado">😇 Aliado</option>
+          <option value="neutro">😐 Neutro</option>
+          <option value="infectado">🧟 Infectado</option>
+          <option value="animal">🐺 Animal</option>
+        </select>
+      </div>
+      <div class="field"><label>Emoji (opcional)</label><input type="text" id="npc-f-emoji" placeholder="👤" maxlength="2" style="font-size:20px;text-align:center"></div>
+      <div class="field"><label>PV Máximo</label><input type="number" id="npc-f-pv" placeholder="10" min="1"></div>
+
+      <div style="grid-column:span 2;font-size:9px;font-weight:700;letter-spacing:2px;color:var(--red);text-transform:uppercase;margin-top:4px">Atributos</div>
+      <div class="field"><label>FOR</label><input type="number" id="npc-f-for" placeholder="0" min="-2" max="5"></div>
+      <div class="field"><label>RES</label><input type="number" id="npc-f-res" placeholder="0" min="-2" max="5"></div>
+      <div class="field"><label>COM</label><input type="number" id="npc-f-com" placeholder="0" min="-2" max="5"></div>
+      <div class="field"><label>SOC</label><input type="number" id="npc-f-soc" placeholder="0" min="-2" max="5"></div>
+      <div class="field"><label>CON</label><input type="number" id="npc-f-con" placeholder="0" min="-2" max="5"></div>
+      <div class="field"><label>AGI</label><input type="number" id="npc-f-agi" placeholder="0" min="-2" max="5"></div>
+
+      <div class="field" style="grid-column:span 2"><label>Habilidades (uma por linha)</label><textarea id="npc-f-hab" rows="3" placeholder="Ex: Enxame: 3+ atacam o mesmo alvo" class="textarea-bare"></textarea></div>
+      <div class="field" style="grid-column:span 2"><label>Fraqueza</label><input type="text" id="npc-f-fraqueza" placeholder="Ex: Fogo e explosivos..."></div>
+      <div class="field" style="grid-column:span 2"><label>Notas do Mestre</label><textarea id="npc-f-notas" rows="2" placeholder="Informações privadas, motivações, segredos..." class="textarea-bare"></textarea></div>
+
+      <div class="field" style="grid-column:span 2">
+        <label>Imagem (opcional)</label>
+        <input type="file" id="npc-img-input" accept="image/*" onchange="npcImgPreview(this)">
+        <img id="npc-img-preview" style="display:none;width:60px;height:60px;border-radius:50%;object-fit:cover;margin-top:6px">
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end">
+      <button class="btn-ghost" onclick="fecharFormNPC()">Cancelar</button>
+      <button class="btn-primary" onclick="salvarNPC()" style="margin:0;width:auto;padding:10px 24px">Salvar NPC</button>
+    </div>
+  </div>
+</div>
 
 <!-- Modal Token Custom -->
 <div class="modal-overlay" id="modal-token-custom" style="display:none;align-items:center;justify-content:center">
@@ -229,7 +386,9 @@
 
 <script src="supabase.js"></script>
 <script src="combate.js"></script>
+<script src="npcs.js"></script>
 <script src="sala.js"></script>
+<script src="npcs.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

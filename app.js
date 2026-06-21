@@ -75,7 +75,7 @@ async function init() {
 
 // ── NAVIGATION ────────────────────────────────────
 function navigate(page) {
-  ['ficha','sala','notas','master'].forEach(p => {
+  ['ficha','sala','notas','master','npcs'].forEach(p => {
     const el = document.getElementById('page-' + p);
     if (!el) return;
     el.style.display = p === page ? (p==='sala'?'flex':'block') : 'none';
@@ -1003,9 +1003,10 @@ const _navBase = navigate;
 window.navigate = function(page) {
   _navBase(page);
   // Atualiza nav mobile
-  document.querySelectorAll('.mobile-nav-btn').forEach(b => b.classList.remove('active'));
-  const active = document.getElementById('mnav-'+page);
+  document.querySelectorAll('.mobile-nav-btn, .nav-item').forEach(b => b.classList.remove('active'));
+  const active = document.getElementById('mnav-'+page) || document.getElementById('nav-'+page);
   if (active) active.classList.add('active');
+  if (page === 'npcs' && isMaster) { initNPCs(); }
   // Inicia sala quando necessário
   if (page === 'sala') {
     window.isMaster = isMaster;
@@ -1039,9 +1040,11 @@ function aplicarFotoPersonagem(url) {
 
 // ── INIT MASTER/PLAYER UI ─────────────────────────
 function initMasterUI() {
-  // Mostra botão Mestre no nav mobile
   const mb = document.getElementById('mnav-master');
   if (mb) mb.style.display = '';
+  const mn = document.getElementById('mnav-npcs');
+  if (mn) mn.style.display = '';
+  subscribeCenas();
 }
 function initPlayerUI() { /* nada extra */ }
 

@@ -450,6 +450,15 @@ function buildDadosPanel(c) {
 }
 
 function buildTrackerPanel(c) {
+  const masterForm = isMaster
+    ? '<div class="ct-add-pc">' +
+      '<div class="field" style="flex:2"><label>Nome</label><input type="text" id="ct-pc-nome" placeholder="PC..."></div>' +
+      '<div class="field" style="flex:1"><label>Ini</label><input type="number" id="ct-pc-ini" placeholder="10" min="1" max="30"></div>' +
+      '<div class="field" style="flex:1"><label>PV</label><input type="number" id="ct-pc-pv" placeholder="20" min="1"></div>' +
+      '<button class="btn-ghost" onclick="adicionarPCCT()" style="align-self:flex-end;font-size:10px;padding:4px 6px">+PC</button>' +
+      '</div>'
+    : '<div style="padding:8px;flex-shrink:0"><button class="btn-primary" onclick="adicionarMeuPersonagem()" style="margin:0">🧑 Entrar no Mapa</button></div>';
+
   c.innerHTML = `
     <div class="ct-panel" style="height:100%">
       <div class="ct-panel-header">
@@ -462,27 +471,17 @@ function buildTrackerPanel(c) {
         <button class="btn-ghost" id="btn-toggle-pv" onclick="togglePVInimigos()" style="font-size:10px;padding:4px 8px">👁 PV</button>
         <button class="btn-ghost" onclick="encerrarCombate()" style="font-size:10px;padding:4px 8px;color:var(--red);border-color:var(--red-dim)">✕ Fim</button>
       </div>
-      ${isMaster ? `
-      <div class="ct-add-pc">
-        <div class="field" style="flex:2"><label>Nome</label><input type="text" id="ct-pc-nome" placeholder="PC..."></div>
-        <div class="field" style="flex:1"><label>Ini</label><input type="number" id="ct-pc-ini" placeholder="10" min="1" max="30"></div>
-        <div class="field" style="flex:1"><label>PV</label><input type="number" id="ct-pc-pv" placeholder="20" min="1"></div>
-        <button class="btn-ghost" onclick="adicionarPCCT()" style="align-self:flex-end;font-size:10px;padding:4px 6px">+PC</button>
-      </div>` : `
-      <div style="padding:8px;flex-shrink:0">
-        <button class="btn-primary" onclick="adicionarMeuPersonagem()" style="margin:0">🧑 Entrar no Mapa</button>
-      </div>`}
+      ${masterForm}
       <div class="ct-scroll" id="ct-lista"></div>
     </div>`;
   setTimeout(()=>renderCT(),50);
 }
-
 function buildMapaPanel(c) {
   c.style.padding='0';
   c.innerHTML = `
     <div style="display:flex;flex-direction:column;height:100%;min-height:0">
       <div class="mapa-toolbar" style="flex-shrink:0;padding:5px 8px;gap:5px;flex-wrap:wrap">
-        ${isMaster?`<button class="btn-ghost" onclick="importarMapaImg()" style="font-size:10px;padding:3px 7px">📁 Mapa</button>`:''}
+        ${isMaster?'<button class="btn-ghost" onclick="importarMapaImg()" style="font-size:10px;padding:3px 7px">📁 Mapa</button>':''}
         <button class="btn-ghost" id="btn-grid" onclick="toggleGrid()" style="font-size:10px;padding:3px 7px">⬛ Grid</button>
         <button class="btn-ghost" id="btn-regua" onclick="toggleRegua()" style="font-size:10px;padding:3px 7px">📏 Régua</button>
         <div style="display:flex;align-items:center;gap:3px;font-size:10px;color:var(--muted)">
@@ -499,8 +498,9 @@ function buildMapaPanel(c) {
       </div>
       <div class="mapa-toolbar" style="flex-shrink:0;padding:3px 8px;border-top:none;gap:5px">
         <button class="btn-ghost" onclick="adicionarMeuPersonagem()" style="font-size:10px;padding:3px 7px">🧑 Entrar</button>
-        ${isMaster?`<button class="btn-ghost" onclick="abrirCriarTokenCustom()" style="font-size:10px;padding:3px 7px">⭐ Token</button>`:''}
-        ${isMaster?`<button class="btn-ghost" onclick="limparTokens()" style="font-size:10px;padding:3px 7px;color:var(--red);border-color:var(--red-dim)">🗑 Limpar</button>`:''}
+        ${isMaster?`<button class="btn-ghost" onclick="navigate('npcs')" style="font-size:10px;padding:3px 7px" title="Gerenciar cenas e NPCs">🎬 Cenas</button>`:''}
+        ${isMaster?'<button class="btn-ghost" onclick="abrirCriarTokenCustom()" style="font-size:10px;padding:3px 7px">⭐ Token</button>':''}
+        ${isMaster?'<button class="btn-ghost" onclick="limparTokens()" style="font-size:10px;padding:3px 7px;color:var(--red);border-color:var(--red-dim)">🗑 Limpar</button>':''}
         <div style="display:flex;align-items:center;gap:3px;font-size:10px;color:var(--muted);margin-left:auto">
           <span>1cel=</span>
           <input type="number" value="1.5" min="0.5" max="10" step="0.5" onchange="metrosPorCelula=parseFloat(this.value)||1.5"
@@ -508,13 +508,21 @@ function buildMapaPanel(c) {
           <span>m</span>
         </div>
       </div>
-      <div style="flex:1;overflow:hidden;position:relative;min-height:0">
-        <canvas id="mapa-canvas" style="display:block;touch-action:none;width:100%;height:100%"></canvas>
-        <!-- Token info como overlay flutuante — não afeta o tamanho do canvas -->
+      <div style="flex:1;overflow:hidden;position:relative;min-height:0;display:flex">
+        <canvas id="mapa-canvas" style="display:block;touch-action:none;flex:1;min-width:0;height:100%"></canvas>
+        <!-- Sidebar de cenas (só mestre) -->
+        <div id="cenas-sidebar" style="width:160px;background:var(--surface);border-left:1px solid var(--border);display:none;flex-direction:column;flex-shrink:0;overflow:hidden"></div>
+        <!-- Token info overlay -->
         <div id="token-info" style="display:none;position:absolute;bottom:0;left:0;right:0;padding:8px;background:rgba(16,16,26,0.95);border-top:1px solid var(--border);max-height:130px;overflow-y:auto;backdrop-filter:blur(4px);z-index:10"></div>
       </div>
-    </div>`;
-  setTimeout(()=>{ canvas=null; initMapa(); },80);
+  setTimeout(()=>{ 
+    canvas=null; initMapa();
+    if(window.isMaster) {
+      const cs=document.getElementById('cenas-sidebar');
+      if(cs) cs.style.display='flex';
+      if(typeof carregarCenas==='function') carregarCenas();
+    }
+  },80);
 }
 
 function buildPlayersPanel(c) {
