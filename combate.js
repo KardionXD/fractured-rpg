@@ -72,55 +72,68 @@ let mostrarPVInimigos = true;
 // ── SYNC COMBAT TRACKER ───────────────────────────
 let ctRealtimeSub = null;
 let ctSaving = false;
+let ctSaveTimer = null;
 
 async function salvarCT() {
-  if (ctSaving || !isMaster) return;
-  ctSaving = true;
-  try {
-    await db.from('mapa_estado').upsert({
-      id: 'combat_tracker',
-      tokens: combatentes,
-      grid_size: rodadaAtual,
-      grid_visivel: combateAtivo,
-      mapa_url: JSON.stringify({ turnoAtual, mostrarPVInimigos }),
-      updated_at: new Date().toISOString()
-    });
-  } catch(e) { console.error('salvarCT:', e); }
-  ctSaving = false;
+  if (!isMaster) return;
+  // Debounce — não salva mais que 1x por segundo
+  clearTimeout(ctSaveTimer);
+  ctSaveTimer = setTimeout(async () => {
+    try {
+      await db.from('combat_state').upsert({
+        id: 'sessao',
+        combatentes,
+        rodada: rodadaAtual,
+        turno: turnoAtual,
+        ativo: combateAtivo,
+        mostrar_pv: mostrarPVInimigos,
+        updated_at: new Date().toISOString()
+      });
+    } catch(e) { console.error('salvarCT:', e); }
+  }, 300);
 }
 
 async function carregarCT() {
   try {
-    const { data } = await db.from('mapa_estado').select('*').eq('id','combat_tracker').single();
+    const { data } = await db.from('combat_state').select('*').eq('id','sessao').single();
     if (!data) return;
-    combatentes = data.tokens || [];
-    rodadaAtual = data.grid_size || 1;
-    combateAtivo = data.grid_visivel || false;
-    const extra = data.mapa_url ? JSON.parse(data.mapa_url) : {};
-    turnoAtual = extra.turnoAtual || 0;
-    mostrarPVInimigos = extra.mostrarPVInimigos !== false;
+    combatentes      = data.combatentes || [];
+    rodadaAtual      = data.rodada || 1;
+    turnoAtual       = data.turno  || 0;
+    combateAtivo     = data.ativo  || false;
+    mostrarPVInimigos = data.mostrar_pv !== false;
     renderCT();
-  } catch(e) {}
+  } catch(e) { console.error('carregarCT:', e); }
+}
+
+function aplicarEstadoCT(d) {
+  if (!d) return;
+  combatentes       = d.combatentes || [];
+  rodadaAtual       = d.rodada || 1;
+  turnoAtual        = d.turno  || 0;
+  combateAtivo      = d.ativo  || false;
+  mostrarPVInimigos = d.mostrar_pv !== false;
+  renderCT();
 }
 
 function subscribeCT() {
-  if (ctRealtimeSub) return;
-  // Carrega estado atual primeiro
+  // Carrega estado atual
   carregarCT();
-  // Escuta mudanças em tempo real
-  ctRealtimeSub = db.channel('ct-realtime')
-    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'mapa_estado' }, payload => {
-      if (payload.new?.id !== 'combat_tracker') return;
-      const d = payload.new;
-      combatentes = d.tokens || [];
-      rodadaAtual = d.grid_size || 1;
-      combateAtivo = d.grid_visivel || false;
-      const extra = d.mapa_url ? JSON.parse(d.mapa_url) : {};
-      turnoAtual = extra.turnoAtual || 0;
-      mostrarPVInimigos = extra.mostrarPVInimigos !== false;
-      renderCT();
+
+  if (ctRealtimeSub) return;
+  ctRealtimeSub = db.channel('ct-live-'+Date.now())
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'combat_state'
+    }, payload => {
+      // Só aplica se não for o próprio mestre enviando
+      if (isMaster) return;
+      aplicarEstadoCT(payload.new);
     })
-    .subscribe();
+    .subscribe(status => {
+      console.log('CT realtime:', status);
+    });
 }
 
 // ── ESTADO MAPA ───────────────────────────────────
