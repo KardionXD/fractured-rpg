@@ -99,38 +99,60 @@ function buildMobileDOM(root) {
 
   // Content area
   const content = document.createElement('div');
-  content.style.cssText = 'flex:1;overflow:hidden;position:relative;';
+  content.id = 'sala-tab-content';
+  content.style.cssText = 'flex:1;overflow:hidden;position:relative;min-height:0;';
 
   tabs.forEach(t => {
     const panel = document.createElement('div');
     panel.id = 'mpanel-'+t.id;
-    panel.style.cssText = `
-      position:absolute;inset:0;display:${t.id==='feed'?'flex':'none'};
-      flex-direction:column;overflow:hidden;
-    `;
+    panel.style.cssText = 'display:none;flex-direction:column;overflow:hidden;width:100%;height:100%;position:absolute;top:0;left:0;right:0;bottom:0;background:var(--bg);';
     buildPanelContent(t.id, panel);
     content.appendChild(panel);
   });
 
   root.appendChild(tabBar);
   root.appendChild(content);
-  switchMobileTab('feed');
+
+  // Force content area height after mount (fix for mobile browsers that give 0 height)
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      const rootRect = root.getBoundingClientRect();
+      const tabRect  = tabBar.getBoundingClientRect();
+      const h = Math.max(300, rootRect.height - tabRect.height);
+      content.style.height = h + 'px';
+      switchMobileTab('feed');
+    });
+  });
 }
 
 function switchMobileTab(id) {
-  document.querySelectorAll('[id^="mpanel-"]').forEach(p => p.style.display='none');
+  document.querySelectorAll('[id^="mpanel-"]').forEach(p => { p.style.display='none'; });
   document.querySelectorAll('[id^="tab-"]').forEach(b => {
     b.style.color='var(--muted)';
     b.style.borderBottomColor='transparent';
   });
   const panel = document.getElementById('mpanel-'+id);
   const btn   = document.getElementById('tab-'+id);
-  if (panel) panel.style.display='flex';
+  if (panel) {
+    panel.style.display='flex';
+    // Ensure content fills parent on mobile
+    const content = document.getElementById('sala-tab-content');
+    if (content) {
+      const h = content.getBoundingClientRect().height || content.offsetHeight;
+      if (h > 0) { panel.style.height = h+'px'; }
+    }
+  }
   if (btn) { btn.style.color='var(--red)'; btn.style.borderBottomColor='var(--red)'; }
-  if (id==='mapa') setTimeout(()=>{ resizeMapCanvas(); if(canvas)desenharMapa(); }, 60);
-  if (id==='tracker') renderCT();
-  if (id==='bestiario') renderBestiarioCT();
-  if (id==='players') renderPlayersParaCT();
+  if (id==='mapa') {
+    setTimeout(()=>{ 
+      canvas=null; initMapa();
+      setTimeout(()=>{ resizeMapCanvas(); if(typeof desenharMapa==='function')desenharMapa(); },100);
+    }, 60);
+  }
+  if (id==='tracker') setTimeout(()=>renderCT(),50);
+  if (id==='bestiario') setTimeout(()=>renderBestiarioCT(),50);
+  if (id==='players') setTimeout(()=>renderPlayersParaCT(),50);
+  if (id==='feed') setTimeout(()=>scrollFeedToBottom(),100);
 }
 
 // ══════════════════════════════════════════════════

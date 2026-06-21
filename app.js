@@ -76,7 +76,9 @@ async function init() {
 // ── NAVIGATION ────────────────────────────────────
 function navigate(page) {
   ['ficha','sala','notas','master'].forEach(p => {
-    document.getElementById('page-' + p).style.display = p === page ? 'block' : 'none';
+    const el = document.getElementById('page-' + p);
+    if (!el) return;
+    el.style.display = p === page ? (p==='sala'?'flex':'block') : 'none';
     const nav = document.getElementById('nav-' + p);
     if (nav) nav.classList.toggle('active', p === page);
   });

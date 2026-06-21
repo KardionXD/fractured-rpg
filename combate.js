@@ -420,7 +420,11 @@ async function renderPlayersParaCT() {
         <div class="ct-inimigo-nome">${f.nome||p.username}</div>
         <div class="ct-inimigo-stats">PV ${f.pv_atual||0}/${Math.max((f.attr_res||0)*4,4)}</div>
       </div>
-      <button class="ct-add-btn" onclick="adicionarPlayerCT('${p.id}')">+CT+🗺</button>
+      <div style="display:flex;gap:3px;flex-shrink:0">
+        <button class="ct-add-btn" onclick="adicionarPlayerSomenteCT('${p.id}')" title="Só no Combat Tracker">+CT</button>
+        <button class="ct-add-btn ct-add-mapa" onclick="adicionarPlayerSomenteMapa('${p.id}')" title="Só no Mapa">+🗺</button>
+        <button class="ct-add-btn" onclick="adicionarPlayerCT('${p.id}')" title="CT e Mapa" style="font-size:9px">+Ambos</button>
+      </div>
     `;
     lista.appendChild(div);
   });
@@ -839,4 +843,47 @@ function subscribeMapaRealtime(){
       }
       desenharMapa();
     }).subscribe();
+}
+
+async function adicionarPlayerSomenteCT(userId) {
+  const { data: ficha } = await db.from('fichas').select('*').eq('user_id', userId).single();
+  const { data: profile } = await db.from('profiles').select('username').eq('id', userId).single();
+  if (!ficha) return toast('Esse player não tem ficha ainda.', 'err');
+  const pvMax = Math.max((ficha.attr_res||0)*4, 4);
+  const id = 'pc_'+userId;
+  if (!combatentes.find(c => c.id === id)) {
+    combatentes.push({
+      id, nome: ficha.nome || profile.username,
+      emoji: '🧑', imgUrl: ficha.foto_url || null,
+      pvMax, pvAtual: ficha.pv_atual || pvMax,
+      iniciativa: Math.floor(Math.random()*20)+1,
+      tipo: 'pc', isPC: true, userId,
+      condicoes: [], controlador: profile.username,
+    });
+    renderCT();
+    toast((ficha.nome||profile.username)+' adicionado ao CT!', 'ok');
+  } else {
+    toast('Player já está no CT.', 'err');
+  }
+}
+
+async function adicionarPlayerSomenteMapa(userId) {
+  const { data: ficha } = await db.from('fichas').select('*').eq('user_id', userId).single();
+  const { data: profile } = await db.from('profiles').select('username').eq('id', userId).single();
+  if (!ficha) return toast('Esse player não tem ficha ainda.', 'err');
+  const pvMax = Math.max((ficha.attr_res||0)*4, 4);
+  const id = 'pc_'+userId;
+  if (!tokens.find(t => t.id === id)) {
+    tokens.push({
+      id, nome: ficha.nome || profile.username,
+      emoji: '🧑', imgUrl: ficha.foto_url || null,
+      tipo: 'pc', x: snap(gridSize*2), y: snap(gridSize*2),
+      pvMax, pvAtual: ficha.pv_atual || pvMax,
+      isPC: true, userId,
+    });
+    desenharMapa(); salvarMapaDB();
+    toast((ficha.nome||profile.username)+' adicionado ao mapa!', 'ok');
+  } else {
+    toast('Player já está no mapa.', 'err');
+  }
 }
