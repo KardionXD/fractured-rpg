@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>FRACTURED RPG</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link rel="stylesheet" href="style.css">
@@ -10,7 +10,6 @@
 <body>
 
 <div class="app-layout">
-
   <header class="topbar">
     <div class="topbar-brand">
       <span class="topbar-symbol">⬡</span>
@@ -18,11 +17,12 @@
       <span class="topbar-badge" id="master-badge" style="display:none">MESTRE</span>
     </div>
     <div class="topbar-right">
-      <span class="topbar-user">Olá, <strong id="topbar-username">...</strong></span>
-      <button class="btn-ghost" onclick="logout()">Sair</button>
+      <span class="topbar-user" style="font-size:12px">Olá, <strong id="topbar-username">...</strong></span>
+      <button class="btn-ghost" onclick="logout()" style="font-size:11px;padding:5px 10px">Sair</button>
     </div>
   </header>
 
+  <!-- Sidebar desktop -->
   <nav class="sidebar">
     <div class="nav-section">
       <div class="nav-label">Menu</div>
@@ -38,7 +38,7 @@
 
   <main class="main-content">
 
-    <!-- ══ FICHA ══ -->
+    <!-- FICHA -->
     <div id="page-ficha">
       <div class="page-header">
         <div><div class="page-title">Ficha do Personagem</div><div class="page-sub">FRACTURED · d20</div></div>
@@ -48,15 +48,15 @@
         <div class="section-card-title">Identidade</div>
         <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap">
           <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
-            <div id="char-foto-wrap" onclick="document.getElementById('char-foto-input').click()"
-              style="width:80px;height:80px;border-radius:50%;background:var(--surface2);border:2px solid var(--border);overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:30px;cursor:pointer">
+            <div onclick="document.getElementById('char-foto-input').click()"
+              style="width:76px;height:76px;border-radius:50%;background:var(--surface2);border:2px solid var(--border);overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:28px;cursor:pointer;flex-shrink:0">
               <span id="char-foto-placeholder">🧑</span>
               <img id="char-foto-img" style="display:none;width:100%;height:100%;object-fit:cover">
             </div>
             <input type="file" id="char-foto-input" accept="image/*" style="display:none" onchange="uploadFotoPersonagem(this)">
             <span style="font-size:8px;color:var(--muted);text-align:center">Clique para trocar</span>
           </div>
-          <div style="flex:1;display:flex;flex-direction:column;gap:8px;min-width:200px">
+          <div style="flex:1;display:flex;flex-direction:column;gap:8px;min-width:180px">
             <div class="grid-3">
               <div class="field"><label>Nome</label><input type="text" id="f-nome" placeholder="..." oninput="autoSave()"></div>
               <div class="field"><label>Jogador</label><input type="text" id="f-jogador" placeholder="..." oninput="autoSave()"></div>
@@ -86,7 +86,7 @@
       <div class="section-card">
         <div class="section-card-title">Tensão</div>
         <div class="tensao-pips" id="tensao-pips-ficha"></div>
-        <div style="margin-top:6px;font-size:9px;color:var(--muted);display:flex;gap:12px;flex-wrap:wrap">
+        <div style="margin-top:6px;font-size:9px;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap">
           <span><span style="color:#e67e22">■</span> C=Calma</span><span><span style="color:#c0392b">■</span> A=Alerta</span>
           <span><span style="color:#8e44ad">■</span> P=Perigo</span><span><span style="color:#7f8c8d">■</span> T=Terror</span>
         </div>
@@ -127,32 +127,25 @@
       </div>
     </div>
 
-    <!-- ══ SALA ══ -->
-    <div id="page-sala" style="display:none">
-      <!-- Topbar da sala -->
+    <!-- SALA -->
+    <div id="page-sala" style="display:none;height:100%;display:none;flex-direction:column">
+      <!-- Desktop topbar da sala -->
       <div class="sala-topbar">
-        <div>
-          <div class="page-title" style="font-size:16px">Sala de Jogo</div>
-        </div>
-        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-          <!-- Menu painéis -->
-          <div style="position:relative">
-            <button class="btn-ghost" onclick="togglePanelMenu()" style="font-size:10px;padding:5px 10px">🪟 Painéis</button>
-            <div id="panel-menu" style="display:none;position:absolute;top:100%;right:0;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px;z-index:999;min-width:200px;display:flex;flex-direction:column;gap:4px">
-              <div id="panel-menu-list"></div>
-              <hr style="border-color:var(--border);margin:4px 0">
-              <button class="btn-ghost" onclick="resetAllPanels()" style="font-size:10px;padding:4px 8px;color:var(--muted)">↺ Resetar posições</button>
-            </div>
+        <div style="font-size:14px;font-weight:800;letter-spacing:1px">🎲 Sala de Jogo</div>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;position:relative">
+          <button class="btn-ghost" onclick="togglePanelMenu()" style="font-size:10px;padding:5px 10px">🪟 Painéis</button>
+          <div id="panel-menu" style="display:none;position:absolute;top:calc(100% + 4px);right:0;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px;z-index:9999;min-width:210px;flex-direction:column;gap:4px;box-shadow:0 4px 20px rgba(0,0,0,.6)">
+            <div id="panel-menu-list"></div>
+            <hr style="border-color:var(--border);margin:4px 0">
+            <button class="btn-ghost" onclick="resetPanels()" style="font-size:10px;padding:4px 8px;color:var(--muted)">↺ Resetar posições</button>
           </div>
-          <button class="btn-ghost" id="btn-limpar-historico" onclick="limparHistorico()" style="display:none;color:var(--red);border-color:var(--red-dim);font-size:10px;padding:5px 10px">🗑 Histórico</button>
         </div>
       </div>
-
-      <!-- Canvas flutuante -->
-      <div id="sala-canvas"></div>
+      <!-- Conteúdo da sala (mobile abas / desktop painéis) -->
+      <div id="sala-root" style="flex:1;overflow:hidden;min-height:0"></div>
     </div>
 
-    <!-- ══ NOTAS ══ -->
+    <!-- NOTAS -->
     <div id="page-notas" style="display:none">
       <div class="page-header">
         <div><div class="page-title">Notas de Sessão</div><div class="page-sub">Suas anotações</div></div>
@@ -177,7 +170,7 @@
       </div>
     </div>
 
-    <!-- ══ MASTER ══ -->
+    <!-- MASTER -->
     <div id="page-master" style="display:none">
       <div class="page-header">
         <div><div class="page-title">Painel do Mestre</div><div class="page-sub">Sobreviventes</div></div>
@@ -188,6 +181,22 @@
 
   </main>
 </div>
+
+<!-- Mobile nav bar (fixa na base) -->
+<nav class="mobile-bottom-nav" id="mobile-bottom-nav">
+  <button class="mobile-nav-btn active" id="mnav-ficha" onclick="navigate('ficha')">
+    <span style="font-size:20px">📋</span><span>Ficha</span>
+  </button>
+  <button class="mobile-nav-btn" id="mnav-sala" onclick="navigate('sala')">
+    <span style="font-size:20px">🎲</span><span>Sala</span>
+  </button>
+  <button class="mobile-nav-btn" id="mnav-notas" onclick="navigate('notas')">
+    <span style="font-size:20px">📓</span><span>Notas</span>
+  </button>
+  <button class="mobile-nav-btn" id="mnav-master" onclick="navigate('master')" style="display:none">
+    <span style="font-size:20px">👁</span><span>Mestre</span>
+  </button>
+</nav>
 
 <!-- Modal Token Custom -->
 <div class="modal-overlay" id="modal-token-custom" style="display:none;align-items:center;justify-content:center">
@@ -200,7 +209,7 @@
       <div class="field"><label>Nome</label><input type="text" id="tc-nome" placeholder="Nome do token..."></div>
       <div class="grid-2">
         <div class="field"><label>Emoji</label><input type="text" id="tc-emoji" placeholder="⭐" maxlength="2" style="font-size:20px;text-align:center"></div>
-        <div class="field"><label>PV Máximo</label><input type="number" id="tc-pv" placeholder="0 = sem PV" min="0"></div>
+        <div class="field"><label>PV Máximo</label><input type="number" id="tc-pv" placeholder="0=sem PV" min="0"></div>
       </div>
       <div class="field"><label>Tipo</label>
         <select id="tc-tipo">
@@ -220,8 +229,7 @@
 
 <script src="supabase.js"></script>
 <script src="combate.js"></script>
-<script src="layout.js"></script>
-<script src="mobile.js"></script>
+<script src="sala.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

@@ -1,781 +1,537 @@
 // ══════════════════════════════════════════════════
 //  FRACTURED — sala.js
-//  Sala Unificada: Feed + Dados + Combate + Mapa
+//  Sala de Jogo: Feed, Dados, Tensão, CT, Mapa
+//  Mobile: abas bottom nav
+//  Desktop: painéis flutuantes
 // ══════════════════════════════════════════════════
 
-// ── BESTIÁRIO ─────────────────────────────────────
-const BESTIARIO = {
-  infectados: [
-    { id:'corredor',     nome:'Corredor',         pv:10, com:1,  agi:2,  res:0,  tipo:'infectado',        emoji:'🧟',
-      habilidades:['Enxame: 3+ atacam o mesmo alvo','Hesitação: para 1 round ao ver rosto familiar','Grito de Atração: chama outros corredores'],
-      fraqueza:'Qualquer dano direto. Separe e elimine individualmente.' },
-    { id:'perseguidor',  nome:'Perseguidor',       pv:15, com:2,  agi:1,  res:1,  tipo:'infectado',        emoji:'🧟',
-      habilidades:['Emboscada: ataca de surpresa','Gavinhas de Parede: +3 ataque surpresa','Perseguição Tenaz'],
-      fraqueza:'Fogo e impacto contundente. Armadilhas de arame.' },
-    { id:'estalador',    nome:'Estalador',         pv:20, com:3,  agi:1,  res:2,  tipo:'infectado',        emoji:'🕷️',
-      habilidades:['Sonar Perfeito: detecta >30dB','Agarrão Fatal: mata em 1 round','Blindagem Fúngica: −2 dano'],
-      fraqueza:'Fogo prioritário. AGI≥17 + faca para morte silenciosa.' },
-    { id:'baiacu',       nome:'Baiacu',            pv:35, com:4,  agi:-1, res:4,  tipo:'infectado',        emoji:'💀',
-      habilidades:['Armadura: dano reduzido à metade','Nuvem de Esporos ao morrer (RES≥14)','Investida: +2d6 dano'],
-      fraqueza:'Explosivos e fogo apenas. NUNCA facas ou balas.' },
-    { id:'tropego',      nome:'Trôpego',           pv:30, com:3,  agi:-1, res:3,  tipo:'infectado',        emoji:'💣',
-      habilidades:['Não morde','Qualquer dano físico libera esporos 3m','Fogo moderado ineficaz'],
-      fraqueza:'Explosivos a distância apenas.' },
-    { id:'rei_ratos',    nome:'Rei dos Ratos',     pv:80, com:5,  agi:-2, res:6,  tipo:'infectado',        emoji:'👑',
-      habilidades:['50% PV → 2d4 infectados','Controla 100m raio','Cascata ao morrer','Regenera +5PV/round'],
-      fraqueza:'Destrua 5+ nós da rede. Depois explosivos+fogo.' },
-  ],
-  animais: [
-    { id:'lobo',         nome:'Lobo',              pv:12, com:2,  agi:3,  res:0,  tipo:'animal',           emoji:'🐺',
-      habilidades:['Flanqueio: +2 dano','Avaliação de Presa','Perseguição até 500m'],
-      fraqueza:'Matar o alfa causa recuo de 60%. Fogo afasta.' },
-    { id:'urso',         nome:'Urso',              pv:45, com:4,  agi:0,  res:5,  tipo:'animal',           emoji:'🐻',
-      habilidades:['Investida: +3 dano, derruba','−2 dano exceto fogo','Com filhotes: nunca recua'],
-      fraqueza:'Rifle pesado ou explosivos. Suba em estruturas.' },
-    { id:'javali',       nome:'Javali',            pv:20, com:3,  agi:1,  res:2,  tipo:'animal',           emoji:'🐗',
-      habilidades:['Carga: AGI≥13 para desviar','2d6+3 dano','Bando: +1 Tensão'],
-      fraqueza:'Tiro na cabeça. Suba em estruturas.' },
-    { id:'corvo',        nome:'Corvo de Bando',    pv:3,  com:0,  agi:4,  res:-2, tipo:'animal',           emoji:'🐦',
-      habilidades:['Delata posição do grupo','+1 Tensão se assustados'],
-      fraqueza:'Ignore. Matar piora a situação.' },
-  ],
-  humanos: [
-    { id:'saqueador',    nome:'Saqueador',         pv:14, com:1,  agi:1,  res:-1, tipo:'humano',           emoji:'🔪',
-      habilidades:['Moral Frágil: SOCIAL≥11','Pode se render','Armamento improvisado'],
-      fraqueza:'Intimidação funciona. Considere negociar.' },
-    { id:'atirador',     nome:'Atirador Facção',   pv:18, com:3,  agi:2,  res:0,  tipo:'humano',           emoji:'🔫',
-      habilidades:['Cobertura: +2 defesa','Relata à facção','Tiro coordenado'],
-      fraqueza:'Flanqueie ou destrua a cobertura.' },
-    { id:'lider',        nome:'Líder de Bando',    pv:25, com:4,  agi:2,  res:3,  tipo:'humano',           emoji:'😈',
-      habilidades:['Imune a intimidação simples','Eleva aliados','Pode negociar'],
-      fraqueza:'Eliminar o líder quebra o grupo.' },
-    { id:'cacador',      nome:'Caçador Profissional',pv:22,com:4, agi:3,  res:-2, tipo:'humano',           emoji:'🏹',
-      habilidades:['Emboscada: INSTINTO≥16','Rastreamento 24h','Tiro silencioso'],
-      fraqueza:'Mude de rota. Inverta a caça.' },
-  ],
-  animais_infectados: [
-    { id:'cao_corredor', nome:'Cão Corredor',      pv:16, com:3,  agi:4,  res:1,  tipo:'animal_infectado', emoji:'🐕',
-      habilidades:['Age 2x/round','Rastreamento fúngico','Mordida: RES≥13 ou infecção'],
-      fraqueza:'Armadilhas. Fogo desorienta.' },
-    { id:'urso_estalador',nome:'Urso Estalador',  pv:60, com:5,  agi:0,  res:6,  tipo:'animal_infectado', emoji:'🐻',
-      habilidades:['Detecta >20dB','−3 dano (armadura dupla)','Investida: +3d6','Agarrão: 2d8/round'],
-      fraqueza:'Explosivos pesados e fogo prolongado apenas.' },
-  ]
-};
-const TODOS_INIMIGOS = Object.values(BESTIARIO).flat();
+let salaIniciada = false;
 
-// ── STATE GLOBAL ──────────────────────────────────
-let salaRealtimeSub = null;
+// ── INIT ──────────────────────────────────────────
+async function initSala() {
+  if (salaIniciada) { refreshSalaContent(); return; }
+  salaIniciada = true;
+  window.isMaster = isMaster;
 
-// ── STATE COMBATE ─────────────────────────────────
-let combatentes   = [];
-let turnoAtual    = 0;
-let rodadaAtual   = 1;
-let combateAtivo  = false;
-let mostrarPVInimigos = true;
+  buildSalaDOM();
+  await new Promise(r => setTimeout(r, 150));
 
-// ── STATE MAPA ────────────────────────────────────
-let tokens          = [];
-let tokenSelecionado = null;
-let dragToken       = null;
-let dragOffX = 0, dragOffY = 0;
-let gridSize        = 60;
-let gridVisivel     = true;
-let metrosPorCelula = 1.5;
-let mapaImg         = null;
-let mapaCanvas, mapaCtx;
-let CMAP_W = 1200, CMAP_H = 800;
+  // Feed
+  await subscribeToSala();
 
-// Régua
-let regraAtiva = false;
-let regraP1 = null, regraP2 = null;
+  // Tensão
+  await carregarTensaoSala();
+  buildTensaoPips('tensao-pips-sala', tensaoSala, false);
 
-// ══════════════════════════════════════════════════
-//  TABS DA SALA
-// ══════════════════════════════════════════════════
-let salaTab = 'feed';
-
-function setSalaTab(tab) {
-  salaTab = tab;
-  ['feed','combate','mapa'].forEach(t => {
-    const btn = document.getElementById(`stab-${t}`);
-    const pnl = document.getElementById(`spanel-${t}`);
-    if (btn) btn.classList.toggle('stab-active', t === tab);
-    if (pnl) pnl.style.display = t === tab ? 'flex' : 'none';
-  });
-  if (tab === 'mapa') {
-    setTimeout(() => { initMapa(); carregarMapaEstado(); }, 60);
+  // CT + Bestiário
+  renderCT();
+  if (isMaster) {
+    renderBestiarioCT();
+    renderPlayersParaCT();
   }
-  if (tab === 'combate') renderCombatTracker();
+
+  // Mapa
+  canvas = null;
+  initMapa();
+}
+
+function refreshSalaContent() {
+  // Reconstrói apenas o conteúdo dinâmico sem recriar o DOM todo
+  renderCT();
+  if (isMaster) { renderBestiarioCT(); renderPlayersParaCT(); }
+  buildTensaoPips('tensao-pips-sala', tensaoSala, false);
+  setTimeout(() => { if (canvas) desenharMapa(); }, 100);
 }
 
 // ══════════════════════════════════════════════════
-//  FEED / SALA DE DADOS
+//  DOM BUILDER — Mobile e Desktop compartilham
+//  os mesmos IDs mas layout diferente
 // ══════════════════════════════════════════════════
-function initSala() {
-  carregarFeedInicial();
-  carregarTensaoSala();
-  subscribeRealtime();
-}
+function buildSalaDOM() {
+  const root = document.getElementById('sala-root');
+  if (!root) return;
+  root.innerHTML = '';
 
-async function carregarFeedInicial() {
-  const { data } = await db.from('sala')
-    .select('*').order('created_at', { ascending: true }).limit(80);
-  const feed = document.getElementById('sala-feed');
-  if (!feed) return;
-  feed.innerHTML = '';
-  if (!data || data.length === 0) {
-    feed.innerHTML = '<div class="empty-state"><div class="empty-icon">🎲</div><p>Role um dado para começar.</p></div>';
-    return;
-  }
-  data.filter(m => m.tipo !== 'tokens' && m.tipo !== 'mapa_estado').forEach(m => appendMsg(m));
-  feed.scrollTop = feed.scrollHeight;
-}
-
-async function carregarTensaoSala() {
-  const { data } = await db.from('sala').select('conteudo')
-    .eq('tipo','tensao').order('created_at',{ascending:false}).limit(1).single();
-  if (data) { tensaoSala = data.conteudo.valor || 0; buildTensaoPips('tensao-pips-sala', tensaoSala, false); }
-}
-
-function subscribeRealtime() {
-  if (salaRealtimeSub) return;
-  salaRealtimeSub = db.channel('sala-rt')
-    .on('postgres_changes', { event:'INSERT', schema:'public', table:'sala' }, payload => {
-      const msg = payload.new;
-      if (msg.tipo === 'tensao') {
-        tensaoSala = msg.conteudo.valor;
-        buildTensaoPips('tensao-pips-sala', tensaoSala, false);
-      }
-      if (msg.tipo === 'tokens_update') {
-        if (msg.user_id !== currentUser?.id) aplicarTokensRemoto(msg.conteudo);
-        return;
-      }
-      if (msg.tipo !== 'tokens' && msg.tipo !== 'mapa_estado') appendMsg(msg);
-    })
-    .subscribe();
-}
-
-function appendMsg(msg) {
-  const feed = document.getElementById('sala-feed');
-  if (!feed) return;
-  const empty = feed.querySelector('.empty-state');
-  if (empty) empty.remove();
-
-  const hora = new Date(msg.created_at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
-  const div = document.createElement('div');
-
-  if (msg.tipo === 'roll') {
-    const c = msg.conteudo;
-    const isCrit  = c.dado===20 && c.resultado_dado===20;
-    const isFalha = c.dado===20 && c.resultado_dado===1;
-    div.className = 'feed-msg roll' + (isCrit?' critico':'') + (isFalha?' falha-critica':'');
-    div.innerHTML = `
-      <div class="feed-msg-header"><span class="feed-msg-user">${msg.username}</span><span class="feed-msg-time">${hora}</span></div>
-      <div class="feed-msg-content">
-        <span class="roll-total">${c.total}</span>
-        ${c.dif?`<span style="font-size:12px;color:${c.total>=c.dif?'var(--green)':'var(--red)'}"> — ${c.total>=c.dif?'✓ SUCESSO':'✗ FALHA'} (dif.${c.dif})</span>`:''}
-        ${isCrit?' <span style="color:var(--gold)">⭐ CRÍTICO!</span>':''}
-        ${isFalha?' <span style="color:var(--red)">💀 FALHA CRÍTICA!</span>':''}
-      </div>
-      <div class="roll-detail">1d${c.dado}→${c.resultado_dado}${c.bonus?` + bônus ${c.bonus>0?'+':''}${c.bonus}`:''}${c.label?` — ${c.label}`:''}</div>`;
-  } else if (msg.tipo === 'tensao') {
-    div.className = 'feed-msg tensao-msg';
-    div.innerHTML = `<div class="feed-msg-header"><span class="feed-msg-user">⚠ MESTRE</span><span class="feed-msg-time">${hora}</span></div>
-      <div class="feed-msg-content">Tensão: ${msg.conteudo.valor}/10 — ${msg.conteudo.status}</div>`;
-  } else if (msg.tipo === 'mensagem') {
-    div.className = 'feed-msg';
-    div.innerHTML = `<div class="feed-msg-header"><span class="feed-msg-user">${msg.username}</span><span class="feed-msg-time">${hora}</span></div>
-      <div class="feed-msg-content">${(msg.conteudo.texto||'').replace(/</g,'&lt;')}</div>`;
-  } else return;
-
-  feed.appendChild(div);
-  feed.scrollTop = feed.scrollHeight;
-}
-
-async function publicar(tipo, conteudo) {
-  await db.from('sala').insert({ user_id: currentUser.id, username: currentProfile?.username||'?', tipo, conteudo });
-}
-
-function rolarDado(faces, qtd=1) {
-  let total=0; const rs=[];
-  for(let i=0;i<qtd;i++){const r=Math.floor(Math.random()*faces)+1;rs.push(r);total+=r;}
-  publicar('roll',{dado:faces,qtd,resultado_dado:rs[0],total,label:qtd>1?`${qtd}d${faces}:[${rs.join(',')}]`:`1d${faces}`});
-}
-
-function rolarFormula() {
-  const mod   = parseInt(document.getElementById('roll-atrib')?.value)||0;
-  const per   = parseInt(document.getElementById('roll-pericia')?.value)||0;
-  const sit   = parseInt(document.getElementById('roll-situacao')?.value)||0;
-  const dif   = parseInt(document.getElementById('roll-dif')?.value)||11;
-  const dado  = Math.floor(Math.random()*20)+1;
-  const bonus = mod+per+sit;
-  const total = dado+bonus;
-  const atxt  = document.getElementById('roll-atrib')?.selectedOptions[0]?.text||'';
-  const ptxt  = document.getElementById('roll-pericia')?.selectedOptions[0]?.text||'';
-  const stxt  = document.getElementById('roll-situacao')?.selectedOptions[0]?.text||'';
-  publicar('roll',{dado:20,resultado_dado:dado,bonus,total,dif,label:[atxt,ptxt!=='Sem perícia (+0)'?ptxt:'',stxt!=='Normal'?stxt:''].filter(Boolean).join(' | ')});
-}
-
-async function enviarMsgSala() {
-  const inp = document.getElementById('sala-msg-input');
-  const txt = inp?.value.trim();
-  if (!txt) return;
-  inp.value='';
-  await publicar('mensagem',{texto:txt});
-}
-
-async function limparHistorico() {
-  if (!isMaster) return toast('Só o mestre pode limpar.','err');
-  if (!confirm('Limpar todo o histórico?')) return;
-  await db.from('sala').delete().neq('id','00000000-0000-0000-0000-000000000000');
-  tensaoSala=0;
-  buildTensaoPips('tensao-pips-sala',0,false);
-  const feed = document.getElementById('sala-feed');
-  if (feed) feed.innerHTML='<div class="empty-state"><div class="empty-icon">🎲</div><p>Histórico limpo.</p></div>';
-  toast('Histórico limpo!','ok');
-}
-
-// ══════════════════════════════════════════════════
-//  COMBAT TRACKER
-// ══════════════════════════════════════════════════
-function renderCombatTracker() {
-  const lista = document.getElementById('ct-lista');
-  if (!lista) return;
-
-  if (combatentes.length === 0) {
-    lista.innerHTML = '<div style="text-align:center;color:var(--muted);padding:24px;font-size:13px">Adicione combatentes para começar.</div>';
+  if (window.innerWidth <= 768) {
+    buildMobileDOM(root);
   } else {
-    const ord = [...combatentes].sort((a,b)=>b.iniciativa-a.iniciativa);
-    lista.innerHTML = '';
-    ord.forEach((c,idx) => {
-      const isAtual = combateAtivo && ord[turnoAtual]?.id === c.id;
-      const pct     = Math.max(0, Math.round((c.pvAtual/c.pvMax)*100));
-      const barClr  = pct>50?'#27ae60':pct>25?'#f39c12':'#c0392b';
-      const estado  = pct>75?'':pct>50?'🩹 Ferido':pct>25?'⚠️ Grave':pct>0?'💀 Crítico':'☠️ Incapacitado';
-      const showPV  = c.isPC || mostrarPVInimigos;
-
-      const div = document.createElement('div');
-      div.className='ct-item'+(isAtual?' ct-ativo':'')+(c.pvAtual<=0?' ct-morto':'');
-      div.innerHTML=`
-        <div class="ct-ordem">${isAtual?'▶':idx+1}</div>
-        <div class="ct-emoji-wrap">
-          ${c.imgUrl?`<img src="${c.imgUrl}" class="ct-token-img">`:`<span style="font-size:22px">${c.emoji}</span>`}
-        </div>
-        <div class="ct-info">
-          <div class="ct-nome">${c.nome}${c.tag?`<span class="ct-tag"> ${c.tag}</span>`:''}</div>
-          <div class="ct-ini">Init: <strong>${c.iniciativa}</strong>${estado?' · '+estado:''}</div>
-          ${showPV?`
-          <div class="ct-bar-wrap"><div class="ct-bar" style="width:${pct}%;background:${barClr}"></div></div>
-          <div class="ct-pv-row">
-            <span class="ct-pv-label">PV</span>
-            <button class="ct-pv-btn" onclick="ctAlterarPV('${c.id}',-1)">−</button>
-            <input type="number" class="ct-pv-input" value="${c.pvAtual}" min="0" max="${c.pvMax}" onchange="ctSetPV('${c.id}',this.value)">
-            <span class="ct-pv-sep">/ ${c.pvMax}</span>
-            <button class="ct-pv-btn" onclick="ctAlterarPV('${c.id}',1)">+</button>
-            <button class="ct-pv-btn ct-pv-dmg" onclick="ctDanoRapido('${c.id}')">⚔</button>
-          </div>`:
-          `<div style="font-size:10px;color:var(--muted);margin-top:4px">PV oculto</div>`}
-          ${c.condicoes?.length?`<div class="ct-condicoes">${c.condicoes.map(cn=>`<span class="ct-cond">${cn}</span>`).join('')}</div>`:''}
-          ${c.habilidades&&isMaster?`<details class="ct-detalhes"><summary>Habilidades</summary><ul>${c.habilidades.map(h=>`<li>${h}</li>`).join('')}</ul>${c.fraqueza?`<div class="ct-fraqueza">⚡ ${c.fraqueza}</div>`:''}</details>`:''}
-        </div>
-        <div class="ct-acoes">
-          <button class="ct-btn" onclick="ctToggleCond('${c.id}','😵 Atordoado')" title="Atordoado">😵</button>
-          <button class="ct-btn" onclick="ctToggleCond('${c.id}','☠ Envenenado')" title="Envenenado">☠</button>
-          <button class="ct-btn" onclick="ctToggleCond('${c.id}','🔒 Imobilizado')" title="Imobilizado">🔒</button>
-          <button class="ct-btn ct-btn-red" onclick="ctRemover('${c.id}')" title="Remover">✕</button>
-        </div>`;
-      lista.appendChild(div);
-    });
+    buildDesktopDOM(root);
   }
-
-  if(document.getElementById('ct-rodada')) document.getElementById('ct-rodada').textContent=`Rodada ${rodadaAtual}`;
-  if(document.getElementById('ct-turno-info')) {
-    const ord=[...combatentes].sort((a,b)=>b.iniciativa-a.iniciativa);
-    document.getElementById('ct-turno-info').textContent = combateAtivo
-      ? `Turno: ${ord[turnoAtual]?.nome||'—'}` : 'Aguardando início';
-  }
-  renderBestiarioLista();
-}
-
-function renderBestiarioLista() {
-  const lista = document.getElementById('ct-bestiario-lista');
-  if (!lista || !isMaster) return;
-  const filtro = (document.getElementById('ct-filtro')?.value||'').toLowerCase();
-  lista.innerHTML = '';
-  const labels = {infectados:'Infectados',animais:'Animais',humanos:'Humanos',animais_infectados:'Animais Infectados'};
-  Object.entries(BESTIARIO).forEach(([cat,inimigos]) => {
-    const fil = inimigos.filter(i=>i.nome.toLowerCase().includes(filtro));
-    if (!fil.length) return;
-    const h = document.createElement('div'); h.className='ct-categoria'; h.textContent=labels[cat];
-    lista.appendChild(h);
-    fil.forEach(inimigo => {
-      const d = document.createElement('div'); d.className='ct-inimigo-item';
-      d.innerHTML=`
-        <span style="font-size:18px;flex-shrink:0">${inimigo.emoji}</span>
-        <div style="flex:1;min-width:0">
-          <div style="font-size:12px;font-weight:600">${inimigo.nome}</div>
-          <div style="font-size:10px;color:var(--muted)">PV ${inimigo.pv} · COM ${inimigo.com>=0?'+':''}${inimigo.com}</div>
-        </div>
-        <button class="ct-add-btn" onclick='ctAdicionarInimigo(${JSON.stringify(inimigo).replace(/'/g,"&#39;")})'>+CT</button>
-        <button class="ct-add-btn ct-add-mapa" onclick='mapaAdicionarToken(${JSON.stringify(inimigo).replace(/'/g,"&#39;")})'>+🗺</button>`;
-      lista.appendChild(d);
-    });
-  });
-}
-
-function ctAdicionarInimigo(inimigo) {
-  const ex = combatentes.filter(c=>c.id.startsWith(inimigo.id));
-  const tag = ex.length?` #${ex.length+1}`:'';
-  combatentes.push({ id:inimigo.id+'_'+Date.now(), nome:inimigo.nome, emoji:inimigo.emoji, tag,
-    pvMax:inimigo.pv, pvAtual:inimigo.pv, iniciativa:Math.floor(Math.random()*20)+1+(inimigo.agi||0),
-    tipo:inimigo.tipo, habilidades:inimigo.habilidades, fraqueza:inimigo.fraqueza,
-    condicoes:[], isPC:false });
-  renderCombatTracker();
-}
-
-function ctAdicionarPC() {
-  const nome = document.getElementById('ct-pc-nome')?.value.trim();
-  const ini  = parseInt(document.getElementById('ct-pc-ini')?.value)||10;
-  const pv   = parseInt(document.getElementById('ct-pc-pv')?.value)||20;
-  if (!nome) return toast('Digite o nome!','err');
-  combatentes.push({ id:'pc_'+Date.now(), nome, emoji:'🧑', pvMax:pv, pvAtual:pv,
-    iniciativa:ini, tipo:'pc', isPC:true, condicoes:[] });
-  if(document.getElementById('ct-pc-nome')) document.getElementById('ct-pc-nome').value='';
-  renderCombatTracker();
-}
-
-function ctIniciar() {
-  if (!combatentes.length) return;
-  combateAtivo=true; turnoAtual=0; rodadaAtual=1;
-  combatentes.sort((a,b)=>b.iniciativa-a.iniciativa);
-  renderCombatTracker();
-}
-
-function ctProximo() {
-  if (!combateAtivo||!combatentes.length) return;
-  const ord=[...combatentes].sort((a,b)=>b.iniciativa-a.iniciativa);
-  let tentativas=0;
-  do { turnoAtual++; if(turnoAtual>=ord.length){turnoAtual=0;rodadaAtual++;} tentativas++; }
-  while(ord[turnoAtual]?.pvAtual<=0 && tentativas<ord.length);
-  renderCombatTracker();
-}
-
-function ctEncerrar() {
-  if (!confirm('Encerrar combate e limpar lista?')) return;
-  combatentes=[]; turnoAtual=0; rodadaAtual=1; combateAtivo=false;
-  renderCombatTracker();
-}
-
-function ctAlterarPV(id,delta) {
-  const c=combatentes.find(x=>x.id===id); if(!c) return;
-  c.pvAtual=Math.max(0,Math.min(c.pvMax,c.pvAtual+delta)); renderCombatTracker();
-}
-function ctSetPV(id,val) {
-  const c=combatentes.find(x=>x.id===id); if(!c) return;
-  c.pvAtual=Math.max(0,Math.min(c.pvMax,parseInt(val)||0)); renderCombatTracker();
-}
-function ctDanoRapido(id) {
-  const v=prompt('Dano recebido:'); if(!v) return;
-  ctAlterarPV(id,-(parseInt(v)||0));
-}
-function ctToggleCond(id,cond) {
-  const c=combatentes.find(x=>x.id===id); if(!c) return;
-  if(!c.condicoes) c.condicoes=[];
-  const i=c.condicoes.indexOf(cond);
-  if(i>=0) c.condicoes.splice(i,1); else c.condicoes.push(cond);
-  renderCombatTracker();
-}
-function ctRemover(id) {
-  combatentes=combatentes.filter(c=>c.id!==id);
-  if(turnoAtual>=combatentes.length) turnoAtual=0;
-  renderCombatTracker();
-}
-function ctTogglePV() {
-  mostrarPVInimigos=!mostrarPVInimigos;
-  const btn=document.getElementById('btn-toggle-pv');
-  if(btn) btn.textContent=mostrarPVInimigos?'👁 Ocultar PV inimigos':'👁 Mostrar PV inimigos';
-  renderCombatTracker();
 }
 
 // ══════════════════════════════════════════════════
-//  MAPA COM TOKENS
+//  MOBILE DOM
 // ══════════════════════════════════════════════════
-function initMapa() {
-  mapaCanvas = document.getElementById('mapa-canvas');
-  if (!mapaCanvas || mapaCanvas._init) return;
-  mapaCanvas._init = true;
-  mapaCtx = mapaCanvas.getContext('2d');
-  mapaCanvas.width  = CMAP_W;
-  mapaCanvas.height = CMAP_H;
+const MOBILE_TABS = [
+  { id:'feed',      icon:'💬', label:'Chat',    visible: () => true },
+  { id:'dados',     icon:'🎲', label:'Dados',   visible: () => true },
+  { id:'tracker',   icon:'⚔️', label:'Combate', visible: () => true },
+  { id:'mapa',      icon:'🗺️', label:'Mapa',    visible: () => true },
+  { id:'players',   icon:'👥', label:'Players', visible: () => isMaster },
+  { id:'bestiario', icon:'📖', label:'Bestia',  visible: () => isMaster },
+];
 
-  mapaCanvas.addEventListener('mousedown',  mapaMouseDown);
-  mapaCanvas.addEventListener('mousemove',  mapaMouseMove);
-  mapaCanvas.addEventListener('mouseup',    mapaMouseUp);
-  mapaCanvas.addEventListener('touchstart', mapaTouchStart, {passive:false});
-  mapaCanvas.addEventListener('touchmove',  mapaTouchMove,  {passive:false});
-  mapaCanvas.addEventListener('touchend',   mapaMouseUp);
-  mapaCanvas.addEventListener('click',      mapaClick);
+function buildMobileDOM(root) {
+  root.style.cssText = 'display:flex;flex-direction:column;height:100%;';
 
-  desenharMapa();
-}
-
-function desenharMapa() {
-  if (!mapaCtx) return;
-  mapaCtx.clearRect(0,0,CMAP_W,CMAP_H);
-  mapaCtx.fillStyle='#080810';
-  mapaCtx.fillRect(0,0,CMAP_W,CMAP_H);
-
-  if (mapaImg) mapaCtx.drawImage(mapaImg,0,0,CMAP_W,CMAP_H);
-
-  // Grid
-  if (gridVisivel) {
-    mapaCtx.strokeStyle='rgba(192,57,43,0.18)';
-    mapaCtx.lineWidth=1;
-    for(let x=0;x<=CMAP_W;x+=gridSize){mapaCtx.beginPath();mapaCtx.moveTo(x,0);mapaCtx.lineTo(x,CMAP_H);mapaCtx.stroke();}
-    for(let y=0;y<=CMAP_H;y+=gridSize){mapaCtx.beginPath();mapaCtx.moveTo(0,y);mapaCtx.lineTo(CMAP_W,y);mapaCtx.stroke();}
-  }
-
-  // Régua
-  if (regraAtiva && regraP1 && regraP2) desenharRegua();
-
-  // Tokens
-  tokens.forEach(t => desenharToken(t));
-}
-
-function desenharRegua() {
-  const p1=regraP1, p2=regraP2;
-  const dx=p2.x-p1.x, dy=p2.y-p1.y;
-  const pixeis=Math.sqrt(dx*dx+dy*dy);
-  const celulas=pixeis/gridSize;
-  const metros=(celulas*metrosPorCelula).toFixed(1);
-
-  mapaCtx.save();
-  mapaCtx.strokeStyle='#f1c40f';
-  mapaCtx.lineWidth=2;
-  mapaCtx.setLineDash([6,4]);
-  mapaCtx.beginPath(); mapaCtx.moveTo(p1.x,p1.y); mapaCtx.lineTo(p2.x,p2.y); mapaCtx.stroke();
-  mapaCtx.setLineDash([]);
-
-  const mx=(p1.x+p2.x)/2, my=(p1.y+p2.y)/2;
-  mapaCtx.fillStyle='rgba(0,0,0,0.7)';
-  mapaCtx.fillRect(mx-32,my-14,64,22);
-  mapaCtx.fillStyle='#f1c40f';
-  mapaCtx.font='bold 12px sans-serif';
-  mapaCtx.textAlign='center';
-  mapaCtx.textBaseline='middle';
-  mapaCtx.fillText(`${metros}m`,mx,my);
-  mapaCtx.restore();
-}
-
-function getImg(token) {
-  if (!token.imgUrl) return null;
-  if (token._imgEl && token._imgEl.src === token.imgUrl) return token._imgEl;
-  const img = new Image();
-  img.src = token.imgUrl;
-  img.onload = () => desenharMapa();
-  token._imgEl = img;
-  return img;
-}
-
-function desenharToken(t) {
-  const r  = gridSize*0.42;
-  const cx = t.x + gridSize/2;
-  const cy = t.y + gridSize/2;
-
-  // Selecionado
-  if (tokenSelecionado?.id === t.id) {
-    mapaCtx.beginPath(); mapaCtx.arc(cx,cy,r+5,0,Math.PI*2);
-    mapaCtx.strokeStyle='#f1c40f'; mapaCtx.lineWidth=3; mapaCtx.stroke();
-  }
-
-  const imgEl = getImg(t);
-  if (imgEl && imgEl.complete && imgEl.naturalWidth) {
-    // Imagem circular
-    mapaCtx.save();
-    mapaCtx.beginPath(); mapaCtx.arc(cx,cy,r,0,Math.PI*2); mapaCtx.clip();
-    mapaCtx.drawImage(imgEl, cx-r, cy-r, r*2, r*2);
-    mapaCtx.restore();
-    mapaCtx.beginPath(); mapaCtx.arc(cx,cy,r,0,Math.PI*2);
-    const cor = corTipo(t.tipo);
-    mapaCtx.strokeStyle=cor; mapaCtx.lineWidth=2.5; mapaCtx.stroke();
-  } else {
-    mapaCtx.beginPath(); mapaCtx.arc(cx,cy,r,0,Math.PI*2);
-    mapaCtx.fillStyle=corTipo(t.tipo); mapaCtx.fill();
-    mapaCtx.strokeStyle='rgba(255,255,255,0.2)'; mapaCtx.lineWidth=1.5; mapaCtx.stroke();
-    mapaCtx.font=`${gridSize*0.38}px serif`;
-    mapaCtx.textAlign='center'; mapaCtx.textBaseline='middle';
-    mapaCtx.fillStyle='#fff';
-    mapaCtx.fillText(t.emoji||'?', cx, cy);
-  }
-
-  // Nome
-  mapaCtx.font=`bold ${Math.max(9,gridSize*0.13)}px sans-serif`;
-  mapaCtx.fillStyle='#fff'; mapaCtx.textAlign='center'; mapaCtx.textBaseline='top';
-  mapaCtx.shadowColor='rgba(0,0,0,0.9)'; mapaCtx.shadowBlur=3;
-  mapaCtx.fillText(t.nome.substring(0,10), cx, t.y+gridSize-13);
-  mapaCtx.shadowBlur=0;
-
-  // Barra PV (só se tiver PV e não for inimigo oculto)
-  const mostrar = t.isPC || mostrarPVInimigos || isMaster;
-  if (t.pvMax && t.pvAtual!==undefined && mostrar) {
-    const bw=gridSize-8, bh=4, bx=t.x+4, by=t.y+3;
-    const pct=Math.max(0,t.pvAtual/t.pvMax);
-    mapaCtx.fillStyle='rgba(0,0,0,0.5)'; mapaCtx.fillRect(bx,by,bw,bh);
-    mapaCtx.fillStyle=pct>0.5?'#27ae60':pct>0.25?'#f39c12':'#c0392b';
-    mapaCtx.fillRect(bx,by,bw*pct,bh);
-  }
-}
-
-function corTipo(tipo) {
-  return tipo==='pc'?'#2980b9':tipo==='infectado'?'#c0392b':tipo==='animal'?'#27ae60':tipo==='animal_infectado'?'#8e44ad':'#e67e22';
-}
-
-function snap(v) { return Math.round(v/gridSize)*gridSize; }
-
-function getCanvasXY(e) {
-  const r=mapaCanvas.getBoundingClientRect();
-  return { x:(e.clientX-r.left)*(mapaCanvas.width/r.width), y:(e.clientY-r.top)*(mapaCanvas.height/r.height) };
-}
-
-function getTokenAt(x,y) {
-  return tokens.slice().reverse().find(t=>x>=t.x&&x<=t.x+gridSize&&y>=t.y&&y<=t.y+gridSize);
-}
-
-function mapaMouseDown(e) {
-  const {x,y}=getCanvasXY(e);
-
-  // Régua
-  if (regraAtiva) { regraP1={x,y}; regraP2={x,y}; return; }
-
-  const t=getTokenAt(x,y);
-  if (t) {
-    const podeMover = isMaster || (t.isPC && t.userId===currentUser?.id);
-    if (!podeMover) return;
-    dragToken=t; dragOffX=x-t.x; dragOffY=y-t.y;
-    tokenSelecionado=t; desenharMapa(); mostrarInfoToken(t);
-  } else {
-    tokenSelecionado=null; desenharMapa();
-    const info=document.getElementById('token-info');
-    if(info) info.style.display='none';
-  }
-}
-
-function mapaMouseMove(e) {
-  const {x,y}=getCanvasXY(e);
-  if (regraAtiva && regraP1) { regraP2={x,y}; desenharMapa(); return; }
-  if (!dragToken) return;
-  dragToken.x=Math.max(0,Math.min(CMAP_W-gridSize,x-dragOffX));
-  dragToken.y=Math.max(0,Math.min(CMAP_H-gridSize,y-dragOffY));
-  desenharMapa();
-}
-
-function mapaMouseUp() {
-  if (regraAtiva && regraP1) return;
-  if (!dragToken) return;
-  dragToken.x=snap(dragToken.x); dragToken.y=snap(dragToken.y);
-  dragToken=null; desenharMapa(); salvarMapaEstado();
-}
-
-function mapaClick(e) {
-  if (regraAtiva && regraP1) { regraP2=getCanvasXY(e); desenharMapa(); }
-}
-
-function mapaTouchStart(e) { e.preventDefault(); mapaMouseDown(e.touches[0]); }
-function mapaTouchMove(e)  { e.preventDefault(); mapaMouseMove(e.touches[0]); }
-
-function mapaAdicionarToken(inimigo) {
-  if (!isMaster) return toast('Só o mestre pode adicionar inimigos.','err');
-  tokens.push({
-    id: inimigo.id+'_'+Date.now(), nome:inimigo.nome, emoji:inimigo.emoji,
-    tipo:inimigo.tipo, isPC:false,
-    x:snap(Math.random()*(CMAP_W-gridSize*3)+gridSize),
-    y:snap(Math.random()*(CMAP_H-gridSize*3)+gridSize),
-    pvMax:inimigo.pv, pvAtual:inimigo.pv,
-    habilidades:inimigo.habilidades,
-  });
-  setSalaTab('mapa');
-  desenharMapa(); salvarMapaEstado();
-}
-
-function mapaAdicionarPC() {
-  const nome=document.getElementById('mapa-pc-nome')?.value.trim();
-  if (!nome) return toast('Digite o nome!','err');
-  tokens.push({
-    id:'pc_'+Date.now(), nome, emoji:'🧑', tipo:'pc',
-    isPC:true, userId:currentUser?.id,
-    x:snap(gridSize), y:snap(gridSize),
-  });
-  if(document.getElementById('mapa-pc-nome')) document.getElementById('mapa-pc-nome').value='';
-  desenharMapa(); salvarMapaEstado();
-}
-
-// Token personalizado (mestre cria com nome + imagem)
-function mapaAdicionarCustom() {
-  const nome=document.getElementById('mapa-custom-nome')?.value.trim();
-  if (!nome) return toast('Digite o nome!','err');
-  tokens.push({
-    id:'custom_'+Date.now(), nome, emoji:'❓', tipo:'humano',
-    isPC:false, userId:currentUser?.id,
-    x:snap(CMAP_W/2), y:snap(CMAP_H/2),
-  });
-  if(document.getElementById('mapa-custom-nome')) document.getElementById('mapa-custom-nome').value='';
-  desenharMapa(); salvarMapaEstado();
-  toast('Token criado! Clique nele para adicionar imagem.','ok');
-}
-
-function mapaRemoverToken(id) {
-  tokens=tokens.filter(t=>t.id!==id);
-  tokenSelecionado=null;
-  const info=document.getElementById('token-info'); if(info) info.style.display='none';
-  desenharMapa(); salvarMapaEstado();
-}
-
-function mostrarInfoToken(t) {
-  const info=document.getElementById('token-info'); if(!info) return;
-  const podeEditar=isMaster||(t.isPC&&t.userId===currentUser?.id);
-  const showPV=t.pvMax&&(t.isPC||mostrarPVInimigos||isMaster);
-
-  info.style.display='block';
-  info.innerHTML=`
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-      <div style="position:relative;cursor:pointer" onclick="${podeEditar?`trocarImagemToken('${t.id}')`:''}" title="${podeEditar?'Clique para mudar imagem':''}">
-        ${t.imgUrl?`<img src="${t.imgUrl}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid ${corTipo(t.tipo)}">`
-          :`<div style="width:40px;height:40px;border-radius:50%;background:${corTipo(t.tipo)};display:flex;align-items:center;justify-content:center;font-size:20px">${t.emoji||'?'}</div>`}
-        ${podeEditar?`<div style="position:absolute;bottom:-2px;right:-2px;background:var(--surface);border:1px solid var(--border);border-radius:50%;width:16px;height:16px;font-size:9px;display:flex;align-items:center;justify-content:center">✏️</div>`:''}
-      </div>
-      <div style="flex:1">
-        <div style="font-weight:700;font-size:13px">${t.nome}</div>
-        <div style="font-size:10px;color:var(--muted)">${t.tipo||''}</div>
-      </div>
-      ${isMaster?`<button class="btn-icon" onclick="mapaRemoverToken('${t.id}')" style="color:var(--red)">🗑</button>`:''}
-    </div>
-    ${showPV?`
-    <div style="display:flex;align-items:center;gap:5px;margin-bottom:6px">
-      <span style="font-size:9px;color:var(--muted)">PV</span>
-      <button class="ct-pv-btn" onclick="tkAlterarPV('${t.id}',-1)">−</button>
-      <input type="number" value="${t.pvAtual}" min="0" max="${t.pvMax}"
-        style="width:44px;text-align:center;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:13px;font-weight:700;padding:2px"
-        onchange="tkSetPV('${t.id}',this.value)">
-      <span style="color:var(--muted);font-size:11px">/ ${t.pvMax}</span>
-      <button class="ct-pv-btn" onclick="tkAlterarPV('${t.id}',1)">+</button>
-    </div>`:''}
-    ${podeEditar&&!t.imgUrl?`<button class="btn-ghost" style="width:100%;font-size:10px" onclick="trocarImagemToken('${t.id}')">📷 Adicionar imagem</button>`:''}
-    ${podeEditar&&t.imgUrl?`<button class="btn-ghost" style="width:100%;font-size:10px" onclick="trocarImagemToken('${t.id}')">📷 Trocar imagem</button>`:''}
+  // Tab bar no topo
+  const tabBar = document.createElement('div');
+  tabBar.id = 'sala-tabbar';
+  tabBar.style.cssText = `
+    display:flex;background:var(--surface);border-bottom:1px solid var(--border);
+    overflow-x:auto;flex-shrink:0;scrollbar-width:none;
   `;
+
+  const tabs = MOBILE_TABS.filter(t => t.visible());
+  tabs.forEach(t => {
+    const btn = document.createElement('button');
+    btn.id = 'tab-'+t.id;
+    btn.style.cssText = `
+      flex:1;min-width:50px;background:transparent;border:none;border-bottom:2px solid transparent;
+      color:var(--muted);cursor:pointer;font-size:11px;font-weight:600;padding:10px 6px 8px;
+      display:flex;flex-direction:column;align-items:center;gap:2px;transition:all .15s;
+      -webkit-tap-highlight-color:transparent;
+    `;
+    btn.innerHTML = `<span style="font-size:18px">${t.icon}</span>${t.label}`;
+    btn.onclick = () => switchMobileTab(t.id);
+    tabBar.appendChild(btn);
+  });
+
+  // Content area
+  const content = document.createElement('div');
+  content.style.cssText = 'flex:1;overflow:hidden;position:relative;';
+
+  tabs.forEach(t => {
+    const panel = document.createElement('div');
+    panel.id = 'mpanel-'+t.id;
+    panel.style.cssText = `
+      position:absolute;inset:0;display:${t.id==='feed'?'flex':'none'};
+      flex-direction:column;overflow:hidden;
+    `;
+    buildPanelContent(t.id, panel);
+    content.appendChild(panel);
+  });
+
+  root.appendChild(tabBar);
+  root.appendChild(content);
+  switchMobileTab('feed');
 }
 
-async function trocarImagemToken(tokenId) {
-  const t=tokens.find(x=>x.id===tokenId); if(!t) return;
-  const input=document.createElement('input'); input.type='file'; input.accept='image/*';
-  input.onchange=async e => {
-    const file=e.target.files[0]; if(!file) return;
-    if(file.size>2*1024*1024) return toast('Imagem muito grande! Máx 2MB.','err');
-    toast('Enviando imagem...','ok');
-    const ext=file.name.split('.').pop();
-    const path=`${currentUser.id}/${tokenId}.${ext}`;
-    const { error } = await db.storage.from('tokens').upload(path, file, {upsert:true});
-    if (error) return toast('Erro ao enviar imagem!','err');
-    const { data } = db.storage.from('tokens').getPublicUrl(path);
-    t.imgUrl=data.publicUrl;
-    t._imgEl=null;
-    mostrarInfoToken(t);
-    desenharMapa();
-    salvarMapaEstado();
-    toast('Imagem atualizada!','ok');
-  };
-  input.click();
+function switchMobileTab(id) {
+  document.querySelectorAll('[id^="mpanel-"]').forEach(p => p.style.display='none');
+  document.querySelectorAll('[id^="tab-"]').forEach(b => {
+    b.style.color='var(--muted)';
+    b.style.borderBottomColor='transparent';
+  });
+  const panel = document.getElementById('mpanel-'+id);
+  const btn   = document.getElementById('tab-'+id);
+  if (panel) panel.style.display='flex';
+  if (btn) { btn.style.color='var(--red)'; btn.style.borderBottomColor='var(--red)'; }
+  if (id==='mapa') setTimeout(()=>{ resizeMapCanvas(); if(canvas)desenharMapa(); }, 60);
+  if (id==='tracker') renderCT();
+  if (id==='bestiario') renderBestiarioCT();
+  if (id==='players') renderPlayersParaCT();
 }
 
-function tkAlterarPV(id,delta) {
-  const t=tokens.find(x=>x.id===id); if(!t) return;
-  t.pvAtual=Math.max(0,Math.min(t.pvMax,t.pvAtual+delta));
-  const c=combatentes.find(x=>x.tokenId===id); if(c){c.pvAtual=t.pvAtual;renderCombatTracker();}
-  mostrarInfoToken(t); desenharMapa(); salvarMapaEstado();
-}
-function tkSetPV(id,val) {
-  const t=tokens.find(x=>x.id===id); if(!t) return;
-  t.pvAtual=Math.max(0,Math.min(t.pvMax,parseInt(val)||0));
-  const c=combatentes.find(x=>x.tokenId===id); if(c){c.pvAtual=t.pvAtual;renderCombatTracker();}
-  desenharMapa(); salvarMapaEstado();
+// ══════════════════════════════════════════════════
+//  DESKTOP DOM — painéis flutuantes
+// ══════════════════════════════════════════════════
+const DESKTOP_PANELS = [
+  { id:'feed',      title:'💬 Chat / Sala',           def:{ x:10,  y:10,  w:300, h:480 }, minW:200, minH:200 },
+  { id:'tensao',    title:'⚠️ Tensão',                def:{ x:320, y:10,  w:260, h:200 }, minW:200, minH:150 },
+  { id:'dados',     title:'🎲 Dados',                 def:{ x:320, y:220, w:260, h:310 }, minW:220, minH:220 },
+  { id:'tracker',   title:'⚔️ Combat Tracker',        def:{ x:590, y:10,  w:300, h:560 }, minW:240, minH:280 },
+  { id:'mapa',      title:'🗺️ Mapa',                  def:{ x:900, y:10,  w:680, h:680 }, minW:280, minH:280 },
+  { id:'players',   title:'👥 Players',  masterOnly:true, def:{ x:10,  y:500, w:300, h:250 }, minW:200, minH:160 },
+  { id:'bestiario', title:'📖 Bestiário',masterOnly:true, def:{ x:590, y:580, w:300, h:210 }, minW:200, minH:140 },
+];
+
+let pStates = {};
+let zIdx = 30;
+let dragging = null, resizing = null;
+
+function buildDesktopDOM(root) {
+  root.style.cssText = 'position:relative;width:100%;height:calc(100vh - 56px - 52px);overflow:hidden;background:#03030a;';
+
+  loadPStates();
+
+  DESKTOP_PANELS.forEach(p => {
+    if (p.masterOnly && !isMaster) return;
+    createFPanel(p, root);
+  });
+
+  updateDesktopPanelMenu();
 }
 
-// Grid e régua
-function toggleGrid() {
-  gridVisivel=!gridVisivel;
-  const btn=document.getElementById('btn-toggle-grid');
-  if(btn) btn.textContent=gridVisivel?'⊞ Ocultar grid':'⊞ Mostrar grid';
-  desenharMapa();
+function createFPanel(cfg, root) {
+  const saved = pStates[cfg.id] || {};
+  const d = cfg.def;
+  const x = saved.x ?? d.x, y = saved.y ?? d.y;
+  const w = saved.w ?? d.w, h = saved.h ?? d.h;
+  const hidden = saved.hidden || false;
+
+  const el = document.createElement('div');
+  el.id = 'dpanel-'+cfg.id;
+  el.style.cssText = `
+    position:absolute;left:${x}px;top:${y}px;width:${w}px;height:${h}px;
+    z-index:${zIdx++};display:${hidden?'none':'flex'};flex-direction:column;
+    background:var(--surface);border:1px solid var(--border);border-radius:10px;
+    overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.6);min-width:${cfg.minW}px;min-height:${cfg.minH}px;
+  `;
+
+  const hdr = document.createElement('div');
+  hdr.style.cssText = `
+    display:flex;align-items:center;justify-content:space-between;
+    padding:7px 10px;background:var(--surface2);border-bottom:1px solid var(--border);
+    cursor:grab;user-select:none;flex-shrink:0;
+  `;
+  hdr.innerHTML = `
+    <span style="font-size:10px;font-weight:700;letter-spacing:1.5px;color:var(--text);text-transform:uppercase;pointer-events:none">${cfg.title}</span>
+    <div style="display:flex;gap:4px">
+      <button onclick="minPanel('${cfg.id}')" style="background:transparent;border:1px solid var(--border);border-radius:4px;color:var(--muted);cursor:pointer;font-size:11px;width:22px;height:22px;display:flex;align-items:center;justify-content:center" title="Minimizar">─</button>
+      <button onclick="hidePanel('${cfg.id}')" style="background:transparent;border:1px solid var(--border);border-radius:4px;color:var(--muted);cursor:pointer;font-size:11px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;transition:all .12s" title="Fechar" onmouseover="this.style.background='var(--red)';this.style.color='#fff'" onmouseout="this.style.background='transparent';this.style.color='var(--muted)'">✕</button>
+    </div>
+  `;
+  hdr.addEventListener('mousedown', e => { if(!e.target.closest('button')) startDrag(e, cfg.id, el); });
+
+  const body = document.createElement('div');
+  body.id = 'fp-body-'+cfg.id;
+  body.style.cssText = 'flex:1;overflow:hidden;min-height:0;position:relative;';
+
+  // Resize handles
+  const rbr = document.createElement('div');
+  rbr.style.cssText = 'position:absolute;bottom:0;right:0;width:14px;height:14px;cursor:se-resize;background:linear-gradient(135deg,transparent 50%,var(--border2) 50%);border-radius:0 0 9px 0;z-index:1;';
+  rbr.addEventListener('mousedown', e => startResize(e, cfg.id, el, 'br'));
+
+  const rr = document.createElement('div');
+  rr.style.cssText = 'position:absolute;top:36px;right:0;bottom:14px;width:5px;cursor:e-resize;z-index:1;';
+  rr.addEventListener('mousedown', e => startResize(e, cfg.id, el, 'r'));
+  rr.addEventListener('mouseenter', () => rr.style.background='rgba(192,57,43,.3)');
+  rr.addEventListener('mouseleave', () => rr.style.background='transparent');
+
+  const rb = document.createElement('div');
+  rb.style.cssText = 'position:absolute;bottom:0;left:14px;right:14px;height:5px;cursor:s-resize;z-index:1;';
+  rb.addEventListener('mousedown', e => startResize(e, cfg.id, el, 'b'));
+  rb.addEventListener('mouseenter', () => rb.style.background='rgba(192,57,43,.3)');
+  rb.addEventListener('mouseleave', () => rb.style.background='transparent');
+
+  el.appendChild(hdr);
+  el.appendChild(body);
+  el.appendChild(rbr); el.appendChild(rr); el.appendChild(rb);
+  el.addEventListener('mousedown', () => { zIdx++; el.style.zIndex=zIdx; });
+
+  root.appendChild(el);
+  if (!pStates[cfg.id]) pStates[cfg.id] = {x,y,w,h};
+  buildPanelContent(cfg.id, body);
 }
 
-function toggleRegua() {
-  regraAtiva=!regraAtiva; regraP1=null; regraP2=null;
-  const btn=document.getElementById('btn-regua');
-  if(btn) btn.classList.toggle('btn-regua-ativa', regraAtiva);
-  mapaCanvas.style.cursor=regraAtiva?'crosshair':'default';
-  if(!regraAtiva) desenharMapa();
+function minPanel(id) {
+  const el=document.getElementById('dpanel-'+id);
+  const body=document.getElementById('fp-body-'+id);
+  if(!el||!body) return;
+  const min=body.style.display==='none';
+  body.style.display=min?'':'none';
+  if(!min){pStates[id]=pStates[id]||{};pStates[id].savedH=el.offsetHeight;el.style.height='36px';}
+  else{el.style.height=(pStates[id]?.savedH||300)+'px';}
+  if(id==='mapa'&&min) setTimeout(()=>{resizeMapCanvas();desenharMapa();},50);
 }
 
-function alterarGrid(delta) {
-  gridSize=Math.max(30,Math.min(120,gridSize+delta));
-  const el=document.getElementById('grid-size-val'); if(el) el.textContent=gridSize+'px';
-  desenharMapa();
+function hidePanel(id) {
+  const el=document.getElementById('dpanel-'+id); if(!el) return;
+  el.style.display='none';
+  if(!pStates[id]) pStates[id]={};
+  pStates[id].hidden=true;
+  savePStates(); updateDesktopPanelMenu();
 }
 
-async function importarImagemMapa() {
-  const inp=document.createElement('input'); inp.type='file'; inp.accept='image/*';
-  inp.onchange=async e => {
-    const file=e.target.files[0]; if(!file) return;
-    toast('Carregando mapa...','ok');
-    const reader=new FileReader();
-    reader.onload=ev => {
-      const img=new Image();
-      img.onload=()=>{ mapaImg=img; desenharMapa(); salvarMapaEstado(); };
-      img.src=ev.target.result;
-    };
-    reader.readAsDataURL(file);
-  };
-  inp.click();
+function showPanel(id) {
+  const el=document.getElementById('dpanel-'+id); if(!el) return;
+  el.style.display='flex';
+  if(!pStates[id]) pStates[id]={};
+  pStates[id].hidden=false;
+  savePStates(); updateDesktopPanelMenu();
+  zIdx++; el.style.zIndex=zIdx;
+  if(id==='mapa') setTimeout(()=>{resizeMapCanvas();desenharMapa();},60);
+  if(id==='tracker') renderCT();
+  if(id==='bestiario') renderBestiarioCT();
+  if(id==='players') renderPlayersParaCT();
 }
 
-function limparTokensMapa() {
-  if(!confirm('Limpar todos os tokens do mapa?')) return;
-  tokens=[]; tokenSelecionado=null;
-  const info=document.getElementById('token-info'); if(info) info.style.display='none';
-  desenharMapa(); salvarMapaEstado();
+function updateDesktopPanelMenu() {
+  const menu=document.getElementById('panel-menu-list'); if(!menu) return;
+  menu.innerHTML='';
+  DESKTOP_PANELS.forEach(p => {
+    if(p.masterOnly&&!isMaster) return;
+    const hidden=pStates[p.id]?.hidden||false;
+    const btn=document.createElement('button');
+    btn.className='btn-ghost';
+    btn.style.cssText=`font-size:11px;padding:6px 12px;text-align:left;width:100%;opacity:${hidden?.6:1};`;
+    btn.textContent=(hidden?'+ ':'✓ ')+p.title;
+    btn.onclick=()=>{ hidden?showPanel(p.id):hidePanel(p.id); updateDesktopPanelMenu(); };
+    menu.appendChild(btn);
+  });
 }
 
-// ── PERSISTÊNCIA DO MAPA ──────────────────────────
-let salvarMapaTimer=null;
-function salvarMapaEstado() {
-  clearTimeout(salvarMapaTimer);
-  salvarMapaTimer=setTimeout(async()=>{
-    const payload={ tokens: tokens.map(t=>({...t,_imgEl:undefined})), gridSize, gridVisivel };
-    await db.from('mapa_estado').upsert({ id:'sessao_atual', tokens:payload.tokens, grid_size:gridSize, grid_visivel:gridVisivel, updated_at:new Date().toISOString() });
-    // Notifica outros via realtime
-    await db.from('sala').insert({ user_id:currentUser.id, username:'mapa', tipo:'tokens_update', conteudo:payload });
-  }, 500);
+// Drag
+function startDrag(e,id,el){
+  e.preventDefault();
+  const rect=el.getBoundingClientRect();
+  const cr=el.parentElement.getBoundingClientRect();
+  dragging={id,el,ox:e.clientX-rect.left,oy:e.clientY-rect.top,cr};
+  document.addEventListener('mousemove',onDrag);
+  document.addEventListener('mouseup',stopDrag);
+}
+function onDrag(e){
+  if(!dragging) return;
+  const {el,ox,oy,cr,id}=dragging;
+  const x=Math.max(0,e.clientX-cr.left-ox);
+  const y=Math.max(0,e.clientY-cr.top-oy);
+  el.style.left=x+'px';el.style.top=y+'px';
+  if(!pStates[id])pStates[id]={};
+  pStates[id].x=x;pStates[id].y=y;
+}
+function stopDrag(){dragging=null;document.removeEventListener('mousemove',onDrag);document.removeEventListener('mouseup',stopDrag);savePStates();}
+
+// Resize
+function startResize(e,id,el,dir){
+  e.preventDefault();e.stopPropagation();
+  const rect=el.getBoundingClientRect();
+  resizing={id,el,dir,sx:e.clientX,sy:e.clientY,sw:rect.width,sh:rect.height};
+  document.addEventListener('mousemove',onResize);document.addEventListener('mouseup',stopResize);
+}
+function onResize(e){
+  if(!resizing) return;
+  const{id,el,dir,sx,sy,sw,sh}=resizing;
+  const cfg=DESKTOP_PANELS.find(p=>p.id===id);
+  if(dir==='br'||dir==='r'){const w=Math.max(cfg?.minW||200,sw+(e.clientX-sx));el.style.width=w+'px';if(!pStates[id])pStates[id]={};pStates[id].w=w;}
+  if(dir==='br'||dir==='b'){const h=Math.max(cfg?.minH||150,sh+(e.clientY-sy));el.style.height=h+'px';if(!pStates[id])pStates[id]={};pStates[id].h=h;}
+  if(id==='mapa')resizeMapCanvas();
+}
+function stopResize(){resizing=null;document.removeEventListener('mousemove',onResize);document.removeEventListener('mouseup',stopResize);savePStates();resizeMapCanvas();}
+
+function resetPanels(){
+  if(!confirm('Resetar posições?')) return;
+  localStorage.removeItem('fractured_panels');
+  pStates={};
+  salaIniciada=false;
+  initSala();
+  toast('Layout resetado!','ok');
 }
 
-async function carregarMapaEstado() {
-  const { data } = await db.from('mapa_estado').select('*').eq('id','sessao_atual').single();
-  if (!data) return;
-  tokens = data.tokens || [];
-  gridSize = data.grid_size || 60;
-  gridVisivel = data.grid_visivel !== false;
-  const el=document.getElementById('grid-size-val'); if(el) el.textContent=gridSize+'px';
-  const btn=document.getElementById('btn-toggle-grid');
-  if(btn) btn.textContent=gridVisivel?'⊞ Ocultar grid':'⊞ Mostrar grid';
-  desenharMapa();
+function savePStates(){try{localStorage.setItem('fractured_panels',JSON.stringify(pStates));}catch(e){}}
+function loadPStates(){try{const s=localStorage.getItem('fractured_panels');if(s)pStates=JSON.parse(s);}catch(e){}}
+
+function resizeMapCanvas(){
+  const body=document.getElementById('fp-body-mapa');
+  const cvs=document.getElementById('mapa-canvas');
+  if(!body||!cvs) return;
+  const r=body.getBoundingClientRect();
+  if(r.width>10&&r.height>10){cvs.width=r.width;cvs.height=r.height;if(typeof desenharMapa==='function')desenharMapa();}
 }
 
-function aplicarTokensRemoto(conteudo) {
-  if (!conteudo?.tokens) return;
-  // Preserva _imgEl local
-  const imgCache={};
-  tokens.forEach(t=>{ if(t._imgEl) imgCache[t.id]=t._imgEl; });
-  tokens=conteudo.tokens;
-  tokens.forEach(t=>{ if(imgCache[t.id]) t._imgEl=imgCache[t.id]; });
-  gridSize=conteudo.gridSize||gridSize;
-  if(salaTab==='mapa') desenharMapa();
+// ══════════════════════════════════════════════════
+//  PANEL CONTENT — compartilhado mobile/desktop
+// ══════════════════════════════════════════════════
+function buildPanelContent(id, container) {
+  switch(id) {
+    case 'feed':      buildFeed(container);      break;
+    case 'tensao':    buildTensaoPanel(container); break;
+    case 'dados':     buildDadosPanel(container); break;
+    case 'tracker':   buildTrackerPanel(container); break;
+    case 'mapa':      buildMapaPanel(container);  break;
+    case 'players':   buildPlayersPanel(container); break;
+    case 'bestiario': buildBestiarioPanel(container); break;
+  }
 }
+
+function buildFeed(c) {
+  c.innerHTML = `
+    <div style="display:flex;flex-direction:column;height:100%">
+      <div id="feed-messages" style="flex:1;overflow-y:auto;padding:10px;min-height:0">
+        <div class="empty-state"><div class="empty-icon">🎲</div><p>Role um dado para começar.</p></div>
+      </div>
+      <div style="padding:8px;border-top:1px solid var(--border);display:flex;gap:6px;flex-shrink:0">
+        <input type="text" class="feed-input" id="msg-input" placeholder="Mensagem..." onkeydown="if(event.key==='Enter')enviarMsg()" style="flex:1">
+        <button class="btn-ghost" onclick="enviarMsg()" style="font-size:11px;padding:5px 10px">Enviar</button>
+      </div>
+      ${isMaster?`<div style="padding:4px 8px;border-top:1px solid var(--border);flex-shrink:0">
+        <button class="btn-ghost" onclick="limparHistorico()" style="font-size:10px;padding:4px 8px;color:var(--red);border-color:var(--red-dim);width:100%">🗑 Limpar histórico</button>
+      </div>`:''}
+    </div>`;
+}
+
+function buildTensaoPanel(c) {
+  c.innerHTML = `
+    <div style="padding:12px;display:flex;flex-direction:column;gap:10px;height:100%;overflow-y:auto">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">
+        <span style="font-size:9px;font-weight:700;letter-spacing:2px;color:var(--muted);text-transform:uppercase">Tensão da Sessão</span>
+        ${isMaster?`<div class="tensao-btns" id="tensao-master-btns">
+          <button onclick="alterarTensao(-1)">− Baixar</button>
+          <button onclick="alterarTensao(1)">+ Subir</button>
+        </div>`:''}
+      </div>
+      <div class="tensao-pips" id="tensao-pips-sala"></div>
+      <div class="tensao-status" id="tensao-status-text">CALMA (0/10)</div>
+      <div style="font-size:9px;color:var(--muted)" id="tensao-tip"></div>
+      <div style="font-size:9px;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap;margin-top:4px">
+        <span><span style="color:#e67e22">■</span> C=Calma</span>
+        <span><span style="color:#c0392b">■</span> A=Alerta</span>
+        <span><span style="color:#8e44ad">■</span> P=Perigo</span>
+        <span><span style="color:#7f8c8d">■</span> T=Terror</span>
+      </div>
+    </div>`;
+  setTimeout(()=>buildTensaoPips('tensao-pips-sala',tensaoSala,false),50);
+}
+
+function buildDadosPanel(c) {
+  c.innerHTML = `
+    <div style="padding:10px;display:flex;flex-direction:column;gap:10px;height:100%;overflow-y:auto">
+      <div>
+        <div style="font-size:9px;font-weight:700;letter-spacing:2px;color:var(--red);text-transform:uppercase;margin-bottom:8px">Dados Rápidos</div>
+        <div class="dado-grid">
+          <button class="dado-btn" onclick="rolarDado(4)">d4</button>
+          <button class="dado-btn" onclick="rolarDado(6)">d6</button>
+          <button class="dado-btn" onclick="rolarDado(8)">d8</button>
+          <button class="dado-btn" onclick="rolarDado(10)">d10</button>
+          <button class="dado-btn" onclick="rolarDado(12)">d12</button>
+          <button class="dado-btn" onclick="rolarDado(20)">d20</button>
+          <button class="dado-btn" onclick="rolarDado(100)">d%</button>
+          <button class="dado-btn" onclick="rolarDado(6,2)">2d6</button>
+        </div>
+      </div>
+      <div class="roll-formula" style="margin:0">
+        <div class="roll-formula-title">Teste — 1d20 + Mod + Perícia</div>
+        <div class="formula-grid">
+          <label class="formula-label">Atributo</label>
+          <select id="roll-atrib" class="formula-select">
+            <option value="0">— nenhum —</option>
+            <option value="-2">FOR −2</option><option value="-1">FOR −1</option><option value="0">FOR +0</option><option value="1">FOR +1</option><option value="2">FOR +2</option>
+            <option value="-2">RES −2</option><option value="-1">RES −1</option><option value="0">RES +0</option><option value="1">RES +1</option><option value="2">RES +2</option>
+            <option value="-2">COM −2</option><option value="-1">COM −1</option><option value="0">COM +0</option><option value="1">COM +1</option><option value="2">COM +2</option>
+            <option value="-2">SOC −2</option><option value="-1">SOC −1</option><option value="0">SOC +0</option><option value="1">SOC +1</option><option value="2">SOC +2</option>
+            <option value="-2">CON −2</option><option value="-1">CON −1</option><option value="0">CON +0</option><option value="1">CON +1</option><option value="2">CON +2</option>
+            <option value="-2">AGI −2</option><option value="-1">AGI −1</option><option value="0">AGI +0</option><option value="1">AGI +1</option><option value="2">AGI +2</option>
+          </select>
+          <label class="formula-label">Perícia</label>
+          <select id="roll-pericia" class="formula-select"><option value="0">Sem perícia (+0)</option><option value="3">Com perícia (+3)</option></select>
+          <label class="formula-label">Situação</label>
+          <select id="roll-situacao" class="formula-select">
+            <option value="0">Normal</option>
+            <option value="3">+3 Vínculo Ativo</option><option value="2">+2 Ferramenta</option>
+            <option value="2">+2 Aliado</option><option value="2">+2 Vantagem</option>
+            <option value="-2">−2 Ferido &lt;50%</option><option value="-2">−2 Tensão Alta</option>
+            <option value="-3">−3 Sem Equipamento</option><option value="-2">−2 Escuridão</option>
+          </select>
+          <label class="formula-label">Dificuldade</label>
+          <select id="roll-dif" class="formula-select">
+            <option value="8">8 — Fácil</option><option value="11" selected>11 — Moderado</option>
+            <option value="14">14 — Difícil</option><option value="17">17 — Severo</option><option value="20">20 — Extremo</option>
+          </select>
+        </div>
+        <button class="btn-primary" onclick="rolarFormula()" style="margin-top:8px">🎲 Rolar Teste</button>
+      </div>
+    </div>`;
+}
+
+function buildTrackerPanel(c) {
+  c.innerHTML = `
+    <div class="ct-panel" style="height:100%">
+      <div class="ct-panel-header">
+        <span class="ct-rodada-badge" id="ct-rodada">Rodada 1</span>
+        <span class="ct-turno-info" id="ct-turno-info">Não iniciado</span>
+      </div>
+      <div class="ct-panel-btns">
+        <button class="btn-ghost" onclick="iniciarCombate()" style="font-size:10px;padding:4px 8px">▶ Iniciar</button>
+        <button class="btn-ghost" onclick="proximoTurno()" style="font-size:10px;padding:4px 8px">⏭ Próximo</button>
+        <button class="btn-ghost" id="btn-toggle-pv" onclick="togglePVInimigos()" style="font-size:10px;padding:4px 8px">👁 PV</button>
+        <button class="btn-ghost" onclick="encerrarCombate()" style="font-size:10px;padding:4px 8px;color:var(--red);border-color:var(--red-dim)">✕ Fim</button>
+      </div>
+      ${isMaster ? `
+      <div class="ct-add-pc">
+        <div class="field" style="flex:2"><label>Nome</label><input type="text" id="ct-pc-nome" placeholder="PC..."></div>
+        <div class="field" style="flex:1"><label>Ini</label><input type="number" id="ct-pc-ini" placeholder="10" min="1" max="30"></div>
+        <div class="field" style="flex:1"><label>PV</label><input type="number" id="ct-pc-pv" placeholder="20" min="1"></div>
+        <button class="btn-ghost" onclick="adicionarPCCT()" style="align-self:flex-end;font-size:10px;padding:4px 6px">+PC</button>
+      </div>` : `
+      <div style="padding:8px;flex-shrink:0">
+        <button class="btn-primary" onclick="adicionarMeuPersonagem()" style="margin:0">🧑 Entrar no Mapa</button>
+      </div>`}
+      <div class="ct-scroll" id="ct-lista"></div>
+    </div>`;
+  setTimeout(()=>renderCT(),50);
+}
+
+function buildMapaPanel(c) {
+  c.style.padding='0';
+  c.innerHTML = `
+    <div style="display:flex;flex-direction:column;height:100%;min-height:0">
+      <div class="mapa-toolbar" style="flex-shrink:0;padding:5px 8px;gap:5px;flex-wrap:wrap">
+        ${isMaster?`<button class="btn-ghost" onclick="importarMapaImg()" style="font-size:10px;padding:3px 7px">📁 Mapa</button>`:''}
+        <button class="btn-ghost" id="btn-grid" onclick="toggleGrid()" style="font-size:10px;padding:3px 7px">⬛ Grid</button>
+        <button class="btn-ghost" id="btn-regua" onclick="toggleRegua()" style="font-size:10px;padding:3px 7px">📏 Régua</button>
+        <div style="display:flex;align-items:center;gap:3px;font-size:10px;color:var(--muted)">
+          <button class="ct-pv-btn" onclick="alterarGrid(-5)">−</button>
+          <span id="grid-size-val" style="min-width:28px;text-align:center">60px</span>
+          <button class="ct-pv-btn" onclick="alterarGrid(5)">+</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:3px;font-size:10px;color:var(--muted);margin-left:auto">
+          <button class="ct-pv-btn" onclick="mapaZoom=Math.max(0.3,mapaZoom-0.2);desenharMapa()">−</button>
+          <span id="zoom-label" style="min-width:34px;text-align:center">100%</span>
+          <button class="ct-pv-btn" onclick="mapaZoom=Math.min(4,mapaZoom+0.2);desenharMapa()">+</button>
+          <button class="ct-pv-btn" onclick="resetZoom()" style="font-size:9px;width:auto;padding:0 4px">↺</button>
+        </div>
+      </div>
+      <div class="mapa-toolbar" style="flex-shrink:0;padding:3px 8px;border-top:none;gap:5px">
+        <button class="btn-ghost" onclick="adicionarMeuPersonagem()" style="font-size:10px;padding:3px 7px">🧑 Entrar</button>
+        ${isMaster?`<button class="btn-ghost" onclick="abrirCriarTokenCustom()" style="font-size:10px;padding:3px 7px">⭐ Token</button>`:''}
+        ${isMaster?`<button class="btn-ghost" onclick="limparTokens()" style="font-size:10px;padding:3px 7px;color:var(--red);border-color:var(--red-dim)">🗑 Limpar</button>`:''}
+        <div style="display:flex;align-items:center;gap:3px;font-size:10px;color:var(--muted);margin-left:auto">
+          <span>1cel=</span>
+          <input type="number" value="1.5" min="0.5" max="10" step="0.5" onchange="metrosPorCelula=parseFloat(this.value)||1.5"
+            style="width:36px;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:2px;font-size:10px;text-align:center">
+          <span>m</span>
+        </div>
+      </div>
+      <div style="flex:1;overflow:hidden;position:relative;min-height:0">
+        <canvas id="mapa-canvas" style="display:block;touch-action:none;width:100%;height:100%"></canvas>
+      </div>
+      <div id="token-info" style="display:none;padding:8px;background:var(--surface2);border-top:1px solid var(--border);flex-shrink:0;max-height:140px;overflow-y:auto"></div>
+    </div>`;
+  setTimeout(()=>{ canvas=null; initMapa(); },80);
+}
+
+function buildPlayersPanel(c) {
+  c.innerHTML = `
+    <div style="padding:8px;height:100%;overflow-y:auto">
+      <div id="ct-players-lista" style="display:flex;flex-direction:column;gap:6px">
+        <div style="font-size:11px;color:var(--muted);text-align:center;padding:12px">Carregando...</div>
+      </div>
+    </div>`;
+  setTimeout(()=>renderPlayersParaCT(),100);
+}
+
+function buildBestiarioPanel(c) {
+  c.innerHTML = `
+    <div style="display:flex;flex-direction:column;height:100%">
+      <div style="padding:6px 8px;border-bottom:1px solid var(--border);flex-shrink:0">
+        <input type="text" class="ct-filtro" id="ct-filtro" placeholder="🔍 Buscar inimigo..." oninput="renderBestiarioCT()" style="width:100%">
+      </div>
+      <div id="ct-bestiario-lista" style="flex:1;overflow-y:auto;padding:4px 6px"></div>
+    </div>`;
+  setTimeout(()=>renderBestiarioCT(),50);
+}
+
+// ── PANEL MENU (desktop) ──────────────────────────
+let panelMenuOpen = false;
+function togglePanelMenu() {
+  panelMenuOpen = !panelMenuOpen;
+  const m = document.getElementById('panel-menu');
+  if (m) { m.style.display = panelMenuOpen ? 'flex' : 'none'; updateDesktopPanelMenu(); }
+}
+document.addEventListener('click', e => {
+  if (panelMenuOpen && !e.target.closest('#panel-menu') && !e.target.closest('[onclick*="togglePanelMenu"]')) {
+    panelMenuOpen = false;
+    const m = document.getElementById('panel-menu');
+    if (m) m.style.display = 'none';
+  }
+});
