@@ -54,12 +54,10 @@ async function init() {
 
   document.getElementById('topbar-username').textContent = currentProfile.username;
   if (isMaster) {
-    document.getElementById('master-badge').style.display = '';
-    document.getElementById('nav-master-section').style.display = '';
-    document.getElementById('btn-limpar-historico').style.display = '';
-    document.getElementById('btn-token-custom').style.display = '';
-    const mb = document.getElementById('tensao-master-btns-mobile');
-    if (mb) mb.style.display = '';
+    const b1 = document.getElementById('master-badge');
+    if (b1) b1.style.display = '';
+    const b2 = document.getElementById('nav-master-section');
+    if (b2) b2.style.display = '';
   }
 
   buildAttrGrid();
@@ -73,8 +71,8 @@ async function init() {
   await carregarFicha();
   await carregarNotas();
   subscribeToSala();
-  buildTensaoPips('tensao-pips-sala', tensaoSala, false);
-  if (isMaster) document.getElementById('tensao-master-btns').style.display = '';
+  // tensao pips built after layout mounts
+  // tensao-master-btns is created inside layout panels
 }
 
 // ── NAVIGATION ────────────────────────────────────
@@ -1005,16 +1003,7 @@ const SALA_ABAS = {
   mapa:    'sala-col-mapa'
 };
 
-function switchSalaAba(aba) {
-  Object.entries(SALA_ABAS).forEach(([key, colId]) => {
-    const col = document.getElementById(colId);
-    const btn = document.getElementById('aba-'+key);
-    if (col) col.classList.toggle('aba-ativa', key === aba);
-    if (btn) btn.classList.toggle('active', key === aba);
-  });
-  if (aba === 'mapa') setTimeout(() => { initMapa(); desenharMapa(); }, 50);
-  if (aba === 'combate') { renderCT(); renderBestiarioCT(); renderPlayersParaCT(); }
-}
+function switchSalaAba(aba) { switchMobileTab(aba); }
 
 function initSala() {
   setTimeout(() => { initLayout(); }, 100);

@@ -1474,3 +1474,228 @@ h1,h2,h3 { letter-spacing: .04em; }
   .fp-resize-br, .fp-resize-r, .fp-resize-b { display: none; }
   .fp-header { cursor: default; }
 }
+
+/* ══════════════════════════════════════════════════
+   MOBILE SALA — interface dedicada
+══════════════════════════════════════════════════ */
+
+/* Barra de abas inferior no mobile */
+.mobile-tab-bar {
+  display: none;
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  height: 58px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  z-index: 900;
+  padding: 0 4px;
+}
+.mobile-tab-bar .mtab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 6px 2px;
+  transition: color .15s;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+  -webkit-tap-highlight-color: transparent;
+}
+.mobile-tab-bar .mtab .mtab-icon { font-size: 22px; line-height: 1; }
+.mobile-tab-bar .mtab.active { color: var(--red); }
+
+/* Vista mobile da sala */
+.mobile-sala-view {
+  display: none;
+  flex-direction: column;
+  height: calc(100vh - 56px - 58px); /* topbar + tabbar */
+  overflow: hidden;
+}
+.mobile-sala-panel {
+  display: none;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+.mobile-sala-panel.active { display: flex; }
+
+/* Mapa mobile — tela cheia com HUD sobreposto */
+.mobile-mapa-container {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+  background: #03030a;
+}
+#mobile-mapa-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+.mobile-mapa-hud {
+  position: absolute;
+  top: 8px; left: 8px; right: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  pointer-events: none;
+  gap: 6px;
+}
+.mobile-mapa-hud > * { pointer-events: all; }
+.mobile-mapa-btn {
+  background: rgba(10,10,18,.85);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 7px 11px;
+  backdrop-filter: blur(6px);
+  -webkit-tap-highlight-color: transparent;
+  white-space: nowrap;
+}
+.mobile-mapa-btn:active { background: rgba(192,57,43,.3); }
+.mobile-mapa-zoom {
+  position: absolute;
+  bottom: 12px; right: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.mobile-mapa-zoom button {
+  width: 40px; height: 40px;
+  background: rgba(10,10,18,.85);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(6px);
+  -webkit-tap-highlight-color: transparent;
+}
+.mobile-tensao-badge {
+  position: absolute;
+  bottom: 12px; left: 10px;
+  background: rgba(10,10,18,.85);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  backdrop-filter: blur(6px);
+}
+
+/* Tela cheia para mobile */
+@media (max-width: 768px) {
+  /* Esconde painéis flutuantes no mobile */
+  #sala-canvas { display: none !important; }
+  .sala-topbar { display: none !important; }
+  #page-sala > .sala-topbar { display: none; }
+
+  /* Mostra interface mobile */
+  .mobile-sala-view { display: flex; }
+  .mobile-tab-bar { display: flex; }
+
+  /* Ajusta altura do main */
+  .main-content { padding: 0; }
+  #page-sala { padding: 0; height: 100%; }
+  #page-ficha, #page-notas, #page-master { padding: 12px; padding-bottom: 70px; }
+
+  /* Sidebar vira menu no topo — oculta no mobile */
+  .sidebar { display: none; }
+  .app-layout { grid-template-columns: 1fr; }
+}
+
+@media (min-width: 769px) {
+  .mobile-sala-view { display: none !important; }
+  .mobile-tab-bar { display: none !important; }
+}
+
+/* ══════════════════════════════════════════════════
+   FLOATING PANELS (desktop)
+══════════════════════════════════════════════════ */
+#sala-canvas {
+  position: relative;
+  width: 100%;
+  background: #03030a;
+}
+
+.sala-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  height: 52px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.floating-panel {
+  position: absolute;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 24px rgba(0,0,0,.6);
+  min-width: 160px;
+  min-height: 80px;
+}
+
+.fp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 10px;
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+  cursor: grab;
+  user-select: none;
+  flex-shrink: 0;
+}
+.fp-header:active { cursor: grabbing; }
+.fp-title { font-size:10px;font-weight:700;letter-spacing:1.5px;color:var(--text);text-transform:uppercase;pointer-events:none; }
+.fp-header-btns { display:flex;gap:4px; }
+.fp-btn { background:transparent;border:1px solid var(--border);border-radius:4px;color:var(--muted);cursor:pointer;font-size:11px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;transition:all .12s; }
+.fp-btn:hover { border-color:var(--red);color:var(--red); }
+.fp-close:hover { background:var(--red);color:#fff;border-color:var(--red); }
+.fp-body { flex:1;overflow:hidden;position:relative;min-height:0; }
+
+.fp-resize-br { position:absolute;bottom:0;right:0;width:14px;height:14px;cursor:se-resize;background:linear-gradient(135deg,transparent 50%,var(--border2) 50%);border-radius:0 0 9px 0; }
+.fp-resize-r  { position:absolute;top:36px;right:0;bottom:14px;width:5px;cursor:e-resize; }
+.fp-resize-b  { position:absolute;bottom:0;left:14px;right:14px;height:5px;cursor:s-resize; }
+.fp-resize-r:hover, .fp-resize-b:hover { background:rgba(192,57,43,.3); }
+
+/* Panel menu */
+#panel-menu { display:none; }
+#panel-menu.open { display:flex !important;flex-direction:column; }
+
+/* Mobile tab bar */
+#mobile-tabbar button.active { background:var(--surface2)!important;color:var(--text)!important; }
+
+/* Desktop: canvas takes full height */
+@media (min-width: 769px) {
+  #sala-canvas { height: calc(100vh - 56px - 52px); overflow:hidden; }
+}
+
+/* Mobile: scroll vertical */
+@media (max-width: 768px) {
+  #sala-canvas { height:auto;min-height:calc(100vh - 56px - 52px);overflow-y:auto; }
+  .mapa-toolbar { flex-wrap:wrap; }
+  #mapa-canvas { min-height: 260px; }
+}
