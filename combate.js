@@ -291,7 +291,7 @@ async function adicionarPlayerCT(userId) {
     tokens.push({
       id, nome: ficha.nome || profile.username,
       emoji: '🧑', imgUrl: ficha.foto_url || null,
-      tipo: 'pc', x: snap(gridSize), y: snap(gridSize),
+      tipo: 'pc', x: snapGrid(gridSize), y: snapGrid(gridSize),
       pvMax, pvAtual: ficha.pv_atual || pvMax,
       isPC: true, userId,
     });
@@ -314,7 +314,7 @@ async function adicionarMeuPersonagem() {
   tokens.push({
     id, nome: ficha.nome || currentProfile.username,
     emoji: '🧑', imgUrl: ficha.foto_url || null,
-    tipo: 'pc', x: snap(gridSize*2), y: snap(gridSize*2),
+    tipo: 'pc', x: snapGrid(gridSize*2), y: snapGrid(gridSize*2),
     pvMax, pvAtual: ficha.pv_atual || pvMax,
     isPC: true, userId: currentUser.id,
   });
@@ -1298,7 +1298,7 @@ async function adicionarPlayerSomenteMapa(userId) {
     tokens.push({
       id, nome: ficha.nome || profile.username,
       emoji: '🧑', imgUrl: ficha.foto_url || null,
-      tipo: 'pc', x: snap(gridSize*2), y: snap(gridSize*2),
+      tipo: 'pc', x: snapGrid(gridSize*2), y: snapGrid(gridSize*2),
       pvMax, pvAtual: ficha.pv_atual || pvMax,
       isPC: true, userId,
     });
