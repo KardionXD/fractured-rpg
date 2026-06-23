@@ -173,7 +173,7 @@ function abrirFormNPC(npc = null) {
   document.getElementById('npc-f-pasta').value     = npc?.pasta || 'Geral';
   document.getElementById('npc-f-tipo').value      = npc?.tipo || 'inimigo';
   document.getElementById('npc-f-emoji').value     = npc?.emoji || '';
-  document.getElementById('npc-f-pv').value        = npc?.pv_custom || 0;
+  document.getElementById('npc-f-pv').value        = npc?.pv_max || '';
   document.getElementById('npc-f-hab').value       = npc?.habilidades || '';
   document.getElementById('npc-f-fraqueza').value  = npc?.fraqueza || '';
   document.getElementById('npc-f-notas').value     = npc?.notas || '';
@@ -232,7 +232,6 @@ async function salvarNPC() {
     tipo:        document.getElementById('npc-f-tipo')?.value || 'inimigo',
     emoji:       document.getElementById('npc-f-emoji')?.value.trim() || '',
     pv_max:      pvMax,
-    pv_custom:   pvCustom,
     for_:        getN('npc-a-for'),
     res:         res,
     com:         getN('npc-a-com'),

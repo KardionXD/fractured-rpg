@@ -466,12 +466,17 @@ async function apagarFicha() {
 //  SALA DE JOGO
 // ══════════════════════════════════════════════════
 
-function subscribeToSala() {
+let _salaSubAtiva = false;
+
+async function subscribeToSala() {
   carregarFeed();
   carregarTensaoSala();
 
+  if (_salaSubAtiva) return;
+  _salaSubAtiva = true;
+
   realtimeSub = db
-    .channel('sala-publica')
+    .channel('sala-publica-' + Date.now())
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'sala' }, payload => {
       const msg = payload.new;
       if (msg.tipo === 'tensao') {

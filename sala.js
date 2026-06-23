@@ -336,7 +336,9 @@ function resetPanels(){
   localStorage.removeItem('fractured_panels');
   pStates={};
   salaIniciada=false;
-  initSala();
+  _salaSubAtiva=false;  // allow re-subscribe
+  document.querySelectorAll('.floating-panel').forEach(el=>el.remove());
+  buildDesktopDOM(document.getElementById('sala-root'));
   toast('Layout resetado!','ok');
 }
 
