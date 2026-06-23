@@ -493,7 +493,6 @@ function buildMapaPanel(c) {
     <div style="display:flex;flex-direction:column;height:100%;min-height:0">
       <div class="mapa-toolbar" style="flex-shrink:0;padding:5px 8px;gap:5px;flex-wrap:wrap">
         <button class="btn-ghost" id="btn-grid" onclick="toggleGrid()" style="font-size:10px;padding:3px 7px">⬛ Grid</button>
-        <button class="btn-ghost" onclick="realinharTokensAoGrid()" style="font-size:10px;padding:3px 7px" title="Alinhar todos os tokens ao grid">⊞</button>
         <div style="display:flex;gap:2px;align-items:center">
           <button id="btn-regua-linha"     class="btn-ghost" onclick="toggleRegua('linha')"     style="font-size:10px;padding:3px 6px" title="Régua Linha">📏</button>
           <button id="btn-regua-circulo"   class="btn-ghost" onclick="toggleRegua('circulo')"   style="font-size:10px;padding:3px 6px" title="Régua Círculo">⭕</button>
@@ -501,11 +500,7 @@ function buildMapaPanel(c) {
           <button id="btn-regua-quadrado"  class="btn-ghost" onclick="toggleRegua('quadrado')"  style="font-size:10px;padding:3px 6px" title="Régua Quadrado">⬛</button>
           <button id="btn-regua-retangulo" class="btn-ghost" onclick="toggleRegua('retangulo')" style="font-size:10px;padding:3px 6px" title="Régua Retângulo">▬</button>
         </div>
-        <div style="display:flex;align-items:center;gap:3px;font-size:10px;color:var(--muted)">
-          <button class="ct-pv-btn" onclick="alterarGrid(-5)">−</button>
-          <span id="grid-size-val" style="min-width:28px;text-align:center">60px</span>
-          <button class="ct-pv-btn" onclick="alterarGrid(5)">+</button>
-        </div>
+
         <div style="display:flex;align-items:center;gap:3px;font-size:10px;color:var(--muted);margin-left:auto">
           <button class="ct-pv-btn" onclick="alterarZoomBtn(-0.2)">−</button>
           <span id="zoom-label" style="min-width:34px;text-align:center">100%</span>

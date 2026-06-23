@@ -531,7 +531,7 @@ let mapaZoom    = 1;
 let mapaOffX    = 0;
 let mapaOffY    = 0;
 let gridSize    = 60;
-let gridVisivel = true;
+let gridVisivel = false;
 let gridOpacity = 0.25;
 let gridColor   = '#c0392b';
 let snapToGrid  = true;
@@ -953,7 +953,6 @@ function onMUp(e) {
 
   if (dragTok) {
     // Snap só no soltar
-    if (snapToGrid) snapTokenToGrid(dragTok);
     // Mostrar info só se foi clique (não drag)
     if (!dragMoved) mostrarInfoToken(dragTok);
     dragTok = null;
@@ -1058,7 +1057,6 @@ function onTEnd(e) {
   lastTouchDist = null;
 
   if (dragTok) {
-    if (snapToGrid) snapTokenToGrid(dragTok);
     if (!dragMoved) mostrarInfoToken(dragTok);
     dragTok = null;
     rastroAtivo = false; rastroToken = null; rastroPos = null;
@@ -1145,7 +1143,7 @@ function adicionarTokenMapa(inimigo) {
   const cy = (canvas.height / 2 - mapaOffY) / mapaZoom;
   tokens.push({
     id, nome: inimigo.nome, emoji: inimigo.emoji, tipo: inimigo.tipo,
-    x: Math.floor(cx / gridSize) * gridSize, y: Math.floor(cy / gridSize) * gridSize,
+    x: cx - gridSize/2, y: cy - gridSize/2,
     pvMax: inimigo.pv, pvAtual: inimigo.pv,
     habilidades: inimigo.habilidades, isPC: false,
   });
@@ -1260,7 +1258,7 @@ async function criarTokenCustom() {
   const cy = (canvas.height / 2 - mapaOffY) / mapaZoom;
   tokens.push({
     id, nome, emoji, tipo, imgUrl,
-    x: Math.floor(cx / gridSize) * gridSize, y: Math.floor(cy / gridSize) * gridSize,
+    x: cx - gridSize/2, y: cy - gridSize/2,
     pvMax: pvMax || undefined, pvAtual: pvMax || undefined, isPC: false,
   });
   tokenCustomImg = null;
