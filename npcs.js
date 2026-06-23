@@ -440,16 +440,33 @@ async function salvarCenaAtual() {
 }
 
 async function ativarCena(id) {
+  const cena = cenas.find(c => c.id === id);
+  if (!cena) return;
+
   // Desativa todas primeiro
   await db.from('cenas_mapa').update({ ativa: false }).eq('master_id', currentUser.id);
   // Ativa a selecionada
   const { error } = await db.from('cenas_mapa').update({ ativa: true }).eq('id', id);
   if (error) { toast('Erro!', 'err'); return; }
   cenaAtiva = id;
-  const cena = cenas.find(c => c.id === id);
-  if (cena) aplicarCena(cena);
+
+  // Aplica localmente
+  aplicarCena(cena);
   await carregarCenas();
-  toast(`Cena "${cena?.nome}" ativada para todos!`, 'ok');
+
+  // Propaga via mapa_estado (canal que JÁ funciona para todos)
+  try {
+    await db.from('mapa_estado').upsert({
+      id: 'sessao_atual',
+      tokens: cena.tokens || [],
+      grid_size: cena.grid_size || 60,
+      grid_visivel: true,
+      mapa_url: cena.mapa_url || null,
+      updated_at: new Date().toISOString()
+    });
+  } catch(e) { console.error('ativarCena mapa_estado:', e); }
+
+  toast(`Cena "${cena.nome}" ativada para todos!`, 'ok');
 }
 
 function previewCena(cena) {
