@@ -468,12 +468,17 @@ async function apagarFicha() {
 //  SALA DE JOGO
 // ══════════════════════════════════════════════════
 
-function subscribeToSala() {
+let _salaSubAtiva = false;
+
+async function subscribeToSala() {
   carregarFeed();
   carregarTensaoSala();
 
+  if (_salaSubAtiva) return;
+  _salaSubAtiva = true;
+
   realtimeSub = db
-    .channel('sala-publica')
+    .channel('sala-publica-' + Date.now())
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'sala' }, payload => {
       const msg = payload.new;
       if (msg.tipo === 'tensao') {
@@ -504,18 +509,18 @@ async function carregarFeed() {
 }
 
 async function carregarTensaoSala() {
-  const { data } = await db
-    .from('sala')
-    .select('conteudo')
-    .eq('tipo', 'tensao')
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .single();
-
-  if (data) {
-    tensaoSala = data.conteudo.valor || 0;
-    buildTensaoPips('tensao-pips-sala', tensaoSala, false);
-  }
+  try {
+    const { data } = await db
+      .from('sala')
+      .select('conteudo')
+      .eq('tipo', 'tensao')
+      .order('created_at', { ascending: false })
+      .limit(1);
+    if (data && data.length > 0) {
+      tensaoSala = data[0].conteudo?.valor || 0;
+      buildTensaoPips('tensao-pips-sala', tensaoSala, false);
+    }
+  } catch(e) {}
 }
 
 function scrollFeedToBottom() {
@@ -1051,7 +1056,10 @@ function initMasterUI() {
   // Load cenas subscription
   if (typeof subscribeCenas === 'function') subscribeCenas();
 }
-function initPlayerUI() { /* nada extra */ }
+function initPlayerUI() {
+  // Players também precisam receber mudanças de cena em tempo real
+  if (typeof subscribeCenas === 'function') subscribeCenas();
+}
 
 // Chama init (definido no app_core)
 // O window.init é redefinido abaixo para garantir ordem

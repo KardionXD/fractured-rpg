@@ -459,27 +459,46 @@ function previewCena(cena) {
 
 function aplicarCena(cena) {
   cenaAtiva = cena.id;
-  if (typeof tokens !== 'undefined')    tokens = cena.tokens || [];
-  if (typeof gridSize !== 'undefined')  gridSize = cena.grid_size || 60;
+
+  // Aplica tokens e grid
+  tokens   = cena.tokens || [];
+  gridSize = cena.grid_size || 60;
 
   const el = document.getElementById('grid-size-val');
   if (el) el.textContent = gridSize + 'px';
 
-  if (cena.mapa_url) {
-    if (typeof mapaUrl !== 'undefined') {
-      const w = typeof mapaUrl !== 'undefined';
-      mapaUrl = cena.mapa_url;
-      const img = new Image();
-      img.onload = () => {
-        if (typeof mapaImg !== 'undefined') mapaImg = img;
-        if (typeof desenharMapa === 'function') desenharMapa();
-      };
-      img.src = cena.mapa_url;
-    }
+  // Aplica mapa
+  if (cena.mapa_url && cena.mapa_url !== mapaUrl) {
+    mapaUrl = cena.mapa_url;
+    const img = new Image();
+    img.onload = () => {
+      mapaImg = img;
+      _desenharSeMapaAtivo();
+    };
+    img.onerror = () => _desenharSeMapaAtivo();
+    img.src = cena.mapa_url;
+  } else if (!cena.mapa_url) {
+    mapaImg = null;
+    mapaUrl = null;
+    _desenharSeMapaAtivo();
   } else {
-    if (typeof mapaImg !== 'undefined') mapaImg = null;
-    if (typeof mapaUrl !== 'undefined') mapaUrl = null;
-    if (typeof desenharMapa === 'function') desenharMapa();
+    // mesma url, só redesenha tokens
+    _desenharSeMapaAtivo();
+  }
+}
+
+function _desenharSeMapaAtivo() {
+  // Garante que o canvas existe antes de desenhar
+  if (typeof desenharMapa === 'function') {
+    if (!canvas) {
+      // Tenta inicializar o mapa se ainda não foi
+      if (typeof initMapa === 'function') initMapa();
+      setTimeout(() => {
+        if (typeof desenharMapa === 'function') desenharMapa();
+      }, 200);
+    } else {
+      desenharMapa();
+    }
   }
 }
 
@@ -497,11 +516,15 @@ function subscribeCenas() {
   cenaRealtimeSub = db.channel('cenas-live')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'cenas_mapa' }, async payload => {
       await carregarCenas();
-      // Players: quando uma cena é ativada, aplica automaticamente
-      if (!isMaster && payload.new?.ativa) {
-        aplicarCena(payload.new);
-        toast('🗺️ Nova cena ativada pelo mestre!', 'ok');
+      // Aplica cena ativa para todos (mestre já aplicou localmente)
+      if (payload.new?.ativa) {
+        if (!isMaster) {
+          aplicarCena(payload.new);
+          toast('🗺️ O mestre mudou o mapa!', 'ok');
+        }
       }
+      // Mestre também atualiza a lista de cenas
+      if (isMaster) { renderCenas(); renderCenasInline(); }
     })
     .subscribe();
 }
