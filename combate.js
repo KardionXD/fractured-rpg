@@ -538,9 +538,15 @@ let snapToGrid  = true;
 let metrosPorCelula = 1.5;
 let tokens      = [];
 let tokenSel    = null;
+let tokensSel   = [];   // seleção múltipla
 let dragTok     = null;
+let dragToks    = [];   // todos os tokens sendo arrastados
 let dragOX = 0, dragOY = 0;
 let dragMoved   = false;
+
+// Retângulo de seleção
+let selRect     = null;  // {x,y,w,h} em coords mundo
+let selRectStart= null;
 let isPanning   = false;
 let panLast     = null;
 let medindoDistancia = false;
@@ -904,16 +910,37 @@ function onMDown(e) {
   const t = getTokenAt(w.x, w.y);
 
   if (t && podeMoverToken(t)) {
-    dragTok = t; dragOX = w.x - t.x; dragOY = w.y - t.y;
+    // Shift+click = adiciona/remove da seleção múltipla
+    if (e.shiftKey) {
+      const idx = tokensSel.findIndex(s=>s.id===t.id);
+      if (idx>=0) tokensSel.splice(idx,1); else tokensSel.push(t);
+      tokenSel = t;
+      desenharMapa(); return;
+    }
+    // Se token já está na seleção múltipla, move todos
+    if (tokensSel.length > 1 && tokensSel.some(s=>s.id===t.id)) {
+      dragTok = t; dragOX = w.x - t.x; dragOY = w.y - t.y;
+      // Guarda offsets de todos os tokens selecionados
+      dragToks = tokensSel.map(s=>({ tok:s, ox:w.x-s.x, oy:w.y-s.y }));
+    } else {
+      tokensSel = [];
+      dragTok = t; dragOX = w.x - t.x; dragOY = w.y - t.y;
+      dragToks = [];
+    }
     tokenSel = t;
-    // Inicia rastro
     rastroToken = t; rastroPos = { x: t.x, y: t.y }; rastroAtivo = true;
     desenharMapa();
   } else {
-    // Clique em área vazia = pan
-    isPanning = true; panLast = c;
-    canvas.style.cursor = 'grab';
-    if (tokenSel) { tokenSel = null; esconderInfoToken(); desenharMapa(); }
+    // Clique em área vazia
+    if (tokensSel.length > 0) {
+      // Começa retângulo de seleção
+      selRectStart = w; selRect = null;
+      tokensSel = []; tokenSel = null; esconderInfoToken(); desenharMapa();
+    } else {
+      isPanning = true; panLast = c;
+      canvas.style.cursor = 'grab';
+      tokenSel = null; esconderInfoToken(); desenharMapa();
+    }
   }
 }
 
@@ -939,9 +966,28 @@ function onMMove(e) {
 
   if (dragTok) {
     const w = canvasParaMundo(c.x, c.y);
-    dragTok.x = Math.max(0, w.x - dragOX);
-    dragTok.y = Math.max(0, w.y - dragOY);
+    if (dragToks.length > 1) {
+      // Move todos os tokens selecionados
+      dragToks.forEach(({tok,ox,oy}) => {
+        tok.x = Math.max(0, w.x - ox);
+        tok.y = Math.max(0, w.y - oy);
+      });
+    } else {
+      dragTok.x = Math.max(0, w.x - dragOX);
+      dragTok.y = Math.max(0, w.y - dragOY);
+    }
     desenharMapa();
+    return;
+  }
+  // Retângulo de seleção
+  if (selRectStart && !isPanning) {
+    const w = canvasParaMundo(c.x, c.y);
+    selRect = {
+      x: Math.min(selRectStart.x, w.x), y: Math.min(selRectStart.y, w.y),
+      w: Math.abs(w.x-selRectStart.x),  h: Math.abs(w.y-selRectStart.y)
+    };
+    desenharMapa();
+    return;
   }
 }
 
@@ -952,12 +998,20 @@ function onMUp(e) {
   if (medindoDistancia) return;
 
   if (dragTok) {
-    // Snap só no soltar
-    // Mostrar info só se foi clique (não drag)
+    if (dragToks.length > 1) dragToks = [];
     if (!dragMoved) mostrarInfoToken(dragTok);
     dragTok = null;
     rastroAtivo = false; rastroToken = null; rastroPos = null;
     desenharMapa(); salvarMapaDB();
+  } else if (selRectStart && selRect) {
+    // Finaliza retângulo — seleciona tokens dentro
+    tokensSel = tokens.filter(t => podeMoverToken(t) &&
+      t.x + gridSize/2 >= selRect.x && t.x + gridSize/2 <= selRect.x + selRect.w &&
+      t.y + gridSize/2 >= selRect.y && t.y + gridSize/2 <= selRect.y + selRect.h
+    );
+    if (tokensSel.length > 0) toast(`${tokensSel.length} token(s) selecionados`, 'ok');
+    selRect = null; selRectStart = null;
+    desenharMapa();
   } else if (!dragMoved && tokenSel) {
     mostrarInfoToken(tokenSel);
   }
@@ -1323,11 +1377,13 @@ async function _salvarMapaDBNow(){
     if(isMaster){
       const ts = new Date().toISOString();
       window._lastMapaSave = ts;
+      // Só salva mapa_url se for URL real (não base64 local)
+      const urlParaSalvar = (mapaUrl && mapaUrl.startsWith('https://')) ? mapaUrl : null;
       await db.from('mapa_estado').upsert({
         id:'sessao_atual',
         tokens:tokens.map(t=>({...t})),
         grid_size:gridSize, grid_visivel:gridVisivel,
-        mapa_url:mapaUrl||null,
+        mapa_url:urlParaSalvar,
         updated_at:ts
       });
     } else {
@@ -1376,35 +1432,28 @@ let mapaRealtimeSub=null;
 function subscribeMapaRealtime(){
   if(mapaRealtimeSub) return;
   console.log('subscribing to mapa-realtime...');
-  mapaRealtimeSub=db.channel('mapa-realtime')
+  mapaRealtimeSub=db.channel('mapa-realtime-'+Date.now())
     .on('postgres_changes',{event:'UPDATE',schema:'public',table:'mapa_estado'},payload=>{
+      console.log('mapa-realtime: recebido UPDATE', payload.new?.id, 'mapa_url:', payload.new?.mapa_url?.substring(0,40));
       const d=payload.new; if(!d) return;
 
-      // Mestre só processa se for mudança de CENA (mapa_url diferente)
-      // Para tokens normais, o mestre já atualizou localmente
-      if(isMaster){
-        const mapaMudouCena = d.mapa_url !== mapaUrl && d.updated_at !== window._lastMapaSave;
-        if(!mapaMudouCena) return; // ignora eco dos próprios saves
-      }
-
-      // Atualiza tokens e grid
-      tokens=d.tokens||[]; 
-      gridSize=d.grid_size||60; 
+      // Atualiza tokens e grid (para todos)
+      tokens=d.tokens||[];
+      gridSize=d.grid_size||60;
       gridVisivel=d.grid_visivel!==false;
 
-      // Atualiza imagem só se mudou
-      if(d.mapa_url && d.mapa_url !== mapaUrl){
+      // Atualiza imagem só se URL mudou E é uma URL válida (não base64)
+      if(d.mapa_url && d.mapa_url !== mapaUrl && !d.mapa_url.startsWith('data:')){
         mapaUrl=d.mapa_url;
         const img=new Image();
         img.onload=()=>{mapaImg=img; desenharMapa();};
         img.onerror=()=>desenharMapa();
         img.src=d.mapa_url;
-      } else if(!d.mapa_url && mapaImg){
-        mapaImg=null; mapaUrl=null; desenharMapa();
       } else {
+        // Só redesenha tokens, não mexe na imagem de fundo
         desenharMapa();
       }
-    }).subscribe();
+    }).subscribe(status => { console.log('mapa-realtime status:', status); });
 }
 
 async function adicionarPlayerSomenteCT(userId) {
