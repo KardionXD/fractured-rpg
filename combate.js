@@ -625,17 +625,27 @@ function eventoParaMundo(e) {
   return canvasParaMundo(c.x, c.y);
 }
 
-// Snap ao grid (se ativo)
+// Snap ao grid (se ativo) — snappa a borda da célula
 function snapGrid(v) {
-  return snapToGrid ? Math.round(v / gridSize) * gridSize : v;
+  if (!snapToGrid) return v;
+  return Math.round(v / gridSize) * gridSize;
+}
+
+// Snappa o token inteiro ao grid (considera posição top-left)
+function snapTokenToGrid(tok) {
+  if (!snapToGrid) return;
+  tok.x = Math.round(tok.x / gridSize) * gridSize;
+  tok.y = Math.round(tok.y / gridSize) * gridSize;
 }
 
 // Token em posição mundo?
 function getTokenAt(wx, wy) {
-  return tokens.slice().reverse().find(t =>
-    wx >= t.x && wx <= t.x + gridSize &&
-    wy >= t.y && wy <= t.y + gridSize
-  );
+  return tokens.slice().reverse().find(t => {
+    // Check using token's actual size based on current gridSize
+    const margin = gridSize * 0.1; // small margin for easier clicking
+    return wx >= t.x - margin && wx <= t.x + gridSize + margin &&
+           wy >= t.y - margin && wy <= t.y + gridSize + margin;
+  });
 }
 
 function podeMoverToken(t) {
@@ -930,10 +940,7 @@ function onMUp(e) {
 
   if (dragTok) {
     // Snap só no soltar
-    if (snapToGrid) {
-      dragTok.x = snapGrid(dragTok.x);
-      dragTok.y = snapGrid(dragTok.y);
-    }
+    if (snapToGrid) snapTokenToGrid(dragTok);
     // Mostrar info só se foi clique (não drag)
     if (!dragMoved) mostrarInfoToken(dragTok);
     dragTok = null;
@@ -1038,7 +1045,7 @@ function onTEnd(e) {
   lastTouchDist = null;
 
   if (dragTok) {
-    if (snapToGrid) { dragTok.x = snapGrid(dragTok.x); dragTok.y = snapGrid(dragTok.y); }
+    if (snapToGrid) snapTokenToGrid(dragTok);
     if (!dragMoved) mostrarInfoToken(dragTok);
     dragTok = null;
     rastroAtivo = false; rastroToken = null; rastroPos = null;
@@ -1410,4 +1417,13 @@ async function adicionarPlayerSomenteMapa(userId) {
   } else {
     toast('Player já está no mapa.', 'err');
   }
+}
+
+// Realinha todos os tokens ao grid atual (útil ao mudar tamanho do grid)
+function realinharTokensAoGrid() {
+  if (!snapToGrid) return;
+  tokens.forEach(t => snapTokenToGrid(t));
+  desenharMapa();
+  salvarMapaDB();
+  toast('Tokens alinhados ao grid!', 'ok');
 }

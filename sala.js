@@ -493,6 +493,7 @@ function buildMapaPanel(c) {
     <div style="display:flex;flex-direction:column;height:100%;min-height:0">
       <div class="mapa-toolbar" style="flex-shrink:0;padding:5px 8px;gap:5px;flex-wrap:wrap">
         <button class="btn-ghost" id="btn-grid" onclick="toggleGrid()" style="font-size:10px;padding:3px 7px">⬛ Grid</button>
+        <button class="btn-ghost" onclick="realinharTokensAoGrid()" style="font-size:10px;padding:3px 7px" title="Alinhar todos os tokens ao grid">⊞</button>
         <div style="display:flex;gap:2px;align-items:center">
           <button id="btn-regua-linha"     class="btn-ghost" onclick="toggleRegua('linha')"     style="font-size:10px;padding:3px 6px" title="Régua Linha">📏</button>
           <button id="btn-regua-circulo"   class="btn-ghost" onclick="toggleRegua('circulo')"   style="font-size:10px;padding:3px 6px" title="Régua Círculo">⭕</button>
