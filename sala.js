@@ -11,6 +11,7 @@ let salaIniciada = false;
 async function initSala() {
   if (salaIniciada) { refreshSalaContent(); return; }
   salaIniciada = true;
+  canvas = null; // reset canvas so initMapa reinitializes properly
   window.isMaster = isMaster;
 
   buildSalaDOM();
@@ -177,10 +178,15 @@ let dragging = null, resizing = null;
 function buildDesktopDOM(root) {
   root.style.cssText = 'position:relative;width:100%;height:calc(100vh - 56px - 52px);overflow:hidden;background:#03030a;';
 
+  // Remove existing panels to avoid duplicates
+  root.innerHTML = '';
+
   loadPStates();
 
   DESKTOP_PANELS.forEach(p => {
     if (p.masterOnly && !isMaster) return;
+    // Skip if already exists
+    if (document.getElementById('dpanel-'+p.id)) return;
     createFPanel(p, root);
   });
 
