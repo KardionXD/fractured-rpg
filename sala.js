@@ -571,6 +571,85 @@ document.addEventListener('click', e => {
   }
 });
 
+// ══════════════════════════════════════════════════
+//  GALERIA DE IMAGENS
+// ══════════════════════════════════════════════════
+async function carregarGaleria() {
+  const { data } = await db.from('sala')
+    .select('*')
+    .eq('tipo', 'imagem')
+    .order('created_at', { ascending: false })
+    .limit(50);
+
+  const grid = document.getElementById('galeria-grid');
+  if (!grid) return;
+
+  if (!data || !data.length) {
+    grid.innerHTML = '<div class="empty-state"><div class="empty-icon">🖼️</div><p>Nenhuma imagem enviada ainda.</p></div>';
+    return;
+  }
+
+  grid.innerHTML = '';
+  data.forEach(msg => {
+    const url = msg.conteudo?.url;
+    const legenda = msg.conteudo?.legenda || '';
+    if (!url) return;
+    const div = document.createElement('div');
+    div.className = 'galeria-item';
+    div.innerHTML = `
+      <img src="${url}" onclick="abrirImagemFullscreen('${url}')" title="${legenda}">
+      ${legenda ? `<div class="galeria-legenda">${legenda}</div>` : ''}
+      ${isMaster ? `<button class="galeria-del" onclick="deletarImagemGaleria('${msg.id}')" title="Remover">✕</button>` : ''}
+    `;
+    grid.appendChild(div);
+  });
+}
+
+async function enviarImagemGaleria(input) {
+  const file = input.files[0]; if (!file) return;
+  if (!isMaster) { toast('Só o mestre pode enviar imagens.', 'err'); return; }
+
+  // Upload para storage
+  const ext  = file.name.split('.').pop();
+  const path = `galeria/${currentUser.id}/${Date.now()}.${ext}`;
+  const { error } = await db.storage.from('tokens').upload(path, file, { upsert: true });
+  if (error) { toast('Erro no upload: ' + error.message, 'err'); return; }
+  const { data } = db.storage.from('tokens').getPublicUrl(path);
+
+  const legenda = document.getElementById('galeria-legenda-input')?.value.trim() || '';
+
+  // Salva no feed como mensagem de imagem
+  await db.from('sala').insert({
+    user_id:  currentUser.id,
+    username: currentProfile?.username || 'Mestre',
+    tipo:     'imagem',
+    conteudo: { url: data.publicUrl, legenda, path }
+  });
+
+  // Limpa input
+  input.value = '';
+  if (document.getElementById('galeria-legenda-input'))
+    document.getElementById('galeria-legenda-input').value = '';
+
+  toast('Imagem enviada!', 'ok');
+  carregarGaleria();
+}
+
+async function deletarImagemGaleria(msgId) {
+  if (!confirm('Remover esta imagem?')) return;
+  await db.from('sala').delete().eq('id', msgId);
+  toast('Imagem removida.', 'ok');
+  carregarGaleria();
+}
+
+function abrirImagemFullscreen(url) {
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:zoom-out';
+  overlay.innerHTML = `<img src="${url}" style="max-width:95vw;max-height:95vh;object-fit:contain;border-radius:8px">`;
+  overlay.onclick = () => overlay.remove();
+  document.body.appendChild(overlay);
+}
+
 function buildGaleriaPanel(c) {
   const uploadSection = isMaster ? `
     <div style="padding:8px;border-bottom:1px solid var(--border);display:flex;gap:6px;flex-wrap:wrap;align-items:center;flex-shrink:0">
