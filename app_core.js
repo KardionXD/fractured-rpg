@@ -502,18 +502,19 @@ async function carregarFeed() {
 }
 
 async function carregarTensaoSala() {
-  const { data } = await db
-    .from('sala')
-    .select('conteudo')
-    .eq('tipo', 'tensao')
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .single();
+  try {
+    const { data } = await db
+      .from('sala')
+      .select('conteudo')
+      .eq('tipo', 'tensao')
+      .order('created_at', { ascending: false })
+      .limit(1);
 
-  if (data) {
-    tensaoSala = data.conteudo.valor || 0;
-    buildTensaoPips('tensao-pips-sala', tensaoSala, false);
-  }
+    if (data && data.length > 0) {
+      tensaoSala = data[0].conteudo?.valor || 0;
+      buildTensaoPips('tensao-pips-sala', tensaoSala, false);
+    }
+  } catch(e) {}
 }
 
 function scrollFeedToBottom() {
