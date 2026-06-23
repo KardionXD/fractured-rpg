@@ -11,11 +11,10 @@ let salaIniciada = false;
 async function initSala() {
   if (salaIniciada) { refreshSalaContent(); return; }
   salaIniciada = true;
-  canvas = null; // reset canvas so initMapa reinitializes properly
+  canvas = null;
   window.isMaster = isMaster;
 
   buildSalaDOM();
-  await new Promise(r => setTimeout(r, 150));
 
   // Feed
   await subscribeToSala();

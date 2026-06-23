@@ -1315,7 +1315,7 @@ function esconderInfoToken() {
 let _mapaAutoSaveTimer = null;
 function salvarMapaDB() {
   clearTimeout(_mapaAutoSaveTimer);
-  _mapaAutoSaveTimer = setTimeout(_salvarMapaDBNow, 800);
+  _mapaAutoSaveTimer = setTimeout(_salvarMapaDBNow, 500);
 }
 
 async function _salvarMapaDBNow(){
@@ -1378,13 +1378,19 @@ function subscribeMapaRealtime(){
   mapaRealtimeSub=db.channel('mapa-realtime')
     .on('postgres_changes',{event:'UPDATE',schema:'public',table:'mapa_estado'},payload=>{
       const d=payload.new; if(!d) return;
+      const mapaMudou = d.mapa_url !== mapaUrl;
       tokens=d.tokens||[]; gridSize=d.grid_size||60; gridVisivel=d.grid_visivel!==false;
-      if(d.mapa_url&&d.mapa_url!==mapaUrl){
+      if(d.mapa_url && mapaMudou){
         mapaUrl=d.mapa_url;
-        const img=new Image(); img.onload=()=>{mapaImg=img;desenharMapa();}; img.src=d.mapa_url;
+        const img=new Image();
+        img.onload=()=>{mapaImg=img; desenharMapa();};
+        img.src=d.mapa_url;
+      } else if(!d.mapa_url && mapaImg){
+        mapaImg=null; mapaUrl=null; desenharMapa();
+      } else {
+        desenharMapa();
       }
-      desenharMapa();
-    }).subscribe();
+    }).subscribe(status => console.log('mapa-realtime:', status));
 }
 
 async function adicionarPlayerSomenteCT(userId) {

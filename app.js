@@ -1053,12 +1053,16 @@ function initMasterUI() {
   // Show master nav items in sidebar
   const section = document.getElementById('nav-master-section');
   if (section) section.style.display = '';
-  // Load cenas subscription
+  // Subscreve todos os canais realtime
   if (typeof subscribeCenas === 'function') subscribeCenas();
+  if (typeof subscribeMapaRealtime === 'function') subscribeMapaRealtime();
+  if (typeof subscribeCT === 'function') subscribeCT();
 }
 function initPlayerUI() {
-  // Players também precisam receber mudanças de cena em tempo real
+  // Subscreve realtime imediatamente ao fazer login
   if (typeof subscribeCenas === 'function') subscribeCenas();
+  if (typeof subscribeMapaRealtime === 'function') subscribeMapaRealtime();
+  if (typeof subscribeCT === 'function') subscribeCT();
 }
 
 // Chama init (definido no app_core)
