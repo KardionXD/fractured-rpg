@@ -449,15 +449,21 @@ async function ativarCena(id) {
   aplicarCena(cena);
   toast(`Cena "${cena.nome}" ativada!`, 'ok');
 
-  // 2. Propaga via mapa_estado PRIMEIRO (mais rápido, canal já ativo)
-  db.from('mapa_estado').upsert({
-    id: 'sessao_atual',
-    tokens: cena.tokens || [],
-    grid_size: cena.grid_size || 60,
-    grid_visivel: true,
-    mapa_url: cena.mapa_url || null,
-    updated_at: new Date().toISOString()
-  }).then(() => console.log('cena propagada')).catch(e => console.error(e));
+  // 2. Propaga via mapa_estado (canal realtime ativo para todos)
+  const urlCena = (cena.mapa_url && !cena.mapa_url.startsWith('data:')) ? cena.mapa_url : null;
+  console.log('ativarCena: salvando mapa_estado, url=', urlCena ? urlCena.substring(0,50) : 'null');
+  try {
+    const { error } = await db.from('mapa_estado').upsert({
+      id: 'sessao_atual',
+      tokens: cena.tokens || [],
+      grid_size: cena.grid_size || 60,
+      grid_visivel: true,
+      mapa_url: urlCena,
+      updated_at: new Date().toISOString()
+    });
+    if (error) console.error('ativarCena mapa_estado error:', error);
+    else console.log('ativarCena: mapa_estado atualizado com sucesso');
+  } catch(e) { console.error('ativarCena exception:', e); }
 
   // 3. Atualiza flag da cena no banco (em paralelo, não bloqueia)
   db.from('cenas_mapa').update({ ativa: false }).eq('master_id', currentUser.id)
