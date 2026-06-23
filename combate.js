@@ -570,16 +570,21 @@ function initMapa() {
   resizeMapCanvas();
 
   // Mouse
-  canvas.addEventListener('mousedown',  onMDown);
-  canvas.addEventListener('mousemove',  onMMove);
-  canvas.addEventListener('mouseup',    onMUp);
-  canvas.addEventListener('mouseleave', onMUp);
+  canvas.addEventListener('mousedown', onMDown);
+  // mousemove and mouseup on document so drag works outside canvas
+  document.addEventListener('mousemove', onMMove);
+  document.addEventListener('mouseup',   onMUp);
   canvas.addEventListener('wheel',      onWheel, { passive: false });
 
-  // Touch
-  canvas.addEventListener('touchstart', onTStart, { passive: false });
-  canvas.addEventListener('touchmove',  onTMove,  { passive: false });
-  canvas.addEventListener('touchend',   onTEnd,   { passive: false });
+  // Touch - prevent all default behaviors
+  canvas.addEventListener('touchstart',   onTStart,     { passive: false });
+  canvas.addEventListener('touchmove',    onTMove,      { passive: false });
+  canvas.addEventListener('touchend',     onTEnd,       { passive: false });
+  canvas.addEventListener('touchcancel',  onTEnd,       { passive: false });
+  canvas.addEventListener('contextmenu',  e => e.preventDefault());
+  canvas.style.webkitUserSelect  = 'none';
+  canvas.style.userSelect        = 'none';
+  canvas.style.webkitTouchCallout = 'none';
 
   carregarMapaDB();
 }
@@ -603,10 +608,14 @@ window.resizeMapCanvas = function() {
 // ── COORDENADAS ───────────────────────────────────
 // Tela (px CSS) → canvas (px físicos)
 function telaParaCanvas(cx, cy) {
+  if (!canvas) return { x: 0, y: 0 };
   const r    = canvas.getBoundingClientRect();
   const scaleX = canvas.width  / r.width;
   const scaleY = canvas.height / r.height;
-  return { x: (cx - r.left) * scaleX, y: (cy - r.top) * scaleY };
+  // Clamp to canvas boundaries when dragging outside
+  const x = Math.max(0, Math.min(canvas.width,  (cx - r.left) * scaleX));
+  const y = Math.max(0, Math.min(canvas.height, (cy - r.top)  * scaleY));
+  return { x, y };
 }
 
 // Canvas (px físicos) → mundo (coordenadas dos tokens/grid)
@@ -906,6 +915,7 @@ function onMDown(e) {
 }
 
 function onMMove(e) {
+  if (!dragTok && !isPanning && !medindoDistancia) return; // early exit
   const c = telaParaCanvas(e.clientX, e.clientY);
 
   if (mouseDownCanvasPos) {
@@ -1063,21 +1073,21 @@ function onTEnd(e) {
     }
   }
 
+  // Double-tap detection for cancelling ruler on mobile
+  if (!dragMoved) {
+    const now = Date.now();
+    if (now - lastTapTime < 300 && medindoDistancia) {
+      toggleRegua('linha'); // cancela régua
+    }
+    lastTapTime = now;
+  }
+
   mouseDownCanvasPos = null; dragMoved = false;
 }
 
 // ── REGUA MOBILE ─────────────────────────────────
-// Ativa régua com dois toques rápidos (double tap)
+// Double-tap é tratado dentro do onTEnd principal
 let lastTapTime = 0;
-canvas?.addEventListener('touchend', e => {
-  if (!medindoDistancia) return;
-  const now = Date.now();
-  if (now - lastTapTime < 300) {
-    // Double tap cancela régua
-    toggleRegua();
-  }
-  lastTapTime = now;
-}, { passive: true });
 
 // ── CONTROLES GRID ───────────────────────────────
 function toggleGrid() {
@@ -1132,7 +1142,7 @@ function adicionarTokenMapa(inimigo) {
   const cy = (canvas.height / 2 - mapaOffY) / mapaZoom;
   tokens.push({
     id, nome: inimigo.nome, emoji: inimigo.emoji, tipo: inimigo.tipo,
-    x: snapGrid(cx - gridSize / 2), y: snapGrid(cy - gridSize / 2),
+    x: Math.round((cx - gridSize/2) / gridSize) * gridSize, y: Math.round((cy - gridSize/2) / gridSize) * gridSize,
     pvMax: inimigo.pv, pvAtual: inimigo.pv,
     habilidades: inimigo.habilidades, isPC: false,
   });
@@ -1247,7 +1257,7 @@ async function criarTokenCustom() {
   const cy = (canvas.height / 2 - mapaOffY) / mapaZoom;
   tokens.push({
     id, nome, emoji, tipo, imgUrl,
-    x: snapGrid(cx - gridSize / 2), y: snapGrid(cy - gridSize / 2),
+    x: Math.round((cx - gridSize/2) / gridSize) * gridSize, y: Math.round((cy - gridSize/2) / gridSize) * gridSize,
     pvMax: pvMax || undefined, pvAtual: pvMax || undefined, isPC: false,
   });
   tokenCustomImg = null;
