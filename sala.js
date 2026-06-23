@@ -69,6 +69,7 @@ const MOBILE_TABS = [
   { id:'mapa',      icon:'🗺️', label:'Mapa',    visible: () => true },
   { id:'players',   icon:'👥', label:'Players', visible: () => isMaster },
   { id:'bestiario', icon:'📖', label:'Bestia',  visible: () => isMaster },
+  { id:'galeria',   icon:'🖼️', label:'Fotos',   visible: () => true },
 ];
 
 function buildMobileDOM(root) {
@@ -166,6 +167,7 @@ const DESKTOP_PANELS = [
   { id:'mapa',      title:'🗺️ Mapa',                  def:{ x:900, y:10,  w:680, h:680 }, minW:280, minH:280 },
   { id:'players',   title:'👥 Players',  masterOnly:true, def:{ x:10,  y:500, w:300, h:250 }, minW:200, minH:160 },
   { id:'bestiario', title:'📖 Bestiário',masterOnly:true, def:{ x:590, y:580, w:300, h:210 }, minW:200, minH:140 },
+  { id:'galeria',   title:'🖼️ Imagens',              def:{ x:900, y:700, w:400, h:280 }, minW:280, minH:200 },
 ];
 
 let pStates = {};
@@ -359,6 +361,7 @@ function buildPanelContent(id, container) {
     case 'mapa':      buildMapaPanel(container);  break;
     case 'players':   buildPlayersPanel(container); break;
     case 'bestiario': buildBestiarioPanel(container); break;
+    case 'galeria':   buildGaleriaPanel(container);   break;
   }
 }
 
@@ -520,7 +523,7 @@ function buildMapaPanel(c) {
       </div>
       <div style="flex:1;overflow:hidden;position:relative;min-height:0">
         <canvas id="mapa-canvas" style="display:block;touch-action:none;width:100%;height:100%"></canvas>
-        <div id="token-info" style="display:none;position:absolute;bottom:0;left:0;right:0;padding:8px;background:rgba(16,16,26,0.95);border-top:1px solid var(--border);max-height:130px;overflow-y:auto;z-index:10"></div>
+        <div id="token-info" style="display:none;position:absolute;bottom:0;left:0;right:0;padding:8px;background:rgba(16,16,26,0.95);border-top:1px solid var(--border);max-height:130px;overflow-y:auto;z-index:10" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()"></div>
       </div>
     </div>`;
   setTimeout(() => { canvas = null; initMapa(); }, 80);
@@ -561,3 +564,28 @@ document.addEventListener('click', e => {
     if (m) m.style.display = 'none';
   }
 });
+
+function buildGaleriaPanel(c) {
+  const uploadSection = isMaster ? `
+    <div style="padding:8px;border-bottom:1px solid var(--border);display:flex;gap:6px;flex-wrap:wrap;align-items:center;flex-shrink:0">
+      <input type="text" id="galeria-legenda-input" placeholder="Legenda (opcional)..."
+        style="flex:1;min-width:100px;background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:5px 8px;font-size:11px;outline:none">
+      <label style="cursor:pointer">
+        <input type="file" accept="image/*" style="display:none" onchange="enviarImagemGaleria(this)">
+        <span class="btn-ghost" style="font-size:10px;padding:5px 10px;display:inline-block">📤 Enviar Imagem</span>
+      </label>
+    </div>` : '';
+
+  c.innerHTML = `
+    <div style="display:flex;flex-direction:column;height:100%">
+      ${uploadSection}
+      <div style="padding:6px 8px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+        <span style="font-size:9px;font-weight:700;letter-spacing:2px;color:var(--muted);text-transform:uppercase">Imagens da Sessão</span>
+        <button class="btn-ghost" onclick="carregarGaleria()" style="font-size:9px;padding:3px 8px">↻</button>
+      </div>
+      <div id="galeria-grid" style="flex:1;overflow-y:auto;padding:8px;display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;align-content:start">
+        <div class="empty-state"><div class="empty-icon">🖼️</div><p>Carregando...</p></div>
+      </div>
+    </div>`;
+  setTimeout(() => carregarGaleria(), 100);
+}

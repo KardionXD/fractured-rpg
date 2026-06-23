@@ -2075,3 +2075,43 @@ h1,h2,h3 { letter-spacing: .04em; }
   user-select: none;
   touch-action: none;
 }
+
+/* ══════════════════════════════════════════════════
+   GALERIA DE IMAGENS
+══════════════════════════════════════════════════ */
+.galeria-item {
+  position: relative;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  cursor: pointer;
+  transition: border-color .15s;
+}
+.galeria-item:hover { border-color: var(--border2); }
+.galeria-item img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  display: block;
+}
+.galeria-legenda {
+  font-size: 9px;
+  color: var(--muted);
+  padding: 4px 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.galeria-del {
+  position: absolute;
+  top: 4px; right: 4px;
+  background: rgba(192,57,43,.85);
+  border: none; border-radius: 50%;
+  color: #fff; cursor: pointer;
+  font-size: 10px;
+  width: 18px; height: 18px;
+  display: none;
+  align-items: center; justify-content: center;
+}
+.galeria-item:hover .galeria-del { display: flex; }
