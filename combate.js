@@ -544,7 +544,15 @@ let dragMoved   = false;
 let isPanning   = false;
 let panLast     = null;
 let medindoDistancia = false;
+let tipoRegua = 'linha';  // 'linha' | 'circulo' | 'cone' | 'quadrado'
 let medirA = null, medirB = null;
+let anguloConeFix = 60; // graus do cone
+
+// Rastro de movimento
+let rastroAtivo = false;
+let rastroToken = null;
+let rastroPos = null;   // posição prévia do token
+let rastroDist = 0;
 let lastTouchDist = null;
 let touchPanStart = null;
 let tokenCustomImg = null;
@@ -682,27 +690,78 @@ function desenharMapa() {
     }
   }
 
-  // Régua
+  // Régua multi-forma
   if (medindoDistancia && medirA && medirB) {
-    ctx.beginPath();
-    ctx.moveTo(medirA.x, medirA.y);
-    ctx.lineTo(medirB.x, medirB.y);
-    ctx.strokeStyle = '#f1c40f';
-    ctx.lineWidth = 2 / mapaZoom;
-    ctx.setLineDash([6 / mapaZoom, 4 / mapaZoom]);
-    ctx.stroke();
-    ctx.setLineDash([]);
-
     const dx = medirB.x - medirA.x, dy = medirB.y - medirA.y;
     const dist = Math.sqrt(dx*dx + dy*dy);
     const metros = (dist / gridSize * metrosPorCelula).toFixed(1);
-    const mx = (medirA.x + medirB.x) / 2;
-    const my = (medirA.y + medirB.y) / 2 - 8 / mapaZoom;
-    ctx.font = `bold ${14 / mapaZoom}px sans-serif`;
-    ctx.fillStyle = '#f1c40f';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'bottom';
-    ctx.fillText(`${metros}m`, mx, my);
+    const angulo = Math.atan2(dy, dx);
+
+    ctx.strokeStyle = 'rgba(241,196,15,0.9)';
+    ctx.fillStyle   = 'rgba(241,196,15,0.15)';
+    ctx.lineWidth   = 2 / mapaZoom;
+    ctx.setLineDash([6/mapaZoom, 4/mapaZoom]);
+
+    if (tipoRegua === 'linha') {
+      ctx.beginPath(); ctx.moveTo(medirA.x, medirA.y); ctx.lineTo(medirB.x, medirB.y);
+      ctx.stroke();
+    } else if (tipoRegua === 'circulo') {
+      ctx.beginPath(); ctx.arc(medirA.x, medirA.y, dist, 0, Math.PI*2);
+      ctx.stroke(); ctx.fill();
+    } else if (tipoRegua === 'cone') {
+      const halfAngle = (anguloConeFix / 2) * Math.PI / 180;
+      ctx.beginPath();
+      ctx.moveTo(medirA.x, medirA.y);
+      ctx.arc(medirA.x, medirA.y, dist, angulo - halfAngle, angulo + halfAngle);
+      ctx.closePath(); ctx.stroke(); ctx.fill();
+    } else if (tipoRegua === 'quadrado') {
+      // Quadrado orientado na direção do arrasto
+      const hw = dist * 0.5;
+      ctx.save();
+      ctx.translate(medirA.x, medirA.y); ctx.rotate(angulo);
+      ctx.beginPath(); ctx.rect(0, -hw, dist, dist);
+      ctx.stroke(); ctx.fill(); ctx.restore();
+    } else if (tipoRegua === 'retangulo') {
+      ctx.save();
+      ctx.translate(medirA.x, medirA.y); ctx.rotate(angulo);
+      ctx.beginPath(); ctx.rect(0, -gridSize/2, dist, gridSize);
+      ctx.stroke(); ctx.fill(); ctx.restore();
+    }
+
+    ctx.setLineDash([]);
+
+    // Label de distância
+    ctx.font = `bold ${14/mapaZoom}px sans-serif`;
+    ctx.fillStyle = '#f1c40f'; ctx.strokeStyle = 'rgba(0,0,0,0.8)'; ctx.lineWidth = 3/mapaZoom;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+    const lx = (medirA.x+medirB.x)/2, ly = (medirA.y+medirB.y)/2 - 6/mapaZoom;
+    ctx.strokeText(`${metros}m`, lx, ly); ctx.fillText(`${metros}m`, lx, ly);
+  }
+
+  // Rastro de movimento
+  if (rastroAtivo && rastroToken && rastroPos) {
+    const t = rastroToken;
+    const cx = t.x + gridSize/2, cy = t.y + gridSize/2;
+    const ox = rastroPos.x + gridSize/2, oy = rastroPos.y + gridSize/2;
+    const dx = cx - ox, dy = cy - oy;
+    const dist = Math.sqrt(dx*dx+dy*dy);
+    const metros = (dist/gridSize*metrosPorCelula).toFixed(1);
+
+    // Linha pontilhada da origem até posição atual
+    ctx.beginPath(); ctx.moveTo(ox, oy); ctx.lineTo(cx, cy);
+    ctx.strokeStyle = 'rgba(52,152,219,0.8)'; ctx.lineWidth = 2/mapaZoom;
+    ctx.setLineDash([5/mapaZoom, 5/mapaZoom]); ctx.stroke(); ctx.setLineDash([]);
+
+    // Círculo na origem
+    ctx.beginPath(); ctx.arc(ox, oy, 5/mapaZoom, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(52,152,219,0.6)'; ctx.fill();
+
+    // Label
+    ctx.font = `bold ${13/mapaZoom}px sans-serif`;
+    ctx.fillStyle = '#3498db'; ctx.strokeStyle = 'rgba(0,0,0,0.8)'; ctx.lineWidth = 3/mapaZoom;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+    ctx.strokeText(`${metros}m`, (ox+cx)/2, (oy+cy)/2 - 6/mapaZoom);
+    ctx.fillText(`${metros}m`, (ox+cx)/2, (oy+cy)/2 - 6/mapaZoom);
   }
 
   // Tokens
@@ -824,7 +883,10 @@ function onMDown(e) {
 
   if (t && podeMoverToken(t)) {
     dragTok = t; dragOX = w.x - t.x; dragOY = w.y - t.y;
-    tokenSel = t; desenharMapa();
+    tokenSel = t;
+    // Inicia rastro
+    rastroToken = t; rastroPos = { x: t.x, y: t.y }; rastroAtivo = true;
+    desenharMapa();
   } else {
     // Clique em área vazia = pan
     isPanning = true; panLast = c;
@@ -874,7 +936,9 @@ function onMUp(e) {
     }
     // Mostrar info só se foi clique (não drag)
     if (!dragMoved) mostrarInfoToken(dragTok);
-    dragTok = null; desenharMapa(); salvarMapaDB();
+    dragTok = null;
+    rastroAtivo = false; rastroToken = null; rastroPos = null;
+    desenharMapa(); salvarMapaDB();
   } else if (!dragMoved && tokenSel) {
     mostrarInfoToken(tokenSel);
   }
@@ -911,7 +975,9 @@ function onTStart(e) {
   const tok = getTokenAt(w.x, w.y);
   if (tok && podeMoverToken(tok)) {
     dragTok = tok; dragOX = w.x - tok.x; dragOY = w.y - tok.y;
-    tokenSel = tok; desenharMapa();
+    tokenSel = tok;
+    rastroToken = tok; rastroPos = { x: tok.x, y: tok.y }; rastroAtivo = true;
+    desenharMapa();
   } else {
     isPanning = true; panLast = c;
     if (tokenSel) { tokenSel = null; esconderInfoToken(); desenharMapa(); }
@@ -974,7 +1040,9 @@ function onTEnd(e) {
   if (dragTok) {
     if (snapToGrid) { dragTok.x = snapGrid(dragTok.x); dragTok.y = snapGrid(dragTok.y); }
     if (!dragMoved) mostrarInfoToken(dragTok);
-    dragTok = null; desenharMapa(); salvarMapaDB();
+    dragTok = null;
+    rastroAtivo = false; rastroToken = null; rastroPos = null;
+    desenharMapa(); salvarMapaDB();
   } else if (isPanning) {
     isPanning = false; panLast = null;
   } else if (!dragMoved) {
@@ -1019,16 +1087,33 @@ function alterarGrid(delta) {
   desenharMapa();
 }
 
-function toggleRegua() {
-  medindoDistancia = !medindoDistancia;
-  medirA = null; medirB = null;
-  const btn = document.getElementById('btn-regua');
-  if (btn) {
-    btn.textContent = medindoDistancia ? '📏 Cancelar' : '📏 Régua';
-    btn.style.color = medindoDistancia ? 'var(--gold)' : '';
+function toggleRegua(tipo) {
+  if (tipo) {
+    // Seleciona tipo específico
+    if (medindoDistancia && tipoRegua === tipo) {
+      // Clicar no mesmo tipo = desativa
+      medindoDistancia = false; medirA = null; medirB = null;
+    } else {
+      medindoDistancia = true; tipoRegua = tipo; medirA = null; medirB = null;
+    }
+  } else {
+    medindoDistancia = !medindoDistancia; medirA = null; medirB = null;
+    if (medindoDistancia) tipoRegua = 'linha';
   }
-  canvas.style.cursor = medindoDistancia ? 'crosshair' : 'default';
+  atualizarBotoesRegua();
+  if (canvas) canvas.style.cursor = medindoDistancia ? 'crosshair' : 'default';
   if (!medindoDistancia) desenharMapa();
+}
+
+function atualizarBotoesRegua() {
+  const tipos = ['linha','circulo','cone','quadrado','retangulo'];
+  tipos.forEach(t => {
+    const btn = document.getElementById('btn-regua-'+t);
+    if (!btn) return;
+    const ativo = medindoDistancia && tipoRegua === t;
+    btn.style.color = ativo ? 'var(--gold)' : '';
+    btn.style.borderColor = ativo ? 'var(--gold)' : '';
+  });
 }
 
 // ── TOKENS ────────────────────────────────────────
@@ -1208,7 +1293,14 @@ function esconderInfoToken() {
 
 
 // ── PERSISTÊNCIA ──────────────────────────────────
-async function salvarMapaDB(){
+// Debounced autosave
+let _mapaAutoSaveTimer = null;
+function salvarMapaDB() {
+  clearTimeout(_mapaAutoSaveTimer);
+  _mapaAutoSaveTimer = setTimeout(_salvarMapaDBNow, 800);
+}
+
+async function _salvarMapaDBNow(){
   // Players podem salvar seus próprios tokens (posição + PV)
   // Mestre salva tudo (grid, mapa, todos os tokens)
   try{
@@ -1235,6 +1327,17 @@ async function salvarMapaDB(){
       });
     }
   }catch(e){console.error('salvarMapaDB:',e);}
+
+  // Auto-save cena ativa também
+  if(isMaster && typeof cenaAtiva !== 'undefined' && cenaAtiva){
+    try{
+      await db.from('cenas_mapa').update({
+        tokens: tokens.map(t=>({...t})),
+        grid_size: gridSize,
+        mapa_url: mapaUrl||null,
+      }).eq('id', cenaAtiva);
+    }catch(e){}
+  }
 }
 
 async function carregarMapaDB(){

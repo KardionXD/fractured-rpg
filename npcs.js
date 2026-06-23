@@ -11,6 +11,37 @@ let cenas        = [];
 let cenaAtiva    = null;
 let cenaRealtimeSub = null;
 
+// ── CÁLCULO AUTOMÁTICO NPC ────────────────────────
+function npcCalcAttr() {
+  const attrs = ['for','res','com','soc','con','agi'];
+  attrs.forEach(a => {
+    const val = parseInt(document.getElementById('npc-a-'+a)?.value) || 0;
+    const mod = val - 3;
+    const el  = document.getElementById('npc-m-'+a);
+    if (el) el.value = (mod >= 0 ? '+' : '') + mod;
+  });
+
+  // PV = RES × 4, ou personalizado
+  const res    = parseInt(document.getElementById('npc-a-res')?.value) || 1;
+  const pvCustom = parseInt(document.getElementById('npc-f-pv')?.value) || 0;
+  const pvMax  = pvCustom > 0 ? pvCustom : Math.max(res * 4, 4);
+  const pvCalc = document.getElementById('npc-pv-calc');
+  const pvForm = document.getElementById('npc-pv-formula');
+  if (pvCalc) pvCalc.textContent = pvMax;
+  if (pvForm) pvForm.textContent = pvCustom > 0
+    ? `Personalizado: ${pvMax}`
+    : `RES (${res}) × 4 = ${pvMax}`;
+}
+
+function npcAtualizarEmoji() {
+  const tipo    = document.getElementById('npc-f-tipo')?.value || 'inimigo';
+  const custom  = document.getElementById('npc-f-emoji')?.value.trim();
+  const preview = document.getElementById('npc-avatar-emoji');
+  const mapa    = { inimigo:'😈', aliado:'😇', neutro:'😐', infectado:'🧟', animal:'🐺' };
+  if (preview) preview.textContent = custom || mapa[tipo] || '👤';
+}
+
+
 // ══════════════════════════════════════════════════
 //  FICHAS DE NPCs
 // ══════════════════════════════════════════════════
@@ -130,25 +161,51 @@ function abrirFormNPC(npc = null) {
   }
 
   document.getElementById('npc-form-titulo').textContent = npc ? 'Editar NPC' : 'Criar NPC';
+
+  // Reset all attr fields first
+  ['for','res','com','soc','con','agi'].forEach(a => {
+    const el = document.getElementById('npc-a-'+a);
+    if (el) el.value = '';
+    const mel = document.getElementById('npc-m-'+a);
+    if (mel) mel.value = '±0';
+  });
   document.getElementById('npc-f-nome').value      = npc?.nome || '';
   document.getElementById('npc-f-pasta').value     = npc?.pasta || 'Geral';
   document.getElementById('npc-f-tipo').value      = npc?.tipo || 'inimigo';
   document.getElementById('npc-f-emoji').value     = npc?.emoji || '';
-  document.getElementById('npc-f-pv').value        = npc?.pv_max || 10;
-  document.getElementById('npc-f-com').value       = npc?.com ?? 0;
-  document.getElementById('npc-f-agi').value       = npc?.agi ?? 0;
-  document.getElementById('npc-f-res').value       = npc?.res ?? 0;
-  document.getElementById('npc-f-for').value       = npc?.for_ ?? 0;
-  document.getElementById('npc-f-soc').value       = npc?.soc ?? 0;
-  document.getElementById('npc-f-con').value       = npc?.con ?? 0;
+  document.getElementById('npc-f-pv').value        = npc?.pv_custom || 0;
   document.getElementById('npc-f-hab').value       = npc?.habilidades || '';
   document.getElementById('npc-f-fraqueza').value  = npc?.fraqueza || '';
   document.getElementById('npc-f-notas').value     = npc?.notas || '';
 
-  // Preview imagem
-  const prev = document.getElementById('npc-img-preview');
-  if (prev) { prev.src = npc?.img_url || ''; prev.style.display = npc?.img_url ? 'block' : 'none'; }
+  // Atributos
+  const attrMap = { for:'for_', res:'res', com:'com', soc:'soc', con:'con', agi:'agi' };
+  Object.entries(attrMap).forEach(([k, dbKey]) => {
+    const el = document.getElementById('npc-a-'+k);
+    if (el) el.value = npc?.[dbKey] ?? 1;
+  });
 
+  // Imagem
+  const prev = document.getElementById('npc-img-preview');
+  const ph   = document.getElementById('npc-avatar-emoji');
+  if (prev) { prev.src = npc?.img_url || ''; prev.style.display = npc?.img_url ? 'block' : 'none'; }
+  if (ph)   { ph.style.display = npc?.img_url ? 'none' : ''; }
+
+  // Recalcula
+  npcCalcAttr();
+  npcAtualizarEmoji();
+
+  // Set attribute values from npc data
+  if (npc) {
+    const attrMap = { for: npc.for_, res: npc.res, com: npc.com, soc: npc.soc, con: npc.con, agi: npc.agi };
+    Object.entries(attrMap).forEach(([a, v]) => {
+      const el = document.getElementById('npc-a-'+a);
+      if (el && v !== undefined && v !== null) el.value = v;
+    });
+    document.getElementById('npc-f-pv').value = npc.pv_max || '';
+  }
+  // Trigger automatic calculation
+  setTimeout(npcCalcAttr, 30);
   modal.style.display = 'flex';
 }
 
@@ -162,19 +219,26 @@ async function salvarNPC() {
   const nome = document.getElementById('npc-f-nome')?.value.trim();
   if (!nome) return toast('Nome é obrigatório!', 'err');
 
+  // Coleta atributos
+  const getN = id => parseInt(document.getElementById(id)?.value) || 0;
+  const res  = getN('npc-a-res');
+  const pvCustom = getN('npc-f-pv');
+  const pvMax    = pvCustom > 0 ? pvCustom : Math.max(res * 4, 4);
+
   const payload = {
     master_id:   currentUser.id,
     nome,
     pasta:       document.getElementById('npc-f-pasta')?.value.trim() || 'Geral',
     tipo:        document.getElementById('npc-f-tipo')?.value || 'inimigo',
     emoji:       document.getElementById('npc-f-emoji')?.value.trim() || '',
-    pv_max:      parseInt(document.getElementById('npc-f-pv')?.value) || 10,
-    com:         parseInt(document.getElementById('npc-f-com')?.value) || 0,
-    agi:         parseInt(document.getElementById('npc-f-agi')?.value) || 0,
-    res:         parseInt(document.getElementById('npc-f-res')?.value) || 0,
-    for_:        parseInt(document.getElementById('npc-f-for')?.value) || 0,
-    soc:         parseInt(document.getElementById('npc-f-soc')?.value) || 0,
-    con:         parseInt(document.getElementById('npc-f-con')?.value) || 0,
+    pv_max:      pvMax,
+    pv_custom:   pvCustom,
+    for_:        getN('npc-a-for'),
+    res:         res,
+    com:         getN('npc-a-com'),
+    soc:         getN('npc-a-soc'),
+    con:         getN('npc-a-con'),
+    agi:         getN('npc-a-agi'),
     habilidades: document.getElementById('npc-f-hab')?.value.trim() || null,
     fraqueza:    document.getElementById('npc-f-fraqueza')?.value.trim() || null,
     notas:       document.getElementById('npc-f-notas')?.value.trim() || null,

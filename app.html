@@ -233,57 +233,129 @@
 
 
 <!-- Modal NPC -->
-<!-- Modal NPC -->
 <div class="modal-overlay" id="modal-npc" style="display:none;align-items:center;justify-content:center">
-  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;width:100%;max-width:560px;margin:20px;max-height:90vh;overflow-y:auto">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;width:100%;max-width:620px;margin:16px;max-height:92vh;overflow-y:auto">
+
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-      <div id="npc-form-titulo" style="font-size:14px;font-weight:800">Criar NPC</div>
+      <div id="npc-form-titulo" style="font-size:15px;font-weight:800;letter-spacing:1px">Criar NPC</div>
       <button class="btn-icon" onclick="fecharFormNPC()">✕</button>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-      <div class="field" style="grid-column:span 2"><label>Nome *</label><input type="text" id="npc-f-nome" placeholder="Nome do NPC..."></div>
-      <div class="field">
-        <label>Pasta / Grupo <span style="color:var(--muted);font-weight:400">(nova ou existente)</span></label>
-        <input type="text" id="npc-f-pasta" placeholder="Ex: Guardiões" value="Geral" list="npc-pastas-list" autocomplete="off">
-        <datalist id="npc-pastas-list"></datalist>
+
+    <!-- IDENTIDADE -->
+    <div style="font-size:9px;font-weight:700;letter-spacing:2px;color:var(--red);text-transform:uppercase;margin-bottom:8px">Identidade</div>
+    <div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:12px;flex-wrap:wrap">
+      <!-- Avatar -->
+      <div style="display:flex;flex-direction:column;align-items:center;gap:5px">
+        <div id="npc-avatar-wrap" onclick="document.getElementById('npc-img-input').click()"
+          style="width:70px;height:70px;border-radius:50%;background:var(--surface2);border:2px solid var(--border);overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:26px;cursor:pointer;flex-shrink:0">
+          <span id="npc-avatar-emoji">👤</span>
+          <img id="npc-img-preview" style="display:none;width:100%;height:100%;object-fit:cover">
+        </div>
+        <input type="file" id="npc-img-input" accept="image/*" style="display:none" onchange="npcImgPreview(this)">
+        <span style="font-size:8px;color:var(--muted)">Clique p/ trocar</span>
       </div>
-      <div class="field"><label>Tipo</label>
-        <select id="npc-f-tipo">
-          <option value="inimigo">😈 Inimigo</option>
-          <option value="aliado">😇 Aliado</option>
-          <option value="neutro">😐 Neutro</option>
-          <option value="infectado">🧟 Infectado</option>
-          <option value="animal">🐺 Animal</option>
-        </select>
-      </div>
-      <div class="field"><label>Emoji (opcional)</label><input type="text" id="npc-f-emoji" placeholder="👤" maxlength="2" style="font-size:20px;text-align:center"></div>
-      <div class="field"><label>PV Máximo</label><input type="number" id="npc-f-pv" placeholder="10" min="1"></div>
-
-      <div style="grid-column:span 2;font-size:9px;font-weight:700;letter-spacing:2px;color:var(--red);text-transform:uppercase;margin-top:4px">Atributos</div>
-      <div class="field"><label>FOR</label><input type="number" id="npc-f-for" placeholder="0" min="-2" max="5"></div>
-      <div class="field"><label>RES</label><input type="number" id="npc-f-res" placeholder="0" min="-2" max="5"></div>
-      <div class="field"><label>COM</label><input type="number" id="npc-f-com" placeholder="0" min="-2" max="5"></div>
-      <div class="field"><label>SOC</label><input type="number" id="npc-f-soc" placeholder="0" min="-2" max="5"></div>
-      <div class="field"><label>CON</label><input type="number" id="npc-f-con" placeholder="0" min="-2" max="5"></div>
-      <div class="field"><label>AGI</label><input type="number" id="npc-f-agi" placeholder="0" min="-2" max="5"></div>
-
-      <div class="field" style="grid-column:span 2"><label>Habilidades (uma por linha)</label><textarea id="npc-f-hab" rows="3" placeholder="Ex: Enxame: 3+ atacam o mesmo alvo" class="textarea-bare"></textarea></div>
-      <div class="field" style="grid-column:span 2"><label>Fraqueza</label><input type="text" id="npc-f-fraqueza" placeholder="Ex: Fogo e explosivos..."></div>
-      <div class="field" style="grid-column:span 2"><label>Notas do Mestre</label><textarea id="npc-f-notas" rows="2" placeholder="Informações privadas, motivações, segredos..." class="textarea-bare"></textarea></div>
-
-      <div class="field" style="grid-column:span 2">
-        <label>Imagem (opcional)</label>
-        <input type="file" id="npc-img-input" accept="image/*" onchange="npcImgPreview(this)">
-        <img id="npc-img-preview" style="display:none;width:60px;height:60px;border-radius:50%;object-fit:cover;margin-top:6px">
+      <div style="flex:1;display:grid;grid-template-columns:1fr 1fr;gap:8px;min-width:200px">
+        <div class="field" style="grid-column:span 2"><label>Nome *</label><input type="text" id="npc-f-nome" placeholder="Nome do NPC..."></div>
+        <div class="field">
+          <label>Pasta / Grupo</label>
+          <input type="text" id="npc-f-pasta" placeholder="Ex: Guardiões" value="Geral" list="npc-pastas-list" autocomplete="off">
+          <datalist id="npc-pastas-list"></datalist>
+        </div>
+        <div class="field"><label>Tipo</label>
+          <select id="npc-f-tipo" onchange="npcAtualizarEmoji()">
+            <option value="inimigo">😈 Inimigo</option>
+            <option value="aliado">😇 Aliado</option>
+            <option value="neutro">😐 Neutro</option>
+            <option value="infectado">🧟 Infectado</option>
+            <option value="animal">🐺 Animal</option>
+          </select>
+        </div>
+        <div class="field"><label>Emoji personalizado</label><input type="text" id="npc-f-emoji" placeholder="Deixe vazio = automático" maxlength="2" style="font-size:18px;text-align:center" oninput="npcAtualizarEmoji()"></div>
       </div>
     </div>
-    <div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end">
+
+    <!-- ATRIBUTOS -->
+    <div style="font-size:9px;font-weight:700;letter-spacing:2px;color:var(--red);text-transform:uppercase;margin-bottom:8px">Atributos — distribua 15 pontos (máx 4)</div>
+    <div class="attr-grid" style="margin-bottom:10px">
+      <div class="attr-card">
+        <div class="attr-abbr">FOR</div><div class="attr-name">Força</div>
+        <div class="attr-inputs">
+          <input type="number" class="attr-val" id="npc-a-for" min="1" max="5" placeholder="0" oninput="npcCalcAttr()">
+          <input type="text" class="attr-mod" id="npc-m-for" readonly placeholder="±0">
+        </div>
+        <div class="attr-sub"><span>VALOR</span><span>MOD</span></div>
+      </div>
+      <div class="attr-card">
+        <div class="attr-abbr">RES</div><div class="attr-name">Resistência</div>
+        <div class="attr-inputs">
+          <input type="number" class="attr-val" id="npc-a-res" min="1" max="5" placeholder="0" oninput="npcCalcAttr()">
+          <input type="text" class="attr-mod" id="npc-m-res" readonly placeholder="±0">
+        </div>
+        <div class="attr-sub"><span>VALOR</span><span>MOD</span></div>
+      </div>
+      <div class="attr-card">
+        <div class="attr-abbr">COM</div><div class="attr-name">Combate</div>
+        <div class="attr-inputs">
+          <input type="number" class="attr-val" id="npc-a-com" min="1" max="5" placeholder="0" oninput="npcCalcAttr()">
+          <input type="text" class="attr-mod" id="npc-m-com" readonly placeholder="±0">
+        </div>
+        <div class="attr-sub"><span>VALOR</span><span>MOD</span></div>
+      </div>
+      <div class="attr-card">
+        <div class="attr-abbr">SOC</div><div class="attr-name">Social</div>
+        <div class="attr-inputs">
+          <input type="number" class="attr-val" id="npc-a-soc" min="1" max="5" placeholder="0" oninput="npcCalcAttr()">
+          <input type="text" class="attr-mod" id="npc-m-soc" readonly placeholder="±0">
+        </div>
+        <div class="attr-sub"><span>VALOR</span><span>MOD</span></div>
+      </div>
+      <div class="attr-card">
+        <div class="attr-abbr">CON</div><div class="attr-name">Conhecimento</div>
+        <div class="attr-inputs">
+          <input type="number" class="attr-val" id="npc-a-con" min="1" max="5" placeholder="0" oninput="npcCalcAttr()">
+          <input type="text" class="attr-mod" id="npc-m-con" readonly placeholder="±0">
+        </div>
+        <div class="attr-sub"><span>VALOR</span><span>MOD</span></div>
+      </div>
+      <div class="attr-card">
+        <div class="attr-abbr">AGI</div><div class="attr-name">Agilidade</div>
+        <div class="attr-inputs">
+          <input type="number" class="attr-val" id="npc-a-agi" min="1" max="5" placeholder="0" oninput="npcCalcAttr()">
+          <input type="text" class="attr-mod" id="npc-m-agi" readonly placeholder="±0">
+        </div>
+        <div class="attr-sub"><span>VALOR</span><span>MOD</span></div>
+      </div>
+    </div>
+
+    <!-- PV CALCULADO -->
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:10px;margin-bottom:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <div style="flex:1">
+        <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase">PV Máximo</div>
+        <div style="font-size:22px;font-weight:800;color:var(--red)" id="npc-pv-calc">4</div>
+        <div style="font-size:9px;color:var(--muted)" id="npc-pv-formula">RES (1) × 4 = 4</div>
+      </div>
+      <div style="flex:1">
+        <div class="field">
+          <label>PV Personalizado <span style="color:var(--muted);font-weight:400">(deixe 0 = usar RES×4)</span></label>
+          <input type="number" id="npc-f-pv" placeholder="0 = automático" min="0" oninput="npcCalcAttr()">
+        </div>
+      </div>
+    </div>
+
+    <!-- HABILIDADES -->
+    <div style="font-size:9px;font-weight:700;letter-spacing:2px;color:var(--red);text-transform:uppercase;margin-bottom:8px">Habilidades & Notas</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+      <div class="field"><label>Habilidades (uma por linha)</label><textarea id="npc-f-hab" rows="4" placeholder="Enxame: 3+ atacam o mesmo alvo&#10;Hesitação: para 1 round..." class="textarea-bare"></textarea></div>
+      <div class="field"><label>Notas do Mestre (privado)</label><textarea id="npc-f-notas" rows="4" placeholder="Motivações, segredos, táticas..." class="textarea-bare"></textarea></div>
+    </div>
+    <div class="field" style="margin-bottom:12px"><label>Fraqueza</label><input type="text" id="npc-f-fraqueza" placeholder="Ex: Fogo e explosivos. NUNCA facas."></div>
+
+    <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
       <button class="btn-ghost" onclick="fecharFormNPC()">Cancelar</button>
-      <button class="btn-primary" onclick="salvarNPC()" style="margin:0;width:auto;padding:10px 24px">Salvar NPC</button>
+      <button class="btn-primary" onclick="salvarNPC()" style="margin:0;width:auto;padding:10px 28px">💾 Salvar NPC</button>
     </div>
   </div>
 </div>
-
 <!-- Modal Token Custom -->
 <div class="modal-overlay" id="modal-token-custom" style="display:none;align-items:center;justify-content:center">
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;width:100%;max-width:360px;margin:20px">
