@@ -1319,16 +1319,16 @@ function salvarMapaDB() {
 }
 
 async function _salvarMapaDBNow(){
-  // Players podem salvar seus próprios tokens (posição + PV)
-  // Mestre salva tudo (grid, mapa, todos os tokens)
   try{
     if(isMaster){
+      const ts = new Date().toISOString();
+      window._lastMapaSave = ts;
       await db.from('mapa_estado').upsert({
         id:'sessao_atual',
         tokens:tokens.map(t=>({...t})),
         grid_size:gridSize, grid_visivel:gridVisivel,
         mapa_url:mapaUrl||null,
-        updated_at:new Date().toISOString()
+        updated_at:ts
       });
     } else {
       // Player: carrega estado atual e atualiza apenas seus tokens
@@ -1375,22 +1375,36 @@ async function carregarMapaDB(){
 let mapaRealtimeSub=null;
 function subscribeMapaRealtime(){
   if(mapaRealtimeSub) return;
+  console.log('subscribing to mapa-realtime...');
   mapaRealtimeSub=db.channel('mapa-realtime')
     .on('postgres_changes',{event:'UPDATE',schema:'public',table:'mapa_estado'},payload=>{
       const d=payload.new; if(!d) return;
-      const mapaMudou = d.mapa_url !== mapaUrl;
-      tokens=d.tokens||[]; gridSize=d.grid_size||60; gridVisivel=d.grid_visivel!==false;
-      if(d.mapa_url && mapaMudou){
+
+      // Mestre só processa se for mudança de CENA (mapa_url diferente)
+      // Para tokens normais, o mestre já atualizou localmente
+      if(isMaster){
+        const mapaMudouCena = d.mapa_url !== mapaUrl && d.updated_at !== window._lastMapaSave;
+        if(!mapaMudouCena) return; // ignora eco dos próprios saves
+      }
+
+      // Atualiza tokens e grid
+      tokens=d.tokens||[]; 
+      gridSize=d.grid_size||60; 
+      gridVisivel=d.grid_visivel!==false;
+
+      // Atualiza imagem só se mudou
+      if(d.mapa_url && d.mapa_url !== mapaUrl){
         mapaUrl=d.mapa_url;
         const img=new Image();
         img.onload=()=>{mapaImg=img; desenharMapa();};
+        img.onerror=()=>desenharMapa();
         img.src=d.mapa_url;
       } else if(!d.mapa_url && mapaImg){
         mapaImg=null; mapaUrl=null; desenharMapa();
       } else {
         desenharMapa();
       }
-    }).subscribe(status => console.log('mapa-realtime:', status));
+    }).subscribe();
 }
 
 async function adicionarPlayerSomenteCT(userId) {

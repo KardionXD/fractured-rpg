@@ -30,6 +30,9 @@ async function initSala() {
     renderPlayersParaCT();
   }
 
+  // Subscreve realtime do mapa ANTES de inicializar (garante que players recebam cenas)
+  if (typeof subscribeMapaRealtime === 'function') subscribeMapaRealtime();
+
   // Mapa
   canvas = null;
   initMapa();
