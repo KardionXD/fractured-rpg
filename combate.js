@@ -561,30 +561,33 @@ const tokenImgCache = {};
 let canvas, ctx;
 
 // ── INIT ─────────────────────────────────────────
+let _docListenersAdded = false;
+
 function initMapa() {
   canvas = document.getElementById('mapa-canvas');
   if (!canvas) return;
   ctx = canvas.getContext('2d');
 
-  // Tamanho inicial = container
   resizeMapCanvas();
 
-  // Mouse
+  // Canvas-specific listeners (safe to add each time - canvas is new each time)
   canvas.addEventListener('mousedown', onMDown);
-  // mousemove and mouseup on document so drag works outside canvas
-  document.addEventListener('mousemove', onMMove);
-  document.addEventListener('mouseup',   onMUp);
-  canvas.addEventListener('wheel',      onWheel, { passive: false });
-
-  // Touch - prevent all default behaviors
-  canvas.addEventListener('touchstart',   onTStart,     { passive: false });
-  canvas.addEventListener('touchmove',    onTMove,      { passive: false });
-  canvas.addEventListener('touchend',     onTEnd,       { passive: false });
-  canvas.addEventListener('touchcancel',  onTEnd,       { passive: false });
-  canvas.addEventListener('contextmenu',  e => e.preventDefault());
-  canvas.style.webkitUserSelect  = 'none';
-  canvas.style.userSelect        = 'none';
+  canvas.addEventListener('wheel',     onWheel, { passive: false });
+  canvas.addEventListener('touchstart',  onTStart, { passive: false });
+  canvas.addEventListener('touchmove',   onTMove,  { passive: false });
+  canvas.addEventListener('touchend',    onTEnd,   { passive: false });
+  canvas.addEventListener('touchcancel', onTEnd,   { passive: false });
+  canvas.addEventListener('contextmenu', e => e.preventDefault());
+  canvas.style.webkitUserSelect   = 'none';
+  canvas.style.userSelect         = 'none';
   canvas.style.webkitTouchCallout = 'none';
+
+  // Document listeners only added ONCE - they persist across canvas resets
+  if (!_docListenersAdded) {
+    document.addEventListener('mousemove', onMMove);
+    document.addEventListener('mouseup',   onMUp);
+    _docListenersAdded = true;
+  }
 
   carregarMapaDB();
 }
@@ -640,11 +643,11 @@ function snapGrid(v) {
   return Math.round(v / gridSize) * gridSize;
 }
 
-// Snappa o token inteiro ao grid (considera posição top-left)
+// Snappa o token ao grid - usa floor para alinhar ao canto superior esquerdo da célula
 function snapTokenToGrid(tok) {
   if (!snapToGrid) return;
-  tok.x = Math.round(tok.x / gridSize) * gridSize;
-  tok.y = Math.round(tok.y / gridSize) * gridSize;
+  tok.x = Math.floor(Math.round(tok.x) / gridSize) * gridSize;
+  tok.y = Math.floor(Math.round(tok.y) / gridSize) * gridSize;
 }
 
 // Token em posição mundo?
@@ -1142,7 +1145,7 @@ function adicionarTokenMapa(inimigo) {
   const cy = (canvas.height / 2 - mapaOffY) / mapaZoom;
   tokens.push({
     id, nome: inimigo.nome, emoji: inimigo.emoji, tipo: inimigo.tipo,
-    x: Math.round((cx - gridSize/2) / gridSize) * gridSize, y: Math.round((cy - gridSize/2) / gridSize) * gridSize,
+    x: Math.floor(cx / gridSize) * gridSize, y: Math.floor(cy / gridSize) * gridSize,
     pvMax: inimigo.pv, pvAtual: inimigo.pv,
     habilidades: inimigo.habilidades, isPC: false,
   });
@@ -1257,7 +1260,7 @@ async function criarTokenCustom() {
   const cy = (canvas.height / 2 - mapaOffY) / mapaZoom;
   tokens.push({
     id, nome, emoji, tipo, imgUrl,
-    x: Math.round((cx - gridSize/2) / gridSize) * gridSize, y: Math.round((cy - gridSize/2) / gridSize) * gridSize,
+    x: Math.floor(cx / gridSize) * gridSize, y: Math.floor(cy / gridSize) * gridSize,
     pvMax: pvMax || undefined, pvAtual: pvMax || undefined, isPC: false,
   });
   tokenCustomImg = null;
