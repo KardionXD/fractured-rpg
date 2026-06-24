@@ -484,17 +484,22 @@ async function renderPlayersParaCT() {
   const { data: profiles } = await db.from('profiles').select('id,username').eq('is_master',false);
   if (!profiles?.length) { lista.innerHTML='<div style="font-size:10px;color:var(--muted);padding:4px">Sem players</div>'; return; }
   const ids = profiles.map(p=>p.id);
-  const { data: fichas } = await db.from('fichas').select('user_id,nome,attr_res,pv_atual').in('user_id',ids);
+  // Busca foto_url também
+  const { data: fichas } = await db.from('fichas').select('user_id,nome,attr_res,pv_atual,foto_url').in('user_id',ids);
   lista.innerHTML='';
   profiles.forEach(p => {
     const f = fichas?.find(x=>x.user_id===p.id);
     if (!f) return;
+    const pvMax = Math.max((f.attr_res||0)*4,4);
+    const avatar = f.foto_url
+      ? `<img src="${f.foto_url}" style="width:34px;height:34px;border-radius:50%;object-fit:cover;flex-shrink:0;border:2px solid var(--border)">`
+      : `<div style="width:34px;height:34px;border-radius:50%;background:var(--surface2);border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">🧑</div>`;
     const div=document.createElement('div'); div.className='ct-inimigo-item';
     div.innerHTML=`
-      <span style="font-size:18px">🧑</span>
+      ${avatar}
       <div class="ct-inimigo-info">
         <div class="ct-inimigo-nome">${f.nome||p.username}</div>
-        <div class="ct-inimigo-stats">PV ${f.pv_atual||0}/${Math.max((f.attr_res||0)*4,4)}</div>
+        <div class="ct-inimigo-stats">PV ${f.pv_atual||0}/${pvMax}</div>
       </div>
       <div style="display:flex;gap:3px;flex-shrink:0">
         <button class="ct-add-btn" onclick="adicionarPlayerSomenteCT('${p.id}')" title="Só no Combat Tracker">+CT</button>
