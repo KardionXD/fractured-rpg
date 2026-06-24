@@ -75,6 +75,11 @@ function mapaInit() {
   if (!MAP._docBound) {
     document.addEventListener('mousemove', mapaMouseMove);
     document.addEventListener('mouseup',   mapaMouseUp);
+    // Se o mouse sair da janela, cancela drag sem salvar posição errada
+    window.addEventListener('blur', mapaResetDrag);
+    document.addEventListener('mouseleave', e => {
+      if (e.target === document.documentElement) mapaResetDrag();
+    });
     MAP._docBound = true;
   }
 
@@ -82,7 +87,7 @@ function mapaInit() {
   cvs.addEventListener('touchstart',  mapaTouchStart,  { passive: false });
   cvs.addEventListener('touchmove',   mapaTouchMove,   { passive: false });
   cvs.addEventListener('touchend',    mapaTouchEnd,    { passive: false });
-  cvs.addEventListener('touchcancel', mapaTouchEnd,    { passive: false });
+  cvs.addEventListener('touchcancel', e => { e.preventDefault(); mapaResetDrag(); }, { passive: false });
 
   // Carrega estado do banco
   mapaCarregarDB();
@@ -341,6 +346,24 @@ function podeMoverToken(t) {
   return false;
 }
 
+// Reset drag state sem salvar (cancela drag se mouse sair da janela)
+function mapaResetDrag() {
+  if (MAP.drag) {
+    // Volta token para posição original
+    if (MAP.drag.origX !== undefined) {
+      MAP.drag.tok.x = MAP.drag.origX;
+      MAP.drag.tok.y = MAP.drag.origY;
+    }
+    MAP.dragMulti.forEach(d => {
+      if (d.origX !== undefined) { d.tok.x = d.origX; d.tok.y = d.origY; }
+    });
+    MAP.drag = null; MAP.dragMulti = [];
+    MAP.trailTok = null; MAP.trailOrigin = null;
+    MAP.pan = null;
+    mapaDraw();
+  }
+}
+
 // ── MOUSE ────────────────────────────────────────
 function mapaMouseDown(e) {
   e.preventDefault();
@@ -519,11 +542,11 @@ function mapaTouchStart(e) {
   const tok = mapaTokenAt(w.x, w.y);
   if (tok && podeMoverToken(tok)) {
     if (MAP.selMulti.length > 1 && MAP.selMulti.some(s => s.id === tok.id)) {
-      MAP.drag = { tok, ox: w.x-tok.x, oy: w.y-tok.y };
-      MAP.dragMulti = MAP.selMulti.map(s => ({ tok: s, ox: w.x-s.x, oy: w.y-s.y }));
+      MAP.drag = { tok, ox: w.x-tok.x, oy: w.y-tok.y, origX: tok.x, origY: tok.y };
+      MAP.dragMulti = MAP.selMulti.map(s => ({ tok: s, ox: w.x-s.x, oy: w.y-s.y, origX: s.x, origY: s.y }));
     } else {
       MAP.selMulti = [];
-      MAP.drag = { tok, ox: w.x-tok.x, oy: w.y-tok.y };
+      MAP.drag = { tok, ox: w.x-tok.x, oy: w.y-tok.y, origX: tok.x, origY: tok.y };
       MAP.dragMulti = [];
     }
     MAP.sel = tok;
@@ -975,3 +998,8 @@ async function criarTokenCustom() {
   fecharCriarTokenCustom();
   toast('Token criado!', 'ok');
 }
+
+// Cancela drag se trocar de aba
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) mapaResetDrag();
+});
