@@ -650,9 +650,17 @@ function mapaEsconderInfo() {
 
 // ── OPERAÇÕES TOKENS ─────────────────────────────
 function mapaRemoverToken(id) {
+  // Remove imediatamente sem confirmação de delay
+  const before = MAP.tokens.length;
   MAP.tokens = MAP.tokens.filter(t => t.id !== id);
-  MAP.sel = null; MAP.selMulti = [];
-  mapaEsconderInfo(); mapaDraw(); mapaSalvarDB();
+  if (MAP.tokens.length === before) return; // não encontrou
+  if (MAP.sel?.id === id) MAP.sel = null;
+  MAP.selMulti = MAP.selMulti.filter(t => t.id !== id);
+  mapaEsconderInfo();
+  mapaDraw();
+  // Salva imediatamente (sem debounce)
+  clearTimeout(MAP.saveTimer);
+  _mapaSalvarNow();
 }
 
 function mapaAlterarPV(id, delta) {
