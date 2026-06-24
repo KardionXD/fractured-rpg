@@ -568,18 +568,25 @@ function rolarDado(faces, qtd = 1) {
 }
 
 function rolarFormula() {
-  const modAtrib = parseInt(document.getElementById('roll-atrib').value) || 0;
-  const modPer   = parseInt(document.getElementById('roll-pericia').value) || 0;
-  const modSit   = parseInt(document.getElementById('roll-situacao').value) || 0;
-  const dif      = parseInt(document.getElementById('roll-dif').value) || 11;
+  const modAtrib  = parseInt(document.getElementById('roll-atrib')?.value)   || 0;
+  const modPer    = parseInt(document.getElementById('roll-pericia')?.value)  || 0;
+  const modSit    = parseInt(document.getElementById('roll-situacao')?.value) || 0;
+  const dif       = parseInt(document.getElementById('roll-dif')?.value)      || 11;
+  const modCustom = parseInt(document.getElementById('roll-bonus-custom')?.value) || 0;
+
+  // Ajudas: cada ajudante dá +2 (máx 3 ajudantes = +6)
+  const ajudas   = parseInt(document.getElementById('roll-ajudas')?.value) || 0;
+  const modAjuda = Math.min(3, ajudas) * 2;
 
   const dado  = Math.floor(Math.random() * 20) + 1;
-  const bonus = modAtrib + modPer + modSit;
+  const bonus = modAtrib + modPer + modSit + modAjuda + modCustom;
   const total = dado + bonus;
 
-  const atribText = document.getElementById('roll-atrib').selectedOptions[0]?.text || '';
-  const perText   = document.getElementById('roll-pericia').selectedOptions[0]?.text || '';
-  const sitText   = document.getElementById('roll-situacao').selectedOptions[0]?.text || '';
+  const atribText  = document.getElementById('roll-atrib')?.selectedOptions[0]?.text || '';
+  const perText    = document.getElementById('roll-pericia')?.selectedOptions[0]?.text || '';
+  const sitText    = document.getElementById('roll-situacao')?.selectedOptions[0]?.text || '';
+  const ajudaText  = ajudas > 0 ? `${ajudas} ajudante(s) (+${modAjuda})` : '';
+  const customText = modCustom !== 0 ? `Bônus custom (${modCustom>0?'+':''}${modCustom})` : '';
 
   publicarSala('roll', {
     dado: 20,
@@ -587,7 +594,11 @@ function rolarFormula() {
     bonus,
     total,
     dif,
-    label: [atribText, perText !== 'Sem perícia (+0)' ? perText : '', sitText !== 'Normal' ? sitText : ''].filter(Boolean).join(' | ')
+    label: [atribText,
+      perText !== 'Sem perícia (+0)' ? perText : '',
+      sitText !== 'Normal' ? sitText : '',
+      ajudaText, customText
+    ].filter(Boolean).join(' · ')
   });
 }
 

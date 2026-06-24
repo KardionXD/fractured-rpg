@@ -457,6 +457,24 @@ function buildDadosPanel(c) {
             <option value="8">8 — Fácil</option><option value="11" selected>11 — Moderado</option>
             <option value="14">14 — Difícil</option><option value="17">17 — Severo</option><option value="20">20 — Extremo</option>
           </select>
+
+          <label class="formula-label">Ajudantes <span style="color:var(--muted);font-size:9px">(+2 cada, máx 3)</span></label>
+          <div style="display:flex;align-items:center;gap:6px">
+            <button class="ct-pv-btn" onclick="let e=document.getElementById('roll-ajudas');e.value=Math.max(0,parseInt(e.value||0)-1)">−</button>
+            <input type="number" id="roll-ajudas" value="0" min="0" max="3"
+              style="width:44px;text-align:center;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:4px;font-size:13px;font-weight:700">
+            <button class="ct-pv-btn" onclick="let e=document.getElementById('roll-ajudas');e.value=Math.min(3,parseInt(e.value||0)+1)">+</button>
+            <span style="font-size:10px;color:var(--muted)" id="ajuda-label">0 ajudante(s)</span>
+          </div>
+
+          <label class="formula-label">Bônus / Penalidade custom</label>
+          <div style="display:flex;align-items:center;gap:6px">
+            <button class="ct-pv-btn" onclick="let e=document.getElementById('roll-bonus-custom');e.value=parseInt(e.value||0)-1">−</button>
+            <input type="number" id="roll-bonus-custom" value="0"
+              style="width:54px;text-align:center;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:4px;font-size:13px;font-weight:700">
+            <button class="ct-pv-btn" onclick="let e=document.getElementById('roll-bonus-custom');e.value=parseInt(e.value||0)+1">+</button>
+            <span style="font-size:10px;color:var(--muted)">livre</span>
+          </div>
         </div>
         <button class="btn-primary" onclick="rolarFormula()" style="margin-top:8px">🎲 Rolar Teste</button>
       </div>
