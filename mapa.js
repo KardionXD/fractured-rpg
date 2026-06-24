@@ -899,6 +899,9 @@ function mapaSubscribeRealtime() {
       const d = payload.new; if (!d) return;
       console.log('mapa realtime: UPDATE recebido, tokens:', d.tokens?.length);
 
+      // Ignora realtime enquanto estiver arrastando um token
+      if (MAP.drag) return;
+
       MAP.tokens      = d.tokens || [];
       MAP.gridSize    = d.grid_size || 60;
       MAP.gridVisible = d.grid_visivel !== false;
