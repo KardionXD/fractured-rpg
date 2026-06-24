@@ -1442,17 +1442,9 @@ function subscribeMapaRealtime(){
       gridSize=d.grid_size||60;
       gridVisivel=d.grid_visivel!==false;
 
-      // Atualiza imagem só se URL mudou E é uma URL válida (não base64)
-      if(d.mapa_url && d.mapa_url !== mapaUrl && !d.mapa_url.startsWith('data:')){
-        mapaUrl=d.mapa_url;
-        const img=new Image();
-        img.onload=()=>{mapaImg=img; desenharMapa();};
-        img.onerror=()=>desenharMapa();
-        img.src=d.mapa_url;
-      } else {
-        // Só redesenha tokens, não mexe na imagem de fundo
-        desenharMapa();
-      }
+      // Atualiza tokens e redesenha
+      // mapa_url pode ser undefined se não estiver no replica identity - ignora
+      desenharMapa();
     }).subscribe(status => { console.log('mapa-realtime status:', status); });
 }
 

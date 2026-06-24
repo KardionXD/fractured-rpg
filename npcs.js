@@ -465,11 +465,16 @@ async function ativarCena(id) {
     else console.log('ativarCena: mapa_estado atualizado com sucesso');
   } catch(e) { console.error('ativarCena exception:', e); }
 
-  // 3. Atualiza flag da cena no banco (em paralelo, não bloqueia)
-  db.from('cenas_mapa').update({ ativa: false }).eq('master_id', currentUser.id)
-    .then(() => db.from('cenas_mapa').update({ ativa: true }).eq('id', id))
-    .then(() => carregarCenas())
-    .catch(e => console.error(e));
+  // 3. Atualiza flag visual da cena (não crítico, ignora erro)
+  try {
+    await db.from('cenas_mapa')
+      .update({ ativa: false })
+      .eq('master_id', currentUser.id);
+    await db.from('cenas_mapa')
+      .update({ ativa: true })
+      .eq('id', id);
+  } catch(e) {}
+  carregarCenas();
 }
 
 function previewCena(cena) {
