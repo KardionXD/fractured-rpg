@@ -487,28 +487,33 @@ async function renderPlayersParaCT() {
   // Busca foto_url também
   const { data: fichas } = await db.from('fichas').select('user_id,nome,attr_res,pv_atual,foto_url').in('user_id',ids);
   lista.innerHTML='';
+  let count = 0;
   profiles.forEach(p => {
     const f = fichas?.find(x=>x.user_id===p.id);
-    if (!f) return;
-    const pvMax = Math.max((f.attr_res||0)*4,4);
-    const avatar = f.foto_url
+    const pvMax = f ? Math.max((f.attr_res||0)*4,4) : 0;
+    const nome  = f?.nome || p.username;
+    const avatar = f?.foto_url
       ? `<img src="${f.foto_url}" style="width:34px;height:34px;border-radius:50%;object-fit:cover;flex-shrink:0;border:2px solid var(--border)">`
       : `<div style="width:34px;height:34px;border-radius:50%;background:var(--surface2);border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">🧑</div>`;
     const div=document.createElement('div'); div.className='ct-inimigo-item';
     div.innerHTML=`
       ${avatar}
       <div class="ct-inimigo-info">
-        <div class="ct-inimigo-nome">${f.nome||p.username}</div>
-        <div class="ct-inimigo-stats">PV ${f.pv_atual||0}/${pvMax}</div>
+        <div class="ct-inimigo-nome">${nome}</div>
+        <div class="ct-inimigo-stats">${f ? `PV ${f.pv_atual||0}/${pvMax}` : 'Sem ficha'}</div>
       </div>
       <div style="display:flex;gap:3px;flex-shrink:0">
-        <button class="ct-add-btn" onclick="adicionarPlayerSomenteCT('${p.id}')" title="Só no Combat Tracker">+CT</button>
+        ${f ? `
+        <button class="ct-add-btn" onclick="adicionarPlayerSomenteCT('${p.id}')" title="Só no CT">+CT</button>
         <button class="ct-add-btn ct-add-mapa" onclick="adicionarPlayerSomenteMapa('${p.id}')" title="Só no Mapa">+🗺</button>
         <button class="ct-add-btn" onclick="adicionarPlayerCT('${p.id}')" title="CT e Mapa" style="font-size:9px">+Ambos</button>
+        ` : `<span style="font-size:9px;color:var(--muted)">sem ficha</span>`}
       </div>
     `;
     lista.appendChild(div);
+    count++;
   });
+  if (count === 0) lista.innerHTML='<div style="font-size:10px;color:var(--muted);padding:8px">Sem players registrados</div>';
 }
 
 // ══════════════════════════════════════════════════
