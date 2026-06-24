@@ -494,16 +494,16 @@ function buildMapaPanel(c) {
   c.style.padding = '0';
   // Build toolbar HTML - avoid isMaster inside template literals
   const masterBtns = isMaster
-    ? `<button class="btn-ghost" onclick="importarMapaImg()" style="font-size:10px;padding:3px 7px">📁 Mapa</button>
+    ? `<button class="btn-ghost" onclick="mapaImportarImagem()" style="font-size:10px;padding:3px 7px">📁 Mapa</button>
        <button class="btn-ghost" onclick="abrirModalCenas()" style="font-size:10px;padding:3px 7px">🎬 Cenas</button>
        <button class="btn-ghost" onclick="abrirCriarTokenCustom()" style="font-size:10px;padding:3px 7px">⭐ Token</button>
-       <button class="btn-ghost" onclick="limparTokens()" style="font-size:10px;padding:3px 7px;color:var(--red);border-color:var(--red-dim)">🗑</button>`
+       <button class="btn-ghost" onclick="mapaLimpar()" style="font-size:10px;padding:3px 7px;color:var(--red);border-color:var(--red-dim)">🗑</button>`
     : '';
 
   c.innerHTML = `
     <div style="display:flex;flex-direction:column;height:100%;min-height:0">
       <div class="mapa-toolbar" style="flex-shrink:0;padding:5px 8px;gap:5px;flex-wrap:wrap">
-        <button class="btn-ghost" id="btn-grid" onclick="toggleGrid()" style="font-size:10px;padding:3px 7px">⬛ Grid</button>
+        <button class="btn-ghost" id="btn-grid" onclick="mapaToggleGrid()" style="font-size:10px;padding:3px 7px">⬛ Grid</button>
         <div style="display:flex;gap:2px;align-items:center">
           <button id="btn-regua-linha"     class="btn-ghost" onclick="toggleRegua('linha')"     style="font-size:10px;padding:3px 6px" title="Régua Linha">📏</button>
           <button id="btn-regua-circulo"   class="btn-ghost" onclick="toggleRegua('circulo')"   style="font-size:10px;padding:3px 6px" title="Régua Círculo">⭕</button>
@@ -534,7 +534,7 @@ function buildMapaPanel(c) {
         <div id="token-info" style="display:none;position:absolute;bottom:0;left:0;right:0;padding:8px;background:rgba(16,16,26,0.95);border-top:1px solid var(--border);max-height:130px;overflow-y:auto;z-index:10" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()"></div>
       </div>
     </div>`;
-  setTimeout(() => { canvas = null; initMapa(); }, 80);
+  setTimeout(() => { MAP.canvas = null; mapaInit(); }, 80);
 }
 
 function buildPlayersPanel(c) {
