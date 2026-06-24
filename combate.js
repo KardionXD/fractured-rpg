@@ -291,7 +291,7 @@ async function adicionarPlayerCT(userId) {
     tokens.push({
       id, nome: ficha.nome || profile.username,
       emoji: '🧑', imgUrl: ficha.foto_url || null,
-      tipo: 'pc', x: snapGrid(gridSize), y: snapGrid(gridSize),
+      tipo: 'pc',
       pvMax, pvAtual: ficha.pv_atual || pvMax,
       isPC: true, userId,
     });
@@ -542,19 +542,9 @@ async function adicionarPlayerSomenteMapa(userId) {
   if (!ficha) return toast('Esse player não tem ficha ainda.', 'err');
   const pvMax = Math.max((ficha.attr_res||0)*4, 4);
   const id = 'pc_'+userId;
-  if (!tokens.find(t => t.id === id)) {
-    tokens.push({
-      id, nome: ficha.nome || profile.username,
-      emoji: '🧑', imgUrl: ficha.foto_url || null,
-      tipo: 'pc', x: snapGrid(gridSize*2), y: snapGrid(gridSize*2),
-      pvMax, pvAtual: ficha.pv_atual || pvMax,
-      isPC: true, userId,
-    });
-    desenharMapa(); salvarMapaDB();
-    toast((ficha.nome||profile.username)+' adicionado ao mapa!', 'ok');
-  } else {
-    toast('Player já está no mapa.', 'err');
-  }
+  if (MAP.tokens.find(t => t.id === id)) return toast('Player já está no mapa.', 'err');
+  mapaAdicionarToken({ id, nome: ficha.nome || profile.username, emoji: '🧑', imgUrl: ficha.foto_url || null, tipo: 'pc', pvMax, pvAtual: ficha.pv_atual || pvMax, isPC: true, userId });
+  toast((ficha.nome||profile.username)+' adicionado ao mapa!', 'ok');
 }
 
 // Realinha todos os tokens ao grid atual (útil ao mudar tamanho do grid)
