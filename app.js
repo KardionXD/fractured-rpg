@@ -1041,8 +1041,17 @@ async function uploadFotoPersonagem(input) {
   const url = data.publicUrl;
   aplicarFotoPersonagem(url);
   if (fichaId) await db.from('fichas').update({ foto_url: url }).eq('id', fichaId);
-  const t = tokens.find(x => x.isPC && x.userId === currentUser.id);
-  if (t) { t.imgUrl = url; if(canvas)desenharMapa(); salvarMapaDB(); }
+  // Atualiza token no mapa se existir
+  const t = MAP?.tokens?.find(x => x.isPC && x.userId === currentUser.id);
+  if (t) {
+    delete MAP.imgCache?.[t.imgUrl]; // limpa cache da imagem antiga
+    t.imgUrl = url;
+    if (typeof mapaDraw === 'function') mapaDraw();
+    if (typeof mapaSalvarDB === 'function') mapaSalvarDB();
+  }
+  // Atualiza também no CT
+  const ctok = combatentes?.find(x => x.isPC && x.userId === currentUser.id);
+  if (ctok) { ctok.imgUrl = url; if (typeof renderCT === 'function') renderCT(); }
   toast('Foto atualizada!', 'ok');
 }
 

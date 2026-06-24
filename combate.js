@@ -287,15 +287,13 @@ async function adicionarPlayerCT(userId) {
       condicoes: [], controlador: profile.username,
     });
   }
-  if (!tokens.find(t => t.id === id)) {
-    tokens.push({
+  if (!MAP.tokens.find(t => t.id === id)) {
+    mapaAdicionarToken({
       id, nome: ficha.nome || profile.username,
       emoji: '🧑', imgUrl: ficha.foto_url || null,
-      tipo: 'pc',
-      pvMax, pvAtual: ficha.pv_atual || pvMax,
+      tipo: 'pc', pvMax, pvAtual: ficha.pv_atual || pvMax,
       isPC: true, userId,
     });
-    desenharMapa(); salvarMapaDB();
   }
   renderCT();
   toast(`${ficha.nome || profile.username} adicionado!`, 'ok');

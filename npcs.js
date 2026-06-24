@@ -305,6 +305,7 @@ function npcParaCombatente(npc) {
     id:          'npc_' + npc.id + '_' + Date.now(),
     nome:        npc.nome,
     emoji:       npc.emoji || tipoEmoji(npc.tipo),
+    imgUrl:      npc.img_url || null,
     tag:         '',
     pvMax:       npc.pv_max,
     pvAtual:     npc.pv_max,
@@ -320,10 +321,17 @@ function npcParaCombatente(npc) {
 
 function adicionarNPCaoMapa(id) {
   const npc = npcList.find(n => n.id === id); if (!npc) return;
-  if (typeof tokens === 'undefined') return toast('Abra o Mapa primeiro!', 'err');
-  tokens.push(npcParaToken(npc));
-  if (typeof desenharMapa === 'function') desenharMapa();
-  if (typeof salvarMapaDB === 'function') salvarMapaDB();
+  if (typeof mapaAdicionarToken !== 'function') return toast('Abra o Mapa primeiro!', 'err');
+  mapaAdicionarToken({
+    id:     'npc_' + npc.id + '_' + Date.now(),
+    nome:   npc.nome,
+    emoji:  npc.emoji || tipoEmoji(npc.tipo),
+    tipo:   npc.tipo === 'aliado' ? 'pc' : npc.tipo === 'infectado' ? 'infectado' : npc.tipo === 'animal' ? 'animal' : 'humano',
+    imgUrl: npc.img_url || null,
+    pvMax:  npc.pv_max,
+    pvAtual: npc.pv_max,
+    isPC:   false,
+  });
   toast(`${npc.nome} adicionado ao mapa!`, 'ok');
 }
 
