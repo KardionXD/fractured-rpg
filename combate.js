@@ -485,7 +485,7 @@ async function renderPlayersParaCT() {
   console.log('profiles:', profiles, 'error:', pe);
   if (!profiles?.length) { lista.innerHTML='<div style="font-size:10px;color:var(--muted);padding:4px">Sem players</div>'; return; }
   // Busca todas as fichas e filtra localmente (evita erro 400 com muitos IDs no .in())
-  const { data: fichas, error: fe } = await db.from('fichas').select('user_id,nome,attr_res,pv_atual,foto_url');
+  const { data: fichas, error: fe } = await db.from('fichas').select('*');
   console.log('fichas:', fichas?.length, 'error:', fe);
   lista.innerHTML='';
   let count = 0;
