@@ -718,26 +718,38 @@ function mapaLimpar() {
 }
 
 // ── IMAGEM DE FUNDO ──────────────────────────────
-function mapaImportarImagem() {
+async function mapaImportarImagem() {
   if (!isMaster) return;
   const input = document.createElement('input');
   input.type = 'file'; input.accept = 'image/*';
-  input.onchange = e => {
+  input.onchange = async e => {
     const file = e.target.files[0]; if (!file) return;
+    toast('Enviando imagem...', 'ok');
+
+    // Mostra preview local imediato
     const reader = new FileReader();
     reader.onload = ev => {
       const img = new Image();
       img.onload = () => {
-        MAP.img    = img;
-        MAP.imgUrl = ev.target.result; // base64 local, não salva no DB
+        MAP.img = img;
+        MAP.imgUrl = null; // ainda sem URL
         mapaResetZoom();
         mapaDraw();
-        // Salva só os tokens (sem URL base64)
-        mapaSalvarDB();
       };
       img.src = ev.target.result;
     };
     reader.readAsDataURL(file);
+
+    // Upload para Supabase Storage
+    const ext  = file.name.split('.').pop();
+    const path = `mapas/${currentUser.id}/mapa_${Date.now()}.${ext}`;
+    const { error } = await db.storage.from('tokens').upload(path, file, { upsert: true });
+    if (error) { toast('Erro no upload: ' + error.message, 'err'); return; }
+
+    const { data } = db.storage.from('tokens').getPublicUrl(path);
+    MAP.imgUrl = data.publicUrl;
+    toast('Mapa carregado!', 'ok');
+    mapaSalvarDB();
   };
   input.click();
 }
@@ -910,3 +922,48 @@ function desenharMapa() { mapaDraw(); }
 function salvarMapaDB() { mapaSalvarDB(); }
 function initMapa()     { mapaInit(); }
 function subscribeMapaRealtime() { mapaSubscribeRealtime(); }
+
+// ── TOKEN CUSTOMIZADO ─────────────────────────────
+let _tokenCustomFile = null;
+
+function abrirCriarTokenCustom() {
+  if (!isMaster) return;
+  const m = document.getElementById('modal-token-custom');
+  if (m) m.style.display = 'flex';
+}
+function fecharCriarTokenCustom() {
+  const m = document.getElementById('modal-token-custom');
+  if (m) m.style.display = 'none';
+  _tokenCustomFile = null;
+}
+function tokenCustomImgPreview(input) {
+  const file = input.files[0]; if (!file) return;
+  _tokenCustomFile = file;
+  const r = new FileReader();
+  r.onload = ev => {
+    const p = document.getElementById('token-custom-preview');
+    if (p) { p.src = ev.target.result; p.style.display = 'block'; }
+  };
+  r.readAsDataURL(file);
+}
+async function criarTokenCustom() {
+  const nome  = document.getElementById('tc-nome')?.value.trim() || 'Token';
+  const pvMax = parseInt(document.getElementById('tc-pv')?.value) || 0;
+  const tipo  = document.getElementById('tc-tipo')?.value || 'custom';
+  const emoji = document.getElementById('tc-emoji')?.value || '⭐';
+  let imgUrl  = null;
+
+  if (_tokenCustomFile) {
+    const ext  = _tokenCustomFile.name.split('.').pop();
+    const path = `${currentUser.id}/custom_${Date.now()}.${ext}`;
+    const { error } = await db.storage.from('tokens').upload(path, _tokenCustomFile, { upsert: true });
+    if (!error) {
+      const { data } = db.storage.from('tokens').getPublicUrl(path);
+      imgUrl = data.publicUrl;
+    }
+  }
+
+  mapaAdicionarToken({ nome, emoji, tipo, imgUrl, pvMax: pvMax||undefined, pvAtual: pvMax||undefined, isPC: false });
+  fecharCriarTokenCustom();
+  toast('Token criado!', 'ok');
+}
