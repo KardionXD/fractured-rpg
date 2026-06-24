@@ -825,10 +825,11 @@ function toggleRegua(tipo) { mapaToggleRuler(tipo || 'linha'); }
 // ── PERSISTÊNCIA ─────────────────────────────────
 function mapaSalvarDB() {
   clearTimeout(MAP.saveTimer);
-  MAP.saveTimer = setTimeout(_mapaSalvarNow, 500);
+  MAP.saveTimer = setTimeout(_mapaSalvarNow, 1200);
 }
 
 async function _mapaSalvarNow() {
+  if (MAP.drag) { mapaSalvarDB(); return; } // retry after drag ends
   if (!isMaster) {
     // Player: salva apenas seus próprios tokens
     try {
@@ -870,7 +871,7 @@ async function mapaCarregarDB() {
   try {
     const { data } = await db.from('mapa_estado').select('*').eq('id','sessao_atual').single();
     if (data) {
-      MAP.tokens      = data.tokens || [];
+      if (!MAP.drag) MAP.tokens = data.tokens || [];
       MAP.gridSize    = data.grid_size || 60;
       MAP.gridVisible = data.grid_visivel !== false;
       if (data.mapa_url && data.mapa_url.startsWith('https://')) {
@@ -923,7 +924,7 @@ function mapaSubscribeRealtime() {
 
 // Expõe para uso externo (ativarCena, etc.)
 function mapaAplicarCena(cena) {
-  MAP.tokens   = cena.tokens || [];
+  if (!MAP.drag) MAP.tokens = cena.tokens || [];
   MAP.gridSize = cena.grid_size || 60;
 
   if (cena.mapa_url && cena.mapa_url.startsWith('https://') && cena.mapa_url !== MAP.imgUrl) {
