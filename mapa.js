@@ -76,10 +76,7 @@ function mapaInit() {
     document.addEventListener('mousemove', mapaMouseMove);
     document.addEventListener('mouseup',   mapaMouseUp);
     // Se o mouse sair da janela, cancela drag sem salvar posição errada
-    window.addEventListener('blur', mapaResetDrag);
-    document.addEventListener('mouseleave', e => {
-      if (e.target === document.documentElement) mapaResetDrag();
-    });
+    // pan/drag reset only on tab switch and touchcancel
     MAP._docBound = true;
   }
 
@@ -348,19 +345,14 @@ function podeMoverToken(t) {
 
 // Reset drag state sem salvar (cancela drag se mouse sair da janela)
 function mapaResetDrag() {
+  // Só cancela drag se trocar de aba (visibilitychange)
+  // Não faz rollback para evitar o token voltar sozinho
   if (MAP.drag) {
-    // Volta token para posição original
-    if (MAP.drag.origX !== undefined) {
-      MAP.drag.tok.x = MAP.drag.origX;
-      MAP.drag.tok.y = MAP.drag.origY;
-    }
-    MAP.dragMulti.forEach(d => {
-      if (d.origX !== undefined) { d.tok.x = d.origX; d.tok.y = d.origY; }
-    });
     MAP.drag = null; MAP.dragMulti = [];
     MAP.trailTok = null; MAP.trailOrigin = null;
-    MAP.pan = null;
+    MAP.pan = null; MAP.selRect = null;
     mapaDraw();
+    mapaSalvarDB(); // salva posição atual
   }
 }
 
@@ -406,23 +398,24 @@ function mapaMouseDown(e) {
     mapaDraw();
   } else {
     // Clique em área vazia
-    if (MAP.selMulti.length > 0 && !e.shiftKey) {
-      // Inicia retângulo de seleção
-      MAP.selMulti = []; MAP.sel = null;
+    MAP.selMulti = []; MAP.sel = null;
+    mapaEsconderInfo();
+
+    if (isMaster && !e.altKey) {
+      // Inicia retângulo de seleção (sempre, para qualquer arrasto em área vazia)
       MAP.selRect = { sx: w.x, sy: w.y, ex: w.x, ey: w.y };
-      mapaEsconderInfo(); mapaDraw();
     } else {
-      MAP.sel = null; MAP.selMulti = [];
+      // Alt+drag ou não mestre = pan
       MAP.pan = { lx: c.x, ly: c.y };
-      mapaEsconderInfo(); mapaDraw();
     }
+    mapaDraw();
   }
   MAP._moved = false;
 }
 
 function mapaMouseMove(e) {
   if (!MAP.canvas) return;
-  if (!MAP.drag && !MAP.pan && !MAP.rulerType && !MAP.selRect) return;
+  if (!MAP.drag && !MAP.pan && !MAP.rulerType && !MAP.selRect && !MAP.sel) return;
 
   const c = tela2canvas(e.clientX, e.clientY);
   const w = canvas2world(c.x, c.y);
