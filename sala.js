@@ -549,8 +549,12 @@ function buildMapaPanel(c) {
       </div>
       <div style="flex:1;overflow:hidden;position:relative;min-height:0">
         <canvas id="mapa-canvas" style="display:block;touch-action:none;width:100%;height:100%"></canvas>
+        <!-- token-info como overlay - NÃO afeta o tamanho do canvas -->
+        <div id="token-info" style="display:none;position:absolute;bottom:0;left:0;right:0;padding:8px;background:rgba(13,13,20,0.96);border-top:1px solid var(--border);max-height:120px;overflow-y:auto;z-index:20;backdrop-filter:blur(6px)"
+             onmousedown="event.stopPropagation()" onmouseup="event.stopPropagation()"
+             ontouchstart="event.stopPropagation()" ontouchend="event.stopPropagation()"
+             onclick="event.stopPropagation()"></div>
       </div>
-      <div id="token-info" style="display:none;padding:8px;background:var(--surface2);border-top:1px solid var(--border);max-height:120px;overflow-y:auto;flex-shrink:0"></div>
     </div>`;
   setTimeout(() => { MAP.canvas = null; mapaInit(); }, 80);
 }
