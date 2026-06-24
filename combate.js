@@ -481,11 +481,12 @@ function renderBestiarioCT() {
 // Lista players com ficha para mestre adicionar
 async function renderPlayersParaCT() {
   const lista = document.getElementById('ct-players-lista'); if(!lista||!isMaster) return;
-  const { data: profiles } = await db.from('profiles').select('id,username').eq('is_master',false);
+  const { data: profiles, error: pe } = await db.from('profiles').select('id,username').eq('is_master',false);
+  console.log('profiles:', profiles, 'error:', pe);
   if (!profiles?.length) { lista.innerHTML='<div style="font-size:10px;color:var(--muted);padding:4px">Sem players</div>'; return; }
   const ids = profiles.map(p=>p.id);
-  // Busca foto_url também
-  const { data: fichas } = await db.from('fichas').select('user_id,nome,attr_res,pv_atual,foto_url').in('user_id',ids);
+  const { data: fichas, error: fe } = await db.from('fichas').select('user_id,nome,attr_res,pv_atual,foto_url').in('user_id',ids);
+  console.log('fichas:', fichas, 'error:', fe);
   lista.innerHTML='';
   let count = 0;
   profiles.forEach(p => {
