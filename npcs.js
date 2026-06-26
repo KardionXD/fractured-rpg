@@ -424,9 +424,10 @@ async function criarCena() {
   const { error } = await db.from('cenas_mapa').insert({
     master_id: currentUser.id,
     nome:      nome.trim(),
-    mapa_url:  typeof mapaUrl !== 'undefined' ? mapaUrl : null,
-    tokens:    typeof tokens !== 'undefined' ? tokens : [],
-    grid_size: typeof gridSize !== 'undefined' ? gridSize : 60,
+    mapa_url:  MAP?.imgUrl || null,
+    video_url: MAP?.videoUrl || null,
+    tokens:    MAP?.tokens || [],
+    grid_size: MAP?.gridSize || 60,
     ordem:     cenas.length,
     ativa:     false,
   });
