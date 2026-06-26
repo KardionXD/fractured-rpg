@@ -16,8 +16,6 @@ let MAP = {
   // Imagem/vídeo de fundo
   img:    null,
   imgUrl: null,
-  video:  null,   // elemento <video> para vídeos/GIFs animados
-  videoUrl: null,
 
   // Grid
   gridSize:    60,
@@ -146,12 +144,8 @@ function mapaDraw() {
   ctx.translate(offX, offY);
   ctx.scale(zoom, zoom);
 
-  // Imagem/vídeo de fundo
-  if (MAP.video) {
-    ctx.drawImage(MAP.video, 0, 0);
-  } else if (img) {
-    ctx.drawImage(img, 0, 0);
-  }
+  // Imagem de fundo
+  if (img) ctx.drawImage(img, 0, 0);
 
   // Grid
   if (gridVisible) {
@@ -748,92 +742,23 @@ function mapaLimpar() {
 }
 
 // ── IMAGEM DE FUNDO ──────────────────────────────
-// ── VÍDEO/GIF ────────────────────────────────────
-let _videoRAF        = null;
-let _videoSaveTimer  = null;
-let _videoSaveLocked = false; // true durante troca de cena
-
-function mapaVideoAutosave() {
-  if (_videoSaveLocked || !MAP.videoUrl) return;
-  clearTimeout(_videoSaveTimer);
-  _videoSaveTimer = setTimeout(async () => {
-    if (_videoSaveLocked || !MAP.videoUrl) return;
-    try {
-      // Salva video_url na cena ativa
-      if (typeof cenaAtiva !== 'undefined' && cenaAtiva) {
-        await db.from('cenas_mapa').update({
-          video_url: MAP.videoUrl,
-          mapa_url:  null,
-        }).eq('id', cenaAtiva);
-        console.log('video autosave: salvo na cena', cenaAtiva);
-      }
-      // Salva no mapa_estado também
-      await db.from('mapa_estado').update({
-        video_url: MAP.videoUrl,
-        mapa_url:  null,
-      }).eq('id', 'sessao_atual');
-    } catch(e) { console.error('video autosave error:', e); }
-  }, 1500);
-}
-
-function mapaVideoLoop() {
-  if (!MAP.video) { _videoRAF = null; return; }
-  mapaDraw();
-  _videoRAF = requestAnimationFrame(mapaVideoLoop);
-}
-
-function mapaStopVideo() {
-  if (_videoRAF) { cancelAnimationFrame(_videoRAF); _videoRAF = null; }
-  if (MAP.video) { MAP.video.pause(); MAP.video.src = ''; MAP.video = null; }
-  MAP.videoUrl = null;
-}
-
-function mapaCarregarVideo(url) {
-  mapaStopVideo(); // para vídeo anterior
-  const v = document.createElement('video');
-  v.src         = url;
-  v.loop        = true;
-  v.muted       = true;
-  v.autoplay    = true;
-  v.playsInline = true;
-  v.crossOrigin = 'anonymous';
-  v.onloadedmetadata = () => {
-    MAP.video = v;
-    MAP.img   = null;
-    MAP.imgUrl = null;
-    v.play()
-      .then(() => {
-        mapaResetZoom();
-        mapaVideoLoop();
-        mapaVideoAutosave(); // salva video_url na cena e no mapa_estado
-      })
-      .catch(() => mapaDraw());
-  };
-  v.onerror = () => toast('Erro ao carregar vídeo.', 'err');
-  v.load();
-}
 
 async function mapaImportarImagem() {
   if (!isMaster) return;
   const input = document.createElement('input');
-  input.type = 'file'; input.accept = 'image/*,video/*,.gif';
+  input.type = 'file'; input.accept = 'image/*';
   input.onchange = async e => {
     const file = e.target.files[0]; if (!file) return;
     toast('Enviando imagem...', 'ok');
 
-    const isVideo = file.type.startsWith('video/') || file.name.endsWith('.gif');
-
     // Preview local imediato
-    const localUrl = URL.createObjectURL(file);
-    if (isVideo) {
-      mapaCarregarVideo(localUrl);
-      MAP.videoUrl = null; // ainda sem URL salva
-    } else {
+    const reader = new FileReader();
+    reader.onload = ev => {
       const img = new Image();
-      img.onload = () => { MAP.img = img; MAP.video = null; MAP.videoUrl = null; mapaResetZoom(); mapaDraw(); };
-      img.src = localUrl;
-      MAP.imgUrl = null;
-    }
+      img.onload = () => { MAP.img = img; mapaResetZoom(); mapaDraw(); };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
 
     // Upload para Supabase Storage
     const ext  = file.name.split('.').pop();
@@ -842,14 +767,8 @@ async function mapaImportarImagem() {
     if (error) { toast('Erro no upload: ' + error.message, 'err'); return; }
 
     const { data } = db.storage.from('tokens').getPublicUrl(path);
-    if (isVideo) {
-      MAP.videoUrl = data.publicUrl;
-      MAP.imgUrl   = null;
-    } else {
-      MAP.imgUrl   = data.publicUrl;
-      MAP.videoUrl = null;
-    }
-    toast(`${isVideo ? 'Vídeo/GIF' : 'Mapa'} carregado!`, 'ok');
+    MAP.imgUrl = data.publicUrl;
+    toast('Mapa carregado!', 'ok');
     mapaSalvarDB();
   };
   input.click();
@@ -928,7 +847,6 @@ async function _mapaSalvarNow() {
       grid_size:    MAP.gridSize,
       grid_visivel: MAP.gridVisible,
       mapa_url:     urlParaSalvar,
-      video_url:    (MAP.videoUrl && MAP.videoUrl.startsWith('https://')) ? MAP.videoUrl : null,
       updated_at:   MAP.lastSaveTs,
     });
   } catch(e) { console.error('mapaSalvarDB:', e); }
@@ -943,10 +861,7 @@ async function mapaCarregarDB() {
       if (!MAP.drag) MAP.tokens = data.tokens || [];
       MAP.gridSize    = data.grid_size || 60;
       MAP.gridVisible = data.grid_visivel !== false;
-      if (data.video_url && data.video_url.startsWith('https://')) {
-        MAP.videoUrl = data.video_url;
-        mapaCarregarVideo(data.video_url);
-      } else if (data.mapa_url && data.mapa_url.startsWith('https://')) {
+      if (data.mapa_url && data.mapa_url.startsWith('https://')) {
         MAP.imgUrl = data.mapa_url;
         const img = new Image();
         img.onload  = () => { MAP.img = img; mapaDraw(); };
@@ -980,20 +895,8 @@ function mapaSubscribeRealtime() {
       MAP.gridVisible = d.grid_visivel !== false;
 
       // Atualiza imagem só se URL mudou e é válida
-      const novaVideoUrl = d.video_url;
-      const novaImgUrl   = d.mapa_url;
-      if (novaVideoUrl && novaVideoUrl.startsWith('https://')) {
-        if (novaVideoUrl !== MAP.videoUrl || !MAP.video || MAP.video.paused) {
-          MAP.videoUrl = novaVideoUrl;
-          mapaCarregarVideo(novaVideoUrl);
-        } else {
-          mapaDraw();
-        }
-      } else if (!novaVideoUrl && MAP.video) {
-        // Cena sem vídeo - para o vídeo atual
-        mapaStopVideo(); mapaDraw();
-      } else if (novaImgUrl && novaImgUrl.startsWith('https://')) {
-        mapaStopVideo();
+      const novaImgUrl = d.mapa_url;
+      if (novaImgUrl && novaImgUrl.startsWith('https://') && novaImgUrl !== MAP.imgUrl) {
         MAP.imgUrl = novaImgUrl;
         const img = new Image();
         img.onload  = () => { MAP.img = img; mapaDraw(); };
@@ -1011,17 +914,15 @@ function mapaAplicarCena(cena) {
   if (!MAP.drag) MAP.tokens = cena.tokens || [];
   MAP.gridSize = cena.grid_size || 60;
 
-  if (cena.video_url && cena.video_url.startsWith('https://')) {
-    mapaCarregarVideo(cena.video_url); // sempre recarrega ao trocar de cena
-  } else if (cena.mapa_url && cena.mapa_url.startsWith('https://')) {
-    mapaStopVideo();
+  if (cena.mapa_url && cena.mapa_url.startsWith('https://') && cena.mapa_url !== MAP.imgUrl) {
     MAP.imgUrl = cena.mapa_url;
     const img = new Image();
     img.onload  = () => { MAP.img = img; mapaDraw(); };
     img.onerror = () => mapaDraw();
     img.src     = cena.mapa_url;
+  } else if (!cena.mapa_url) {
+    MAP.img = null; MAP.imgUrl = null; mapaDraw();
   } else {
-    mapaStopVideo(); MAP.img = null; MAP.imgUrl = null;
     mapaDraw();
   }
 }
