@@ -453,10 +453,22 @@ function buildDadosPanel(c) {
             <option value="-3">−3 Sem Equipamento</option><option value="-2">−2 Escuridão</option>
           </select>
           <label class="formula-label">Dificuldade</label>
-          <select id="roll-dif" class="formula-select">
-            <option value="8">8 — Fácil</option><option value="11" selected>11 — Moderado</option>
-            <option value="14">14 — Difícil</option><option value="17">17 — Severo</option><option value="20">20 — Extremo</option>
-          </select>
+          <div style="display:flex;gap:5px;align-items:center">
+            <select id="roll-dif" class="formula-select" style="flex:1" onchange="if(this.value==='custom'){document.getElementById('roll-dif-custom').style.display='block'}else{document.getElementById('roll-dif-custom').style.display='none';document.getElementById('roll-dif-val').value=this.value}">
+              <option value="8">8 — Fácil</option>
+              <option value="11" selected>11 — Moderado</option>
+              <option value="14">14 — Difícil</option>
+              <option value="17">17 — Severo</option>
+              <option value="20">20 — Extremo</option>
+              <option value="custom">✏️ Personalizado</option>
+            </select>
+            <input type="number" id="roll-dif-val" value="11" min="1" max="30" style="display:none;width:54px;text-align:center;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:4px;font-size:13px;font-weight:700">
+          </div>
+          <div id="roll-dif-custom" style="display:none;margin-top:4px">
+            <input type="number" id="roll-dif-custom-val" placeholder="Ex: 13" min="1" max="30"
+              style="width:100%;background:var(--bg);border:1px solid var(--gold);border-radius:4px;color:var(--text);padding:5px 8px;font-size:13px;font-weight:700;text-align:center;outline:none"
+              oninput="document.getElementById('roll-dif-val').value=this.value||11">
+          </div>
 
           <label class="formula-label">Ajudantes <span style="color:var(--muted);font-size:9px">(+2 cada, máx 3)</span></label>
           <div style="display:flex;align-items:center;gap:6px">

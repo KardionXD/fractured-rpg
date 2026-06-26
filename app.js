@@ -571,7 +571,11 @@ function rolarFormula() {
   const modAtrib  = parseInt(document.getElementById('roll-atrib')?.value)   || 0;
   const modPer    = parseInt(document.getElementById('roll-pericia')?.value)  || 0;
   const modSit    = parseInt(document.getElementById('roll-situacao')?.value) || 0;
-  const dif       = parseInt(document.getElementById('roll-dif')?.value)      || 11;
+  // Lê dificuldade — se for 'custom', usa o campo de texto
+  const difSel = document.getElementById('roll-dif')?.value;
+  const dif = difSel === 'custom'
+    ? parseInt(document.getElementById('roll-dif-custom-val')?.value) || 11
+    : parseInt(difSel) || 11;
   const modCustom = parseInt(document.getElementById('roll-bonus-custom')?.value) || 0;
 
   // Ajudas: cada ajudante dá +2 (máx 3 ajudantes = +6)
