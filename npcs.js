@@ -457,6 +457,9 @@ async function ativarCena(id) {
   const cena = cenas.find(c => c.id === id);
   if (!cena) return;
 
+  // Trava o autosave do vídeo durante a troca de cena
+  if (typeof _videoSaveLocked !== 'undefined') _videoSaveLocked = true;
+
   cenaAtiva = id;
 
   // 1. Aplica localmente imediato (sem esperar banco)
@@ -479,6 +482,11 @@ async function ativarCena(id) {
     if (error) console.error('ativarCena mapa_estado error:', error);
     else console.log('ativarCena: mapa_estado atualizado com sucesso');
   } catch(e) { console.error('ativarCena exception:', e); }
+
+  // Destrava autosave do vídeo após salvar
+  setTimeout(() => {
+    if (typeof _videoSaveLocked !== 'undefined') _videoSaveLocked = false;
+  }, 2000);
 
   // 3. Atualiza flag visual da cena (não crítico, ignora erro)
   try {

@@ -749,7 +749,32 @@ function mapaLimpar() {
 
 // ── IMAGEM DE FUNDO ──────────────────────────────
 // ── VÍDEO/GIF ────────────────────────────────────
-let _videoRAF = null;
+let _videoRAF        = null;
+let _videoSaveTimer  = null;
+let _videoSaveLocked = false; // true durante troca de cena
+
+function mapaVideoAutosave() {
+  if (_videoSaveLocked || !MAP.videoUrl) return;
+  clearTimeout(_videoSaveTimer);
+  _videoSaveTimer = setTimeout(async () => {
+    if (_videoSaveLocked || !MAP.videoUrl) return;
+    try {
+      // Salva video_url na cena ativa
+      if (typeof cenaAtiva !== 'undefined' && cenaAtiva) {
+        await db.from('cenas_mapa').update({
+          video_url: MAP.videoUrl,
+          mapa_url:  null,
+        }).eq('id', cenaAtiva);
+        console.log('video autosave: salvo na cena', cenaAtiva);
+      }
+      // Salva no mapa_estado também
+      await db.from('mapa_estado').update({
+        video_url: MAP.videoUrl,
+        mapa_url:  null,
+      }).eq('id', 'sessao_atual');
+    } catch(e) { console.error('video autosave error:', e); }
+  }, 1500);
+}
 
 function mapaVideoLoop() {
   if (!MAP.video) { _videoRAF = null; return; }
@@ -775,8 +800,13 @@ function mapaCarregarVideo(url) {
   v.onloadedmetadata = () => {
     MAP.video = v;
     MAP.img   = null;
+    MAP.imgUrl = null;
     v.play()
-      .then(() => { mapaResetZoom(); mapaVideoLoop(); })
+      .then(() => {
+        mapaResetZoom();
+        mapaVideoLoop();
+        mapaVideoAutosave(); // salva video_url na cena e no mapa_estado
+      })
       .catch(() => mapaDraw());
   };
   v.onerror = () => toast('Erro ao carregar vídeo.', 'err');
