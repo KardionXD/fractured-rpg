@@ -147,9 +147,8 @@ function mapaDraw() {
   ctx.scale(zoom, zoom);
 
   // Imagem/vídeo de fundo
-  if (MAP.video && !MAP.video.paused) {
+  if (MAP.video) {
     ctx.drawImage(MAP.video, 0, 0);
-    requestAnimationFrame(() => mapaDraw()); // anima o vídeo
   } else if (img) {
     ctx.drawImage(img, 0, 0);
   }
@@ -750,19 +749,35 @@ function mapaLimpar() {
 
 // ── IMAGEM DE FUNDO ──────────────────────────────
 // ── VÍDEO/GIF ────────────────────────────────────
+let _videoRAF = null;
+
+function mapaVideoLoop() {
+  if (!MAP.video) { _videoRAF = null; return; }
+  mapaDraw();
+  _videoRAF = requestAnimationFrame(mapaVideoLoop);
+}
+
+function mapaStopVideo() {
+  if (_videoRAF) { cancelAnimationFrame(_videoRAF); _videoRAF = null; }
+  if (MAP.video) { MAP.video.pause(); MAP.video.src = ''; MAP.video = null; }
+  MAP.videoUrl = null;
+}
+
 function mapaCarregarVideo(url) {
-  if (MAP.video) { MAP.video.pause(); MAP.video.src = ''; }
+  mapaStopVideo(); // para vídeo anterior
   const v = document.createElement('video');
-  v.src      = url;
-  v.loop     = true;
-  v.muted    = true;
-  v.autoplay = true;
+  v.src         = url;
+  v.loop        = true;
+  v.muted       = true;
+  v.autoplay    = true;
   v.playsInline = true;
   v.crossOrigin = 'anonymous';
   v.onloadedmetadata = () => {
     MAP.video = v;
     MAP.img   = null;
-    v.play().then(() => { mapaResetZoom(); mapaDraw(); }).catch(() => mapaDraw());
+    v.play()
+      .then(() => { mapaResetZoom(); mapaVideoLoop(); })
+      .catch(() => mapaDraw());
   };
   v.onerror = () => toast('Erro ao carregar vídeo.', 'err');
   v.load();
@@ -950,8 +965,8 @@ function mapaSubscribeRealtime() {
         MAP.videoUrl = novaVideoUrl;
         mapaCarregarVideo(novaVideoUrl);
       } else if (novaImgUrl && novaImgUrl.startsWith('https://') && novaImgUrl !== MAP.imgUrl) {
+        mapaStopVideo();
         MAP.imgUrl = novaImgUrl;
-        MAP.video  = null; MAP.videoUrl = null;
         const img = new Image();
         img.onload  = () => { MAP.img = img; mapaDraw(); };
         img.onerror = () => mapaDraw();
@@ -972,14 +987,14 @@ function mapaAplicarCena(cena) {
     MAP.videoUrl = cena.video_url;
     mapaCarregarVideo(cena.video_url);
   } else if (cena.mapa_url && cena.mapa_url.startsWith('https://')) {
-    MAP.video = null; MAP.videoUrl = null;
+    mapaStopVideo();
     MAP.imgUrl = cena.mapa_url;
     const img = new Image();
     img.onload  = () => { MAP.img = img; mapaDraw(); };
     img.onerror = () => mapaDraw();
     img.src     = cena.mapa_url;
   } else {
-    MAP.img = null; MAP.imgUrl = null; MAP.video = null; MAP.videoUrl = null;
+    mapaStopVideo(); MAP.img = null; MAP.imgUrl = null;
     mapaDraw();
   }
 }
