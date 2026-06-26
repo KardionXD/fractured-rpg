@@ -463,12 +463,13 @@ async function ativarCena(id) {
   console.log('ativarCena: salvando mapa_estado, url=', urlCena ? urlCena.substring(0,50) : 'null');
   try {
     const { error } = await db.from('mapa_estado').upsert({
-      id: 'sessao_atual',
-      tokens: cena.tokens || [],
-      grid_size: cena.grid_size || 60,
+      id:           'sessao_atual',
+      tokens:       cena.tokens || [],
+      grid_size:    cena.grid_size || 60,
       grid_visivel: true,
-      mapa_url: urlCena,
-      updated_at: new Date().toISOString()
+      mapa_url:     urlCena,
+      video_url:    cena.video_url || null,
+      updated_at:   new Date().toISOString()
     });
     if (error) console.error('ativarCena mapa_estado error:', error);
     else console.log('ativarCena: mapa_estado atualizado com sucesso');

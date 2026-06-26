@@ -903,16 +903,7 @@ async function _mapaSalvarNow() {
     });
   } catch(e) { console.error('mapaSalvarDB:', e); }
 
-  // Auto-salva cena ativa
-  if (typeof cenaAtiva !== 'undefined' && cenaAtiva) {
-    try {
-      await db.from('cenas_mapa').update({
-        tokens:    MAP.tokens.map(t => ({ ...t })),
-        grid_size: MAP.gridSize,
-        mapa_url:  urlParaSalvar,
-      }).eq('id', cenaAtiva);
-    } catch(e) {}
-  }
+  // Cenas são salvas apenas manualmente pelo botão 💾
 }
 
 async function mapaCarregarDB() {
