@@ -499,6 +499,12 @@ function previewCena(cena) {
 function aplicarCena(cena) {
   cenaAtiva = cena.id;
   if (typeof mapaAplicarCena === 'function') mapaAplicarCena(cena);
+  // Carrega vídeo se a cena tiver um
+  if (cena.video_url && typeof mapaCarregarVideo === 'function') {
+    mapaCarregarVideo(cena.video_url);
+  } else if (!cena.video_url && typeof mapaStopVideo === 'function') {
+    mapaStopVideo();
+  }
 }
 
 async function deletarCena(id) {

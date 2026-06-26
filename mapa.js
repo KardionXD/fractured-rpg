@@ -927,6 +927,121 @@ function mapaAplicarCena(cena) {
   }
 }
 
+
+// ══════════════════════════════════════════════════
+//  VÍDEO/GIF OVERLAY — Separado do sistema do mapa
+//  Usa elemento HTML sobre o canvas, não interfere
+//  com tokens, realtime ou autosave
+// ══════════════════════════════════════════════════
+let _videoEl  = null;  // elemento <video> ou <img> para GIF
+let _videoUrl = null;  // URL atual do vídeo/gif
+
+function mapaVideoOverlayInit() {
+  // Cria ou retorna o container de overlay
+  let container = document.getElementById('mapa-video-overlay');
+  if (!container) {
+    const cvs = document.getElementById('mapa-canvas');
+    if (!cvs) return null;
+    const parent = cvs.parentElement;
+    container = document.createElement('div');
+    container.id = 'mapa-video-overlay';
+    container.style.cssText = `
+      position:absolute;top:0;left:0;width:100%;height:100%;
+      pointer-events:none;z-index:1;overflow:hidden;
+    `;
+    parent.appendChild(container);
+  }
+  return container;
+}
+
+function mapaCarregarVideo(url) {
+  if (!isMaster && !url) return;
+  const container = mapaVideoOverlayInit();
+  if (!container) return;
+
+  // Remove vídeo anterior
+  mapaStopVideo(false); // false = não limpa URL
+
+  _videoUrl = url;
+
+  const ext = url.split('.').pop().split('?')[0].toLowerCase();
+  const isGif = ext === 'gif';
+
+  if (isGif) {
+    // GIF: usa tag <img>
+    const img = document.createElement('img');
+    img.src = url;
+    img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block';
+    img.onload = () => { _videoEl = img; container.appendChild(img); };
+    img.onerror = () => toast('Erro ao carregar GIF.', 'err');
+  } else {
+    // Vídeo: usa tag <video>
+    const v = document.createElement('video');
+    v.src = url;
+    v.loop = true;
+    v.muted = true;
+    v.autoplay = true;
+    v.playsInline = true;
+    v.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block';
+    v.oncanplay = () => {
+      _videoEl = v;
+      container.appendChild(v);
+      v.play().catch(() => {});
+    };
+    v.onerror = () => toast('Erro ao carregar vídeo.', 'err');
+    v.load();
+  }
+}
+
+function mapaStopVideo(clearUrl = true) {
+  const container = document.getElementById('mapa-video-overlay');
+  if (container) container.innerHTML = '';
+  if (_videoEl) {
+    if (_videoEl.tagName === 'VIDEO') { _videoEl.pause(); _videoEl.src = ''; }
+    _videoEl = null;
+  }
+  if (clearUrl) _videoUrl = null;
+}
+
+async function mapaImportarVideo() {
+  if (!isMaster) return;
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'video/*,.gif';
+  input.onchange = async e => {
+    const file = e.target.files[0]; if (!file) return;
+    toast('Enviando vídeo...', 'ok');
+
+    // Preview local imediato
+    const localUrl = URL.createObjectURL(file);
+    mapaCarregarVideo(localUrl);
+
+    // Upload para Storage
+    const ext  = file.name.split('.').pop();
+    const path = `mapas/${currentUser.id}/video_${Date.now()}.${ext}`;
+    const { error } = await db.storage.from('tokens').upload(path, file, { upsert: true });
+    if (error) { toast('Erro: ' + error.message, 'err'); return; }
+
+    const { data } = db.storage.from('tokens').getPublicUrl(path);
+    _videoUrl = data.publicUrl;
+
+    // Salva na cena ativa (campo separado, não afeta mapa_url)
+    if (typeof cenaAtiva !== 'undefined' && cenaAtiva) {
+      await db.from('cenas_mapa').update({ video_url: _videoUrl }).eq('id', cenaAtiva);
+    }
+    // Propaga para players via sala (feed de mensagem especial)
+    await db.from('sala').insert({
+      user_id: currentUser.id,
+      username: currentProfile?.username || 'Mestre',
+      tipo: 'video_mapa',
+      conteudo: { url: _videoUrl }
+    });
+
+    toast('Vídeo/GIF no mapa!', 'ok');
+  };
+  input.click();
+}
+
 // Compatibilidade com combate.js/npcs.js que usam variáveis globais
 Object.defineProperty(window, 'tokens',   { get:()=>MAP.tokens,   set:v=>{ MAP.tokens=v; } });
 Object.defineProperty(window, 'gridSize', { get:()=>MAP.gridSize, set:v=>{ MAP.gridSize=v; } });

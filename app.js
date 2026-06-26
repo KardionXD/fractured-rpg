@@ -485,6 +485,16 @@ async function subscribeToSala() {
         tensaoSala = msg.conteudo.valor;
         buildTensaoPips('tensao-pips-sala', tensaoSala, false);
       }
+      // Vídeo/GIF no mapa - carrega para players
+      if (msg.tipo === 'video_mapa' && !isMaster) {
+        if (typeof mapaCarregarVideo === 'function') {
+          mapaCarregarVideo(msg.conteudo.url);
+        }
+      }
+      // Para o vídeo se mensagem de limpar
+      if (msg.tipo === 'video_mapa_stop' && !isMaster) {
+        if (typeof mapaStopVideo === 'function') mapaStopVideo();
+      }
       appendFeedMsg(msg);
     })
     .subscribe();

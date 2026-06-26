@@ -525,6 +525,8 @@ function buildMapaPanel(c) {
   // Build toolbar HTML - avoid isMaster inside template literals
   const masterBtns = isMaster
     ? `<button class="btn-ghost" onclick="mapaImportarImagem()" style="font-size:10px;padding:3px 7px">📁 Mapa</button>
+       <button class="btn-ghost" onclick="mapaImportarVideo()" style="font-size:10px;padding:3px 7px" title="Vídeo/GIF sobre o mapa">🎬 Vídeo</button>
+       <button class="btn-ghost" onclick="mapaStopVideo()" style="font-size:10px;padding:3px 7px;color:var(--red)" title="Remover vídeo">✕Vídeo</button>
        <button class="btn-ghost" onclick="abrirModalCenas()" style="font-size:10px;padding:3px 7px">🎬 Cenas</button>
        <button class="btn-ghost" onclick="abrirCriarTokenCustom()" style="font-size:10px;padding:3px 7px">⭐ Token</button>
        <button class="btn-ghost" onclick="mapaLimpar()" style="font-size:10px;padding:3px 7px;color:var(--red);border-color:var(--red-dim)">🗑</button>`
