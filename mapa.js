@@ -144,8 +144,12 @@ function mapaDraw() {
   ctx.translate(offX, offY);
   ctx.scale(zoom, zoom);
 
-  // Imagem de fundo
-  if (img) ctx.drawImage(img, 0, 0);
+  // Fundo: vídeo/GIF ou imagem estática
+  if (_vid) {
+    ctx.drawImage(_vid, 0, 0);
+  } else if (img) {
+    ctx.drawImage(img, 0, 0);
+  }
 
   // Grid
   if (gridVisible) {
@@ -861,7 +865,9 @@ async function mapaCarregarDB() {
       if (!MAP.drag) MAP.tokens = data.tokens || [];
       MAP.gridSize    = data.grid_size || 60;
       MAP.gridVisible = data.grid_visivel !== false;
-      if (data.mapa_url && data.mapa_url.startsWith('https://')) {
+      if (data.video_url && data.video_url.startsWith('https://')) {
+        mapaCarregarVideo(data.video_url, false);
+      } else if (data.mapa_url && data.mapa_url.startsWith('https://')) {
         MAP.imgUrl = data.mapa_url;
         const img = new Image();
         img.onload  = () => { MAP.img = img; mapaDraw(); };
@@ -895,8 +901,15 @@ function mapaSubscribeRealtime() {
       MAP.gridVisible = d.grid_visivel !== false;
 
       // Atualiza imagem só se URL mudou e é válida
-      const novaImgUrl = d.mapa_url;
-      if (novaImgUrl && novaImgUrl.startsWith('https://') && novaImgUrl !== MAP.imgUrl) {
+      const novaVideoUrl = d.video_url;
+      const novaImgUrl   = d.mapa_url;
+      if (novaVideoUrl && novaVideoUrl.startsWith('https://') && novaVideoUrl !== _vidUrl) {
+        MAP.img = null; MAP.imgUrl = null;
+        mapaCarregarVideo(novaVideoUrl, false);
+      } else if (!novaVideoUrl && _vid) {
+        mapaStopVideo();
+      } else if (novaImgUrl && novaImgUrl.startsWith('https://') && novaImgUrl !== MAP.imgUrl) {
+        if (_vid) mapaStopVideo();
         MAP.imgUrl = novaImgUrl;
         const img = new Image();
         img.onload  = () => { MAP.img = img; mapaDraw(); };
@@ -914,130 +927,113 @@ function mapaAplicarCena(cena) {
   if (!MAP.drag) MAP.tokens = cena.tokens || [];
   MAP.gridSize = cena.grid_size || 60;
 
-  if (cena.mapa_url && cena.mapa_url.startsWith('https://') && cena.mapa_url !== MAP.imgUrl) {
+  if (cena.video_url && cena.video_url.startsWith('https://')) {
+    MAP.img = null; MAP.imgUrl = null;
+    mapaCarregarVideo(cena.video_url, false);
+  } else if (cena.mapa_url && cena.mapa_url.startsWith('https://')) {
+    if (_vid) { mapaStopVideo(); }
     MAP.imgUrl = cena.mapa_url;
     const img = new Image();
     img.onload  = () => { MAP.img = img; mapaDraw(); };
     img.onerror = () => mapaDraw();
     img.src     = cena.mapa_url;
-  } else if (!cena.mapa_url) {
+  } else {
+    if (_vid) mapaStopVideo();
     MAP.img = null; MAP.imgUrl = null; mapaDraw();
-  } else {
-    mapaDraw();
   }
 }
 
 
-// ══════════════════════════════════════════════════
-//  VÍDEO/GIF OVERLAY — Separado do sistema do mapa
-//  Usa elemento HTML sobre o canvas, não interfere
-//  com tokens, realtime ou autosave
-// ══════════════════════════════════════════════════
-let _videoEl  = null;  // elemento <video> ou <img> para GIF
-let _videoUrl = null;  // URL atual do vídeo/gif
 
-function mapaVideoOverlayInit() {
-  // Cria ou retorna o container de overlay
-  let container = document.getElementById('mapa-video-overlay');
-  if (!container) {
-    const cvs = document.getElementById('mapa-canvas');
-    if (!cvs) return null;
-    const parent = cvs.parentElement;
-    container = document.createElement('div');
-    container.id = 'mapa-video-overlay';
-    container.style.cssText = `
-      position:absolute;top:0;left:0;width:100%;height:100%;
-      pointer-events:none;z-index:1;overflow:hidden;
-    `;
-    parent.appendChild(container);
-  }
-  return container;
+// ══════════════════════════════════════════════════
+//  VÍDEO/GIF — Renderizado no canvas (com zoom/pan)
+// ══════════════════════════════════════════════════
+let _vid    = null;   // elemento <video> ou <img> GIF
+let _vidUrl = null;   // URL salva no banco
+let _vidRAF = null;   // requestAnimationFrame ID
+
+// Loop de animação dedicado ao vídeo
+function _vidLoop() {
+  if (!_vid || !MAP.canvas) { _vidRAF = null; return; }
+  mapaDraw();
+  _vidRAF = requestAnimationFrame(_vidLoop);
 }
 
-function mapaCarregarVideo(url) {
-  if (!isMaster && !url) return;
-  const container = mapaVideoOverlayInit();
-  if (!container) return;
+// Para o vídeo e cancela o loop
+function mapaStopVideo() {
+  if (_vidRAF) { cancelAnimationFrame(_vidRAF); _vidRAF = null; }
+  if (_vid && _vid.tagName === 'VIDEO') { _vid.pause(); _vid.src = ''; }
+  _vid = null; _vidUrl = null;
+  mapaDraw();
+}
 
-  // Remove vídeo anterior
-  mapaStopVideo(false); // false = não limpa URL
+// Carrega vídeo/GIF e inicia loop
+function mapaCarregarVideo(url, resetView = true) {
+  // Para qualquer vídeo anterior
+  if (_vidRAF) { cancelAnimationFrame(_vidRAF); _vidRAF = null; }
+  if (_vid && _vid.tagName === 'VIDEO') { _vid.pause(); _vid.src = ''; }
+  _vid = null;
 
-  _videoUrl = url;
+  const ext = url.split('?')[0].split('.').pop().toLowerCase();
 
-  const ext = url.split('.').pop().split('?')[0].toLowerCase();
-  const isGif = ext === 'gif';
-
-  if (isGif) {
-    // GIF: usa tag <img>
-    const img = document.createElement('img');
-    img.src = url;
-    img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block';
-    img.onload = () => { _videoEl = img; container.appendChild(img); };
+  if (ext === 'gif') {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      _vid = img; _vidUrl = url;
+      if (resetView) mapaResetZoom();
+      _vidRAF = requestAnimationFrame(_vidLoop);
+    };
     img.onerror = () => toast('Erro ao carregar GIF.', 'err');
+    img.src = url;
   } else {
-    // Vídeo: usa tag <video>
     const v = document.createElement('video');
-    v.src = url;
-    v.loop = true;
-    v.muted = true;
-    v.autoplay = true;
-    v.playsInline = true;
-    v.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block';
+    v.src = url; v.loop = true; v.muted = true;
+    v.playsInline = true; v.crossOrigin = 'anonymous';
     v.oncanplay = () => {
-      _videoEl = v;
-      container.appendChild(v);
-      v.play().catch(() => {});
+      _vid = v; _vidUrl = url;
+      v.play().then(() => {
+        if (resetView) mapaResetZoom();
+        _vidRAF = requestAnimationFrame(_vidLoop);
+      }).catch(() => {});
     };
     v.onerror = () => toast('Erro ao carregar vídeo.', 'err');
     v.load();
   }
 }
 
-function mapaStopVideo(clearUrl = true) {
-  const container = document.getElementById('mapa-video-overlay');
-  if (container) container.innerHTML = '';
-  if (_videoEl) {
-    if (_videoEl.tagName === 'VIDEO') { _videoEl.pause(); _videoEl.src = ''; }
-    _videoEl = null;
-  }
-  if (clearUrl) _videoUrl = null;
-}
-
+// Importa e faz upload do vídeo/GIF
 async function mapaImportarVideo() {
   if (!isMaster) return;
   const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = 'video/*,.gif';
+  input.type = 'file'; input.accept = 'video/*,.gif';
   input.onchange = async e => {
     const file = e.target.files[0]; if (!file) return;
-    toast('Enviando vídeo...', 'ok');
+    toast('Carregando vídeo...', 'ok');
 
-    // Preview local imediato
+    // Preview local imediato (objectURL)
     const localUrl = URL.createObjectURL(file);
     mapaCarregarVideo(localUrl);
 
     // Upload para Storage
     const ext  = file.name.split('.').pop();
-    const path = `mapas/${currentUser.id}/video_${Date.now()}.${ext}`;
+    const path = `mapas/${currentUser.id}/vid_${Date.now()}.${ext}`;
     const { error } = await db.storage.from('tokens').upload(path, file, { upsert: true });
-    if (error) { toast('Erro: ' + error.message, 'err'); return; }
-
+    if (error) { toast('Erro upload: ' + error.message, 'err'); return; }
     const { data } = db.storage.from('tokens').getPublicUrl(path);
-    _videoUrl = data.publicUrl;
+    _vidUrl = data.publicUrl;
 
-    // Salva na cena ativa (campo separado, não afeta mapa_url)
+    // Salva na cena ativa
     if (typeof cenaAtiva !== 'undefined' && cenaAtiva) {
-      await db.from('cenas_mapa').update({ video_url: _videoUrl }).eq('id', cenaAtiva);
+      await db.from('cenas_mapa').update({ video_url: _vidUrl }).eq('id', cenaAtiva);
     }
-    // Propaga para players via sala (feed de mensagem especial)
-    await db.from('sala').insert({
-      user_id: currentUser.id,
-      username: currentProfile?.username || 'Mestre',
-      tipo: 'video_mapa',
-      conteudo: { url: _videoUrl }
-    });
+    // Propaga para players via mapa_estado (campo extra)
+    await db.from('mapa_estado').update({
+      video_url: _vidUrl,
+      mapa_url:  null,       // limpa imagem se tinha
+    }).eq('id', 'sessao_atual');
 
-    toast('Vídeo/GIF no mapa!', 'ok');
+    toast('Vídeo/GIF ativado!', 'ok');
   };
   input.click();
 }

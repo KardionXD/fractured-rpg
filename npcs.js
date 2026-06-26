@@ -425,6 +425,7 @@ async function criarCena() {
     master_id: currentUser.id,
     nome:      nome.trim(),
     mapa_url:  MAP?.imgUrl || null,
+    video_url: (typeof _vidUrl !== 'undefined' ? _vidUrl : null),
     tokens:    MAP?.tokens || [],
     grid_size: MAP?.gridSize || 60,
     ordem:     cenas.length,
@@ -499,12 +500,7 @@ function previewCena(cena) {
 function aplicarCena(cena) {
   cenaAtiva = cena.id;
   if (typeof mapaAplicarCena === 'function') mapaAplicarCena(cena);
-  // Carrega vídeo se a cena tiver um
-  if (cena.video_url && typeof mapaCarregarVideo === 'function') {
-    mapaCarregarVideo(cena.video_url);
-  } else if (!cena.video_url && typeof mapaStopVideo === 'function') {
-    mapaStopVideo();
-  }
+  // mapaAplicarCena já lida com video_url internamente
 }
 
 async function deletarCena(id) {
