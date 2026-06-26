@@ -952,10 +952,17 @@ function mapaSubscribeRealtime() {
       // Atualiza imagem só se URL mudou e é válida
       const novaVideoUrl = d.video_url;
       const novaImgUrl   = d.mapa_url;
-      if (novaVideoUrl && novaVideoUrl.startsWith('https://') && novaVideoUrl !== MAP.videoUrl) {
-        MAP.videoUrl = novaVideoUrl;
-        mapaCarregarVideo(novaVideoUrl);
-      } else if (novaImgUrl && novaImgUrl.startsWith('https://') && novaImgUrl !== MAP.imgUrl) {
+      if (novaVideoUrl && novaVideoUrl.startsWith('https://')) {
+        if (novaVideoUrl !== MAP.videoUrl || !MAP.video || MAP.video.paused) {
+          MAP.videoUrl = novaVideoUrl;
+          mapaCarregarVideo(novaVideoUrl);
+        } else {
+          mapaDraw();
+        }
+      } else if (!novaVideoUrl && MAP.video) {
+        // Cena sem vídeo - para o vídeo atual
+        mapaStopVideo(); mapaDraw();
+      } else if (novaImgUrl && novaImgUrl.startsWith('https://')) {
         mapaStopVideo();
         MAP.imgUrl = novaImgUrl;
         const img = new Image();
@@ -975,8 +982,7 @@ function mapaAplicarCena(cena) {
   MAP.gridSize = cena.grid_size || 60;
 
   if (cena.video_url && cena.video_url.startsWith('https://')) {
-    MAP.videoUrl = cena.video_url;
-    mapaCarregarVideo(cena.video_url);
+    mapaCarregarVideo(cena.video_url); // sempre recarrega ao trocar de cena
   } else if (cena.mapa_url && cena.mapa_url.startsWith('https://')) {
     mapaStopVideo();
     MAP.imgUrl = cena.mapa_url;
