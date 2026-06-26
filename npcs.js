@@ -448,7 +448,12 @@ async function salvarCenaAtual() {
   toast('Cena salva!', 'ok');
 }
 
+let _ativarCenaTimer = null;
 async function ativarCena(id) {
+  // Debounce - ignora chamadas duplicadas em menos de 1 segundo
+  if (_ativarCenaTimer) return;
+  _ativarCenaTimer = setTimeout(() => { _ativarCenaTimer = null; }, 1000);
+
   const cena = cenas.find(c => c.id === id);
   if (!cena) return;
 
@@ -460,7 +465,7 @@ async function ativarCena(id) {
 
   // 2. Propaga via mapa_estado (canal realtime ativo para todos)
   const urlCena = (cena.mapa_url && !cena.mapa_url.startsWith('data:')) ? cena.mapa_url : null;
-  console.log('ativarCena: salvando mapa_estado, url=', urlCena ? urlCena.substring(0,50) : 'null');
+  console.log('ativarCena: salvando mapa_estado, mapa_url=', urlCena||'null', 'video_url=', cena.video_url||'null');
   try {
     const { error } = await db.from('mapa_estado').upsert({
       id:           'sessao_atual',
