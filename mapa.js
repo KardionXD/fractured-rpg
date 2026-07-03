@@ -214,7 +214,13 @@ function mapaDraw() {
   // Tokens
   tokens.forEach(t => mapaDrawToken(ctx, t, zoom, gridSize, sel, selMulti));
 
+  // Fog of War: paredes (mundo)
+  if (typeof fogRenderWorld === 'function') fogRenderWorld(ctx, zoom);
+
   ctx.restore();
+
+  // Fog of War: escuridão (tela) — cobre tokens/mapa para os players
+  if (typeof fogRenderScreen === 'function') fogRenderScreen(ctx);
 
   // HUD zoom
   ctx.font = '10px sans-serif';
@@ -366,6 +372,9 @@ function mapaMouseDown(e) {
   const c = tela2canvas(e.clientX, e.clientY);
   const w = canvas2world(c.x, c.y);
 
+  // Ferramentas de Fog of War / Paredes (só mestre)
+  if (typeof fogToolMouseDown === 'function' && fogToolMouseDown(e, w)) return;
+
   // Régua
   if (MAP.rulerType) {
     MAP.rulerStart = w; MAP.rulerEnd = { ...w }; return;
@@ -419,10 +428,14 @@ function mapaMouseDown(e) {
 
 function mapaMouseMove(e) {
   if (!MAP.canvas) return;
+
+  const c0 = tela2canvas(e.clientX, e.clientY);
+  const w0 = canvas2world(c0.x, c0.y);
+  if (typeof fogToolMouseMove === 'function' && fogToolMouseMove(e, w0)) return;
+
   if (!MAP.drag && !MAP.pan && !MAP.rulerType && !MAP.selRect && !MAP.sel) return;
 
-  const c = tela2canvas(e.clientX, e.clientY);
-  const w = canvas2world(c.x, c.y);
+  const c = c0, w = w0;
   MAP._moved = true;
 
   if (MAP.rulerType && MAP.rulerStart) {
@@ -457,6 +470,7 @@ function mapaMouseMove(e) {
 
 function mapaMouseUp(e) {
   if (!MAP.canvas) return;
+  if (typeof fogToolMouseUp === 'function' && fogToolMouseUp()) return;
 
   if (MAP.drag) {
     if (!MAP._moved) {
@@ -851,6 +865,8 @@ async function _mapaSalvarNow() {
       grid_size:    MAP.gridSize,
       grid_visivel: MAP.gridVisible,
       mapa_url:     urlParaSalvar,
+      fog:          typeof fogExport === 'function' ? fogExport() : null,
+      paredes:      (typeof FOG !== 'undefined') ? FOG.paredes : [],
       updated_at:   MAP.lastSaveTs,
     });
   } catch(e) { console.error('mapaSalvarDB:', e); }
@@ -865,6 +881,7 @@ async function mapaCarregarDB() {
       if (!MAP.drag) MAP.tokens = data.tokens || [];
       MAP.gridSize    = data.grid_size || 60;
       MAP.gridVisible = data.grid_visivel !== false;
+      if (typeof fogImport === 'function') fogImport(data.fog, data.paredes);
       if (data.video_url && data.video_url.startsWith('https://')) {
         mapaCarregarVideo(data.video_url, false);
       } else if (data.mapa_url && data.mapa_url.startsWith('https://')) {
@@ -899,6 +916,10 @@ function mapaSubscribeRealtime() {
       MAP.tokens      = d.tokens || [];
       MAP.gridSize    = d.grid_size || 60;
       MAP.gridVisible = d.grid_visivel !== false;
+      // Fog: mestre ignora o eco do próprio save enquanto usa ferramenta
+      if (typeof fogImport === 'function' && !(isMaster && FOG.tool)) {
+        fogImport(d.fog, d.paredes);
+      }
 
       // Atualiza imagem só se URL mudou e é válida
       const novaVideoUrl = d.video_url;
@@ -926,6 +947,7 @@ function mapaSubscribeRealtime() {
 function mapaAplicarCena(cena) {
   if (!MAP.drag) MAP.tokens = cena.tokens || [];
   MAP.gridSize = cena.grid_size || 60;
+  if (typeof fogImport === 'function') fogImport(cena.fog, cena.paredes);
 
   if (cena.video_url && cena.video_url.startsWith('https://')) {
     MAP.img = null; MAP.imgUrl = null;

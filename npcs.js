@@ -428,6 +428,8 @@ async function criarCena() {
     video_url: (typeof _vidUrl !== 'undefined' ? _vidUrl : null),
     tokens:    MAP?.tokens || [],
     grid_size: MAP?.gridSize || 60,
+    fog:       typeof fogExport === 'function' ? fogExport() : null,
+    paredes:   (typeof FOG !== 'undefined') ? FOG.paredes : [],
     ordem:     cenas.length,
     ativa:     false,
   });
@@ -443,6 +445,8 @@ async function salvarCenaAtual() {
     mapa_url:  typeof mapaUrl !== 'undefined' ? mapaUrl : null,
     tokens:    typeof tokens !== 'undefined' ? tokens : [],
     grid_size: typeof gridSize !== 'undefined' ? gridSize : 60,
+    fog:       typeof fogExport === 'function' ? fogExport() : null,
+    paredes:   (typeof FOG !== 'undefined') ? FOG.paredes : [],
   }).eq('id', cenaAtiva);
   if (error) { toast('Erro ao salvar!', 'err'); return; }
   toast('Cena salva!', 'ok');

@@ -1,0 +1,403 @@
+// ══════════════════════════════════════════════════
+//  FRACTURED — fog.js
+//  Fog of War + Paredes + Linha de Visão (LOS)
+//  Carregado DEPOIS de mapa.js e ANTES de app.js
+// ══════════════════════════════════════════════════
+
+const FOG = {
+  enabled: false,
+  modo:    'visao',        // 'visao' (automático por LOS) | 'manual' (pincel)
+  raio:    8,              // raio de visão em células
+  cells:   new Set(),      // células reveladas/exploradas — chave "gx,gy"
+  paredes: [],             // [{x1,y1,x2,y2}] em coordenadas de mundo
+  tool:    null,           // null | 'revelar' | 'ocultar' | 'parede' | 'apagar-parede'
+  brush:   2,              // raio do pincel em células
+  wallStart: null,         // ponto inicial da parede sendo desenhada
+  wallPreview: null,       // ponto atual do mouse durante desenho
+  _fogCvs: null,           // canvas offscreen
+  _lastExplore: 0,
+  _painting: false,
+};
+
+// ── SERIALIZAÇÃO ─────────────────────────────────
+function fogExport() {
+  return {
+    enabled: FOG.enabled,
+    modo:    FOG.modo,
+    raio:    FOG.raio,
+    cells:   [...FOG.cells],
+  };
+}
+
+function fogImport(f, paredes) {
+  if (f && typeof f === 'object') {
+    FOG.enabled = !!f.enabled;
+    FOG.modo    = f.modo === 'manual' ? 'manual' : 'visao';
+    FOG.raio    = Math.max(2, Math.min(30, parseInt(f.raio) || 8));
+    FOG.cells   = new Set(Array.isArray(f.cells) ? f.cells : []);
+  }
+  if (Array.isArray(paredes)) FOG.paredes = paredes;
+  fogSyncUI();
+}
+
+// ── GEOMETRIA ────────────────────────────────────
+function _segIntersect(ax, ay, bx, by, cx, cy, dx, dy) {
+  // Interseção raio AB com segmento CD. Retorna t ao longo de AB ou null.
+  const r_dx = bx - ax, r_dy = by - ay;
+  const s_dx = dx - cx, s_dy = dy - cy;
+  const denom = r_dx * s_dy - r_dy * s_dx;
+  if (Math.abs(denom) < 1e-9) return null;
+  const t = ((cx - ax) * s_dy - (cy - ay) * s_dx) / denom;
+  const u = ((cx - ax) * r_dy - (cy - ay) * r_dx) / denom;
+  if (t >= 0 && u >= 0 && u <= 1) return t;
+  return null;
+}
+
+function _distPontoSeg(px, py, x1, y1, x2, y2) {
+  const dx = x2 - x1, dy = y2 - y1;
+  const len2 = dx * dx + dy * dy;
+  if (len2 === 0) return Math.hypot(px - x1, py - y1);
+  let t = ((px - x1) * dx + (py - y1) * dy) / len2;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
+}
+
+// Polígono de visibilidade: raycast do ponto (cx,cy) contra paredes,
+// limitado por um círculo de raio R (aproximado por polígono).
+function fogVisPoly(cx, cy, R) {
+  const segs = [];
+  // Paredes
+  FOG.paredes.forEach(p => segs.push([p.x1, p.y1, p.x2, p.y2]));
+  // Círculo-limite (24 lados)
+  const N = 24;
+  for (let i = 0; i < N; i++) {
+    const a1 = (i / N) * Math.PI * 2, a2 = ((i + 1) / N) * Math.PI * 2;
+    segs.push([cx + Math.cos(a1) * R, cy + Math.sin(a1) * R,
+               cx + Math.cos(a2) * R, cy + Math.sin(a2) * R]);
+  }
+  // Ângulos-alvo: extremos de cada segmento ± epsilon
+  const angs = [];
+  segs.forEach(s => {
+    [[s[0], s[1]], [s[2], s[3]]].forEach(([px, py]) => {
+      const a = Math.atan2(py - cy, px - cx);
+      angs.push(a - 0.0004, a, a + 0.0004);
+    });
+  });
+  angs.sort((a, b) => a - b);
+
+  const pts = [];
+  const FAR = R * 2;
+  for (const a of angs) {
+    const bx = cx + Math.cos(a) * FAR, by = cy + Math.sin(a) * FAR;
+    let tMin = Infinity;
+    for (const s of segs) {
+      const t = _segIntersect(cx, cy, bx, by, s[0], s[1], s[2], s[3]);
+      if (t !== null && t < tMin) tMin = t;
+    }
+    if (tMin === Infinity) tMin = R / FAR;
+    pts.push([cx + Math.cos(a) * FAR * tMin, cy + Math.sin(a) * FAR * tMin]);
+  }
+  return pts;
+}
+
+function _pontoNoPoly(px, py, poly) {
+  let dentro = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const xi = poly[i][0], yi = poly[i][1], xj = poly[j][0], yj = poly[j][1];
+    if (((yi > py) !== (yj > py)) &&
+        (px < (xj - xi) * (py - yi) / (yj - yi) + xi)) dentro = !dentro;
+  }
+  return dentro;
+}
+
+// Tokens que enxergam: todos os PCs (visão compartilhada do grupo)
+function _tokensComVisao() {
+  return (MAP.tokens || []).filter(t => t.isPC);
+}
+
+// ── RENDER ───────────────────────────────────────
+// Chamado DENTRO do transform de mundo (paredes visíveis só ao mestre)
+function fogRenderWorld(ctx, zoom) {
+  if (!isMaster) {
+    // Preview da parede em desenho nunca acontece para player
+  } else {
+    // Paredes (laranja)
+    ctx.strokeStyle = 'rgba(230,126,34,0.9)';
+    ctx.lineWidth = 3 / zoom;
+    ctx.lineCap = 'round';
+    FOG.paredes.forEach(p => {
+      ctx.beginPath(); ctx.moveTo(p.x1, p.y1); ctx.lineTo(p.x2, p.y2); ctx.stroke();
+      // Pontas
+      ctx.fillStyle = 'rgba(230,126,34,0.9)';
+      [[p.x1, p.y1], [p.x2, p.y2]].forEach(([x, y]) => {
+        ctx.beginPath(); ctx.arc(x, y, 4 / zoom, 0, Math.PI * 2); ctx.fill();
+      });
+    });
+    // Preview
+    if (FOG.tool === 'parede' && FOG.wallStart && FOG.wallPreview) {
+      ctx.strokeStyle = 'rgba(230,126,34,0.5)';
+      ctx.setLineDash([6 / zoom, 4 / zoom]);
+      ctx.beginPath();
+      ctx.moveTo(FOG.wallStart.x, FOG.wallStart.y);
+      ctx.lineTo(FOG.wallPreview.x, FOG.wallPreview.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+}
+
+// Chamado FORA do transform (espaço de tela) — desenha a escuridão
+function fogRenderScreen(ctx) {
+  if (!FOG.enabled) return;
+  const cvs = MAP.canvas;
+  const W = cvs.width, H = cvs.height;
+  const { zoom, offX, offY, gridSize } = MAP;
+
+  if (!FOG._fogCvs) FOG._fogCvs = document.createElement('canvas');
+  const fc = FOG._fogCvs;
+  if (fc.width !== W || fc.height !== H) { fc.width = W; fc.height = H; }
+  const fctx = fc.getContext('2d');
+
+  fctx.globalCompositeOperation = 'source-over';
+  fctx.clearRect(0, 0, W, H);
+  fctx.fillStyle = '#000';
+  fctx.fillRect(0, 0, W, H);
+
+  // Apaga áreas visíveis (composição destination-out)
+  fctx.globalCompositeOperation = 'destination-out';
+  const w2s = (wx, wy) => [wx * zoom + offX, wy * zoom + offY];
+
+  if (FOG.modo === 'manual') {
+    // Células reveladas manualmente — apagadas por completo
+    fctx.globalAlpha = 1;
+    FOG.cells.forEach(key => {
+      const [gx, gy] = key.split(',').map(Number);
+      const [sx, sy] = w2s(gx * gridSize, gy * gridSize);
+      fctx.fillRect(sx - 0.5, sy - 0.5, gridSize * zoom + 1, gridSize * zoom + 1);
+    });
+  } else {
+    // Modo visão: memória de exploração (penumbra) + LOS atual (claro)
+    fctx.globalAlpha = 0.55;
+    FOG.cells.forEach(key => {
+      const [gx, gy] = key.split(',').map(Number);
+      const [sx, sy] = w2s(gx * gridSize, gy * gridSize);
+      fctx.fillRect(sx - 0.5, sy - 0.5, gridSize * zoom + 1, gridSize * zoom + 1);
+    });
+    fctx.globalAlpha = 1;
+    const R = FOG.raio * gridSize;
+    _tokensComVisao().forEach(t => {
+      const cx = t.x + gridSize / 2, cy = t.y + gridSize / 2;
+      const poly = fogVisPoly(cx, cy, R);
+      if (poly.length < 3) return;
+      fctx.beginPath();
+      const [p0x, p0y] = w2s(poly[0][0], poly[0][1]);
+      fctx.moveTo(p0x, p0y);
+      for (let i = 1; i < poly.length; i++) {
+        const [px, py] = w2s(poly[i][0], poly[i][1]);
+        fctx.lineTo(px, py);
+      }
+      fctx.closePath();
+      fctx.fill();
+    });
+    // Atualiza memória de exploração (no máx. 1x/segundo)
+    const agora = Date.now();
+    if (agora - FOG._lastExplore > 1000) {
+      FOG._lastExplore = agora;
+      fogAtualizarExploracao();
+    }
+  }
+  fctx.globalAlpha = 1;
+  fctx.globalCompositeOperation = 'source-over';
+
+  // Aplica no canvas principal: mestre enxerga através (translúcido)
+  ctx.save();
+  ctx.globalAlpha = isMaster ? 0.45 : 1;
+  ctx.drawImage(fc, 0, 0);
+  ctx.restore();
+}
+
+// Marca como exploradas as células dentro da visão atual dos PCs
+function fogAtualizarExploracao() {
+  if (FOG.modo !== 'visao') return;
+  const gs = MAP.gridSize;
+  const R = FOG.raio * gs;
+  let mudou = false;
+  _tokensComVisao().forEach(t => {
+    const cx = t.x + gs / 2, cy = t.y + gs / 2;
+    const poly = fogVisPoly(cx, cy, R);
+    if (poly.length < 3) return;
+    const g0x = Math.floor((cx - R) / gs), g1x = Math.ceil((cx + R) / gs);
+    const g0y = Math.floor((cy - R) / gs), g1y = Math.ceil((cy + R) / gs);
+    for (let gx = g0x; gx <= g1x; gx++) {
+      for (let gy = g0y; gy <= g1y; gy++) {
+        const key = gx + ',' + gy;
+        if (FOG.cells.has(key)) continue;
+        if (_pontoNoPoly(gx * gs + gs / 2, gy * gs + gs / 2, poly)) {
+          FOG.cells.add(key); mudou = true;
+        }
+      }
+    }
+  });
+  // Só o mestre persiste a exploração (evita corrida de escrita)
+  if (mudou && isMaster) mapaSalvarDB();
+}
+
+// ── FERRAMENTAS DO MESTRE (mouse) ────────────────
+// Retornam true se consumiram o evento
+function _snap(w) {
+  const g = MAP.gridSize / 2;
+  return { x: Math.round(w.x / g) * g, y: Math.round(w.y / g) * g };
+}
+
+function fogToolMouseDown(e, w) {
+  if (!isMaster || !FOG.tool) return false;
+
+  if (FOG.tool === 'revelar' || FOG.tool === 'ocultar') {
+    FOG._painting = true;
+    fogPintar(w);
+    return true;
+  }
+  if (FOG.tool === 'parede') {
+    const p = _snap(w);
+    if (!FOG.wallStart) {
+      FOG.wallStart = p;
+    } else {
+      if (Math.hypot(p.x - FOG.wallStart.x, p.y - FOG.wallStart.y) > 4) {
+        FOG.paredes.push({ x1: FOG.wallStart.x, y1: FOG.wallStart.y, x2: p.x, y2: p.y });
+        mapaSalvarDB();
+      }
+      // Encadeia: próxima parede começa onde esta terminou
+      FOG.wallStart = p;
+    }
+    mapaDraw();
+    return true;
+  }
+  if (FOG.tool === 'apagar-parede') {
+    const limiar = 10 / MAP.zoom;
+    const idx = FOG.paredes.findIndex(p => _distPontoSeg(w.x, w.y, p.x1, p.y1, p.x2, p.y2) < limiar);
+    if (idx >= 0) {
+      FOG.paredes.splice(idx, 1);
+      mapaSalvarDB();
+      mapaDraw();
+      toast('Parede removida.', 'ok');
+    }
+    return true;
+  }
+  return false;
+}
+
+function fogToolMouseMove(e, w) {
+  if (!isMaster || !FOG.tool) return false;
+  if (FOG._painting) { fogPintar(w); return true; }
+  if (FOG.tool === 'parede' && FOG.wallStart) {
+    FOG.wallPreview = _snap(w);
+    mapaDraw();
+    return true;
+  }
+  return FOG.tool !== null; // consome movimento para não iniciar pan/seleção
+}
+
+function fogToolMouseUp() {
+  if (!isMaster || !FOG.tool) return false;
+  if (FOG._painting) {
+    FOG._painting = false;
+    mapaSalvarDB();
+    return true;
+  }
+  return FOG.tool !== null;
+}
+
+function fogPintar(w) {
+  const gs = MAP.gridSize;
+  const gcx = Math.floor(w.x / gs), gcy = Math.floor(w.y / gs);
+  const r = FOG.brush;
+  for (let dx = -r; dx <= r; dx++) {
+    for (let dy = -r; dy <= r; dy++) {
+      if (dx * dx + dy * dy > r * r + 0.5) continue;
+      const key = (gcx + dx) + ',' + (gcy + dy);
+      if (FOG.tool === 'revelar') FOG.cells.add(key);
+      else FOG.cells.delete(key);
+    }
+  }
+  mapaDraw();
+}
+
+// ── AÇÕES DA TOOLBAR ─────────────────────────────
+function fogToggle() {
+  FOG.enabled = !FOG.enabled;
+  if (!FOG.enabled) fogSetTool(null);
+  fogSyncUI(); mapaDraw(); mapaSalvarDB();
+  toast(FOG.enabled ? 'Fog of War ATIVADO' : 'Fog of War desativado', 'ok');
+}
+
+function fogSetModo(m) {
+  FOG.modo = m;
+  fogSyncUI(); mapaDraw(); mapaSalvarDB();
+}
+
+function fogSetTool(t) {
+  FOG.tool = FOG.tool === t ? null : t;
+  FOG.wallStart = null; FOG.wallPreview = null; FOG._painting = false;
+  // Desativa régua se estiver ligada (conflito de clique)
+  if (FOG.tool && MAP.rulerType) { MAP.rulerType = null; MAP.rulerStart = null; MAP.rulerEnd = null; }
+  fogSyncUI(); mapaDraw();
+  const nomes = { revelar: '🔦 Pincel Revelar', ocultar: '🌑 Pincel Ocultar', parede: '🧱 Desenhar Paredes (clique para encadear, ESC para soltar)', 'apagar-parede': '🚫 Apagar Paredes' };
+  if (FOG.tool) toast(nomes[FOG.tool], 'ok');
+}
+
+function fogSetRaio(v) {
+  FOG.raio = Math.max(2, Math.min(30, parseInt(v) || 8));
+  mapaDraw(); mapaSalvarDB();
+}
+
+function fogRevelarTudo() {
+  if (!confirm('Revelar o mapa inteiro?')) return;
+  // Revela uma área generosa em volta do conteúdo atual
+  const gs = MAP.gridSize;
+  const w = MAP.img ? MAP.img.width : 3000, h = MAP.img ? MAP.img.height : 3000;
+  for (let gx = -2; gx <= Math.ceil(w / gs) + 2; gx++)
+    for (let gy = -2; gy <= Math.ceil(h / gs) + 2; gy++)
+      FOG.cells.add(gx + ',' + gy);
+  mapaDraw(); mapaSalvarDB();
+}
+
+function fogCobrirTudo() {
+  if (!confirm('Cobrir tudo com névoa novamente? (apaga a exploração)')) return;
+  FOG.cells = new Set();
+  mapaDraw(); mapaSalvarDB();
+}
+
+function fogApagarParedes() {
+  if (!confirm('Apagar TODAS as paredes?')) return;
+  FOG.paredes = [];
+  mapaDraw(); mapaSalvarDB();
+}
+
+function fogSyncUI() {
+  const on = document.getElementById('btn-fog-toggle');
+  if (on) {
+    on.style.color = FOG.enabled ? 'var(--gold)' : '';
+    on.style.borderColor = FOG.enabled ? 'var(--gold)' : '';
+  }
+  const modo = document.getElementById('fog-modo-sel');
+  if (modo) modo.value = FOG.modo;
+  const raio = document.getElementById('fog-raio-val');
+  if (raio) raio.value = FOG.raio;
+  const grupo = document.getElementById('fog-tools');
+  if (grupo) grupo.style.display = FOG.enabled ? 'flex' : 'none';
+  ['revelar', 'ocultar', 'parede', 'apagar-parede'].forEach(t => {
+    const b = document.getElementById('btn-fog-' + t);
+    if (b) {
+      b.style.color = FOG.tool === t ? 'var(--gold)' : '';
+      b.style.borderColor = FOG.tool === t ? 'var(--gold)' : '';
+    }
+  });
+}
+
+// ESC solta a corrente de paredes / desativa ferramenta
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && FOG.tool) {
+    if (FOG.wallStart) { FOG.wallStart = null; FOG.wallPreview = null; mapaDraw(); }
+    else fogSetTool(FOG.tool); // toggle off
+  }
+});

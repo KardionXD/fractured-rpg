@@ -1,3 +1,8 @@
+// ── SEGURANÇA: escapa HTML de dados vindos de usuários ──
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
 // ══════════════════════════════════════════════════
 //  FRACTURED — app.js
 // ══════════════════════════════════════════════════
@@ -122,6 +127,7 @@ function buildAttrGrid() {
     const card = document.createElement('div');
     card.className = 'attr-card';
     card.innerHTML = `
+      <button class="attr-roll-btn" onclick="rolarAtributoFicha('${a.id}')" title="Rolar 1d20 + ${a.abbr}">🎲</button>
       <div class="attr-abbr">${a.abbr}</div>
       <div class="attr-name">${a.name}</div>
       <div class="attr-inputs">
@@ -260,6 +266,7 @@ function buildPericias() {
         <input type="text" class="pericia-atrib-input" id="p-atrib-${i}" placeholder="FOR" maxlength="3"
           oninput="this.value=this.value.toUpperCase();autoSave()">
       </div>
+      <button class="pericia-roll-btn" onclick="rolarPericiaFicha(${i})" title="Rolar 1d20 + atributo + 3 (perícia)">🎲</button>
     `;
     list.appendChild(div);
   });
@@ -501,11 +508,15 @@ async function subscribeToSala() {
 }
 
 async function carregarFeed() {
-  const { data } = await db
+  // Busca as 80 mensagens MAIS RECENTES e inverte para exibir em ordem cronológica.
+  // (Antes buscava ascending+limit, que retornava as 80 mais ANTIGAS — após 80
+  //  mensagens na tabela, o feed nunca mostrava as novas ao recarregar a página.)
+  const { data: raw } = await db
     .from('sala')
     .select('*')
-    .order('created_at', { ascending: true })
+    .order('created_at', { ascending: false })
     .limit(80);
+  const data = raw ? raw.reverse() : raw;
 
   const feed = document.getElementById('feed-messages');
   if (!feed) return;
@@ -560,6 +571,52 @@ async function limparHistorico() {
 }
 
 // ── DADOS ─────────────────────────────────────────
+
+// ══════════════════════════════════════════════════
+//  ANIMAÇÃO DE DADO 3D
+// ══════════════════════════════════════════════════
+function rolagemOculta() {
+  return isMaster && document.getElementById('roll-oculto')?.checked === true;
+}
+
+function mostrarAnimacaoDado(faces, resultado, isCrit, isFalha) {
+  // Remove overlay anterior se existir
+  document.getElementById('dado-overlay')?.remove();
+
+  const ov = document.createElement('div');
+  ov.id = 'dado-overlay';
+  ov.innerHTML = `
+    <div class="dado3d-wrap">
+      <div class="dado3d ${faces === 20 ? 'dado3d-d20' : 'dado3d-cubo'}" id="dado3d-el">
+        <span class="dado3d-num" id="dado3d-num">?</span>
+      </div>
+      <div class="dado3d-label">1d${faces}</div>
+    </div>`;
+  document.body.appendChild(ov);
+
+  const numEl = document.getElementById('dado3d-num');
+  const dadoEl = document.getElementById('dado3d-el');
+
+  // Números girando enquanto o dado "rola"
+  const ciclo = setInterval(() => {
+    numEl.textContent = Math.floor(Math.random() * faces) + 1;
+  }, 70);
+
+  // Após ~1s, assenta no resultado
+  setTimeout(() => {
+    clearInterval(ciclo);
+    numEl.textContent = resultado;
+    dadoEl.classList.add('dado3d-parado');
+    if (isCrit)  dadoEl.classList.add('dado3d-crit');
+    if (isFalha) dadoEl.classList.add('dado3d-falha');
+    // Some depois de mostrar o resultado
+    setTimeout(() => { ov.classList.add('dado3d-sair'); setTimeout(() => ov.remove(), 380); }, 1100);
+  }, 1000);
+
+  // Clique fecha na hora
+  ov.addEventListener('click', () => ov.remove());
+}
+
 function rolarDado(faces, qtd = 1) {
   let total = 0;
   const resultados = [];
@@ -568,12 +625,53 @@ function rolarDado(faces, qtd = 1) {
     resultados.push(r);
     total += r;
   }
+  const isCrit  = faces === 20 && qtd === 1 && resultados[0] === 20;
+  const isFalha = faces === 20 && qtd === 1 && resultados[0] === 1;
+  mostrarAnimacaoDado(faces, qtd > 1 ? total : resultados[0], isCrit, isFalha);
   publicarSala('roll', {
     dado: faces,
     qtd,
     resultado_dado: resultados[0],
     total,
+    oculto: rolagemOculta(),
     label: qtd > 1 ? `${qtd}d${faces}: [${resultados.join(', ')}]` : `1d${faces}`
+  });
+}
+
+
+// ══════════════════════════════════════════════════
+//  ROLAGEM DIRETO DA FICHA
+// ══════════════════════════════════════════════════
+function rolarAtributoFicha(id) {
+  const attr = ATTRS.find(x => x.id === id);
+  const mod  = parseInt(document.getElementById('m-' + id)?.value) || 0;
+  const dado = Math.floor(Math.random() * 20) + 1;
+  const total = dado + mod;
+  mostrarAnimacaoDado(20, dado, dado === 20, dado === 1);
+  publicarSala('roll', {
+    dado: 20, resultado_dado: dado, bonus: mod, total,
+    oculto: rolagemOculta(),
+    label: `${attr.abbr} — ${attr.name} (${mod >= 0 ? '+' : ''}${mod})`
+  });
+}
+
+function rolarPericiaFicha(i) {
+  const nome  = document.getElementById('p-nome-' + i)?.value.trim();
+  const atrib = (document.getElementById('p-atrib-' + i)?.value || '').trim().toUpperCase();
+  if (!nome) { toast('Preencha o nome da perícia primeiro.', 'err'); return; }
+
+  const attr = ATTRS.find(x => x.abbr === atrib);
+  const mod  = attr ? (parseInt(document.getElementById('m-' + attr.id)?.value) || 0) : 0;
+  const PERICIA_BONUS = 3;
+
+  const dado  = Math.floor(Math.random() * 20) + 1;
+  const bonus = mod + PERICIA_BONUS;
+  const total = dado + bonus;
+  mostrarAnimacaoDado(20, dado, dado === 20, dado === 1);
+  publicarSala('roll', {
+    dado: 20, resultado_dado: dado, bonus, total,
+    oculto: rolagemOculta(),
+    label: `${nome}${attr ? ` · ${attr.abbr} ${mod >= 0 ? '+' : ''}${mod}` : ''} · perícia +${PERICIA_BONUS}`
   });
 }
 
@@ -602,12 +700,14 @@ function rolarFormula() {
   const ajudaText  = ajudas > 0 ? `${ajudas} ajudante(s) (+${modAjuda})` : '';
   const customText = modCustom !== 0 ? `Bônus custom (${modCustom>0?'+':''}${modCustom})` : '';
 
+  mostrarAnimacaoDado(20, dado, dado === 20, dado === 1);
   publicarSala('roll', {
     dado: 20,
     resultado_dado: dado,
     bonus,
     total,
     dif,
+    oculto: rolagemOculta(),
     label: [atribText,
       perText !== 'Sem perícia (+0)' ? perText : '',
       sitText !== 'Normal' ? sitText : '',
@@ -978,12 +1078,27 @@ function appendFeedMsg(msg) {
 
   if (msg.tipo === 'roll') {
     const c = msg.conteudo;
+
+    // Rolagem oculta: players veem apenas o aviso misterioso
+    if (c.oculto && !isMaster) {
+      div.className = 'feed-msg roll roll-oculta';
+      div.innerHTML = `
+        <div class="feed-msg-header">
+          <span class="feed-msg-user">🕶 MESTRE</span>
+          <span class="feed-msg-time">${hora}</span>
+        </div>
+        <div class="feed-msg-content" style="color:var(--muted);font-style:italic">O mestre rolou dados ocultos...</div>`;
+      feed.appendChild(div);
+      scrollFeedToBottom();
+      return;
+    }
+
     const isCrit  = c.dado === 20 && c.resultado_dado === 20;
     const isFalha = c.dado === 20 && c.resultado_dado === 1;
     div.className = 'feed-msg roll' + (isCrit ? ' critico' : '') + (isFalha ? ' falha-critica' : '');
     div.innerHTML = `
       <div class="feed-msg-header">
-        <span class="feed-msg-user">${msg.username}</span>
+        <span class="feed-msg-user">${esc(msg.username)}${c.oculto ? ' <span style="font-size:9px;color:var(--gold)">🕶 OCULTA</span>' : ''}</span>
         <span class="feed-msg-time">${hora}</span>
       </div>
       <div class="feed-msg-content">
@@ -995,7 +1110,7 @@ function appendFeedMsg(msg) {
       <div class="roll-detail">
         rolou 1d${c.dado} → ${c.resultado_dado}
         ${c.bonus ? ` + bônus ${c.bonus > 0 ? '+' : ''}${c.bonus}` : ''}
-        ${c.label ? ` — ${c.label}` : ''}
+        ${c.label ? ` — ${esc(c.label)}` : ''}
       </div>
     `;
   } else if (msg.tipo === 'tensao') {
@@ -1011,10 +1126,10 @@ function appendFeedMsg(msg) {
     div.className = 'feed-msg';
     div.innerHTML = `
       <div class="feed-msg-header">
-        <span class="feed-msg-user">${msg.username}</span>
+        <span class="feed-msg-user">${esc(msg.username)}</span>
         <span class="feed-msg-time">${hora}</span>
       </div>
-      <div class="feed-msg-content">${(msg.conteudo.texto || '').replace(/</g,'&lt;')}</div>
+      <div class="feed-msg-content">${esc(msg.conteudo.texto)}</div>
     `;
   } else { return; }
 

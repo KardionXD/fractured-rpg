@@ -416,6 +416,11 @@ function buildTensaoPanel(c) {
 function buildDadosPanel(c) {
   c.innerHTML = `
     <div style="padding:10px;display:flex;flex-direction:column;gap:10px;height:100%;overflow-y:auto">
+      ${isMaster ? `
+      <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--gold);cursor:pointer;border:1px solid var(--border);border-radius:6px;padding:6px 8px">
+        <input type="checkbox" id="roll-oculto" style="accent-color:var(--gold)">
+        🕶 Rolagem oculta <span style="color:var(--muted);font-size:9px">(players só veem "o mestre rolou dados...")</span>
+      </label>` : ''}
       <div>
         <div style="font-size:9px;font-weight:700;letter-spacing:2px;color:var(--red);text-transform:uppercase;margin-bottom:8px">Dados Rápidos</div>
         <div class="dado-grid">
@@ -551,6 +556,26 @@ function buildMapaPanel(c) {
           <button class="ct-pv-btn" onclick="resetZoom()" style="font-size:9px;width:auto;padding:0 4px">↺</button>
         </div>
       </div>
+      ${isMaster ? `
+      <div class="mapa-toolbar" style="flex-shrink:0;padding:3px 8px;border-top:none;gap:5px;flex-wrap:wrap">
+        <button class="btn-ghost" id="btn-fog-toggle" onclick="fogToggle()" style="font-size:10px;padding:3px 7px" title="Ativar/desativar Fog of War">🌫 Fog</button>
+        <div id="fog-tools" style="display:none;gap:4px;align-items:center;flex-wrap:wrap">
+          <select id="fog-modo-sel" onchange="fogSetModo(this.value)" style="background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:2px 4px;font-size:10px">
+            <option value="visao">👁 Visão automática</option>
+            <option value="manual">🖌 Manual</option>
+          </select>
+          <span style="font-size:9px;color:var(--muted)">Raio</span>
+          <input type="number" id="fog-raio-val" value="8" min="2" max="30" onchange="fogSetRaio(this.value)"
+            style="width:38px;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:2px;font-size:10px;text-align:center" title="Raio de visão em células">
+          <button class="btn-ghost" id="btn-fog-revelar" onclick="fogSetTool('revelar')" style="font-size:10px;padding:3px 6px" title="Pincel: revelar área">🔦</button>
+          <button class="btn-ghost" id="btn-fog-ocultar" onclick="fogSetTool('ocultar')" style="font-size:10px;padding:3px 6px" title="Pincel: ocultar área">🌑</button>
+          <button class="btn-ghost" id="btn-fog-parede" onclick="fogSetTool('parede')" style="font-size:10px;padding:3px 6px" title="Desenhar paredes (bloqueiam visão)">🧱</button>
+          <button class="btn-ghost" id="btn-fog-apagar-parede" onclick="fogSetTool('apagar-parede')" style="font-size:10px;padding:3px 6px" title="Apagar parede (clique nela)">🚫</button>
+          <button class="btn-ghost" onclick="fogRevelarTudo()" style="font-size:9px;padding:3px 6px" title="Revelar mapa inteiro">☀</button>
+          <button class="btn-ghost" onclick="fogCobrirTudo()" style="font-size:9px;padding:3px 6px" title="Cobrir tudo de novo">🌑↺</button>
+          <button class="btn-ghost" onclick="fogApagarParedes()" style="font-size:9px;padding:3px 6px;color:var(--red)" title="Apagar todas as paredes">🧱✕</button>
+        </div>
+      </div>` : ''}
       <div class="mapa-toolbar" style="flex-shrink:0;padding:3px 8px;border-top:none;gap:5px">
         <button class="btn-ghost" onclick="adicionarMeuPersonagem()" style="font-size:10px;padding:3px 7px">🧑 Entrar</button>
         ${masterBtns}
@@ -570,7 +595,7 @@ function buildMapaPanel(c) {
              onclick="event.stopPropagation()"></div>
       </div>
     </div>`;
-  setTimeout(() => { MAP.canvas = null; mapaInit(); }, 80);
+  setTimeout(() => { MAP.canvas = null; mapaInit(); if (typeof fogSyncUI === 'function') fogSyncUI(); }, 80);
 }
 
 function buildPlayersPanel(c) {
