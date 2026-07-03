@@ -567,8 +567,15 @@ function buildMapaPanel(c) {
           <span style="font-size:9px;color:var(--muted)">Raio</span>
           <input type="number" id="fog-raio-val" value="8" min="2" max="30" onchange="fogSetRaio(this.value)"
             style="width:38px;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:2px;font-size:10px;text-align:center" title="Raio de visão em células">
-          <button class="btn-ghost" id="btn-fog-revelar" onclick="fogSetTool('revelar')" style="font-size:10px;padding:3px 6px" title="Pincel: revelar área">🔦</button>
-          <button class="btn-ghost" id="btn-fog-ocultar" onclick="fogSetTool('ocultar')" style="font-size:10px;padding:3px 6px" title="Pincel: ocultar área">🌑</button>
+          <button class="btn-ghost" id="btn-fog-revelar" onclick="fogSetTool('revelar')" style="font-size:10px;padding:3px 6px" title="Pincel: revelar área (Shift+arrasto = retângulo)">🔦</button>
+          <button class="btn-ghost" id="btn-fog-ocultar" onclick="fogSetTool('ocultar')" style="font-size:10px;padding:3px 6px" title="Pincel: ocultar área (Shift+arrasto = retângulo)">🌑</button>
+          <select id="fog-brush-sel" onchange="fogSetBrush(this.value)" title="Tamanho do pincel" style="background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:2px 3px;font-size:10px">
+            <option value="0">P·1</option>
+            <option value="1">M·3</option>
+            <option value="2" selected>G·5</option>
+            <option value="4">GG·9</option>
+          </select>
+          <button class="btn-ghost" id="btn-fog-forma" onclick="fogToggleForma()" style="font-size:10px;padding:3px 6px" title="Forma do pincel: circular ⚪ / quadrado ⬛">⚪</button>
           <button class="btn-ghost" id="btn-fog-parede" onclick="fogSetTool('parede')" style="font-size:10px;padding:3px 6px" title="Desenhar paredes (bloqueiam visão)">🧱</button>
           <button class="btn-ghost" id="btn-fog-apagar-parede" onclick="fogSetTool('apagar-parede')" style="font-size:10px;padding:3px 6px" title="Apagar parede (clique nela)">🚫</button>
           <button class="btn-ghost" onclick="fogRevelarTudo()" style="font-size:9px;padding:3px 6px" title="Revelar mapa inteiro">☀</button>

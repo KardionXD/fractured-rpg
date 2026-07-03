@@ -11,7 +11,9 @@ const FOG = {
   cells:   new Set(),      // células reveladas/exploradas — chave "gx,gy"
   paredes: [],             // [{x1,y1,x2,y2}] em coordenadas de mundo
   tool:    null,           // null | 'revelar' | 'ocultar' | 'parede' | 'apagar-parede'
-  brush:   2,              // raio do pincel em células
+  brush:   2,              // raio do pincel em células (0 = 1 célula)
+  brushShape: 'circulo',   // 'circulo' | 'quadrado'
+  rectPaint: null,         // { sx, sy, ex, ey } — área retangular (Shift+arrasto)
   wallStart: null,         // ponto inicial da parede sendo desenhada
   wallPreview: null,       // ponto atual do mouse durante desenho
   _fogCvs: null,           // canvas offscreen
@@ -115,6 +117,34 @@ function _tokensComVisao() {
   return (MAP.tokens || []).filter(t => t.isPC);
 }
 
+
+// ── COLISÃO: paredes bloqueiam movimento de tokens ────────────
+// (o mestre atravessa; players batem na parede e podem deslizar nela)
+function fogSegCruza(x1, y1, x2, y2, x3, y3, x4, y4) {
+  const d = (x2 - x1) * (y4 - y3) - (y2 - y1) * (x4 - x3);
+  if (Math.abs(d) < 1e-9) return false;
+  const t = ((x3 - x1) * (y4 - y3) - (y3 - y1) * (x4 - x3)) / d;
+  const u = ((x3 - x1) * (y2 - y1) - (y3 - y1) * (x2 - x1)) / d;
+  return t >= 0 && t <= 1 && u >= 0 && u <= 1;
+}
+
+function fogCaminhoBloqueado(cx1, cy1, cx2, cy2) {
+  return FOG.paredes.some(p => fogSegCruza(cx1, cy1, cx2, cy2, p.x1, p.y1, p.x2, p.y2));
+}
+
+// Retorna a posição final permitida para o token (com deslize na parede)
+function fogPosPermitida(tok, nx, ny) {
+  if (isMaster || FOG.paredes.length === 0) return { x: nx, y: ny };
+  const h  = MAP.gridSize / 2;
+  const cx = tok.x + h, cy = tok.y + h;   // centro atual
+  const tx = nx + h,    ty = ny + h;      // centro alvo
+  if (!fogCaminhoBloqueado(cx, cy, tx, ty)) return { x: nx, y: ny };
+  // Bateu: tenta deslizar só no eixo X, depois só no Y
+  if (!fogCaminhoBloqueado(cx, cy, tx, cy)) return { x: nx, y: tok.y };
+  if (!fogCaminhoBloqueado(cx, cy, cx, ty)) return { x: tok.x, y: ny };
+  return { x: tok.x, y: tok.y };
+}
+
 // ── RENDER ───────────────────────────────────────
 // Chamado DENTRO do transform de mundo (paredes visíveis só ao mestre)
 function fogRenderWorld(ctx, zoom) {
@@ -133,6 +163,19 @@ function fogRenderWorld(ctx, zoom) {
         ctx.beginPath(); ctx.arc(x, y, 4 / zoom, 0, Math.PI * 2); ctx.fill();
       });
     });
+    // Preview do retângulo de pintura (Shift+arrasto)
+    if (FOG.rectPaint) {
+      const r = FOG.rectPaint;
+      const cor = FOG.tool === 'revelar' ? 'rgba(201,168,76,' : 'rgba(80,80,120,';
+      ctx.strokeStyle = cor + '0.9)';
+      ctx.fillStyle   = cor + '0.12)';
+      ctx.lineWidth = 1.5 / zoom;
+      ctx.setLineDash([5 / zoom, 4 / zoom]);
+      const rx = Math.min(r.sx, r.ex), ry = Math.min(r.sy, r.ey);
+      ctx.strokeRect(rx, ry, Math.abs(r.ex - r.sx), Math.abs(r.ey - r.sy));
+      ctx.fillRect(rx, ry, Math.abs(r.ex - r.sx), Math.abs(r.ey - r.sy));
+      ctx.setLineDash([]);
+    }
     // Preview
     if (FOG.tool === 'parede' && FOG.wallStart && FOG.wallPreview) {
       ctx.strokeStyle = 'rgba(230,126,34,0.5)';
@@ -284,6 +327,11 @@ function fogToolMouseDown(e, w) {
   if (!isMaster || !FOG.tool) return false;
 
   if (FOG.tool === 'revelar' || FOG.tool === 'ocultar') {
+    if (e.shiftKey) {
+      // Shift+arrasto = seleção retangular
+      FOG.rectPaint = { sx: w.x, sy: w.y, ex: w.x, ey: w.y };
+      return true;
+    }
     FOG._painting = true;
     fogPintar(w);
     return true;
@@ -319,6 +367,7 @@ function fogToolMouseDown(e, w) {
 
 function fogToolMouseMove(e, w) {
   if (!isMaster || !FOG.tool) return false;
+  if (FOG.rectPaint) { FOG.rectPaint.ex = w.x; FOG.rectPaint.ey = w.y; mapaDraw(); return true; }
   if (FOG._painting) { fogPintar(w); return true; }
   if (FOG.tool === 'parede' && FOG.wallStart) {
     FOG.wallPreview = _snap(w);
@@ -330,6 +379,7 @@ function fogToolMouseMove(e, w) {
 
 function fogToolMouseUp() {
   if (!isMaster || !FOG.tool) return false;
+  if (FOG.rectPaint) { fogAplicarRetangulo(); return true; }
   if (FOG._painting) {
     FOG._painting = false;
     mapaSalvarDB(); fogBroadcast();
@@ -344,13 +394,31 @@ function fogPintar(w) {
   const r = FOG.brush;
   for (let dx = -r; dx <= r; dx++) {
     for (let dy = -r; dy <= r; dy++) {
-      if (dx * dx + dy * dy > r * r + 0.5) continue;
+      if (FOG.brushShape === 'circulo' && dx * dx + dy * dy > r * r + 0.5) continue;
       const key = (gcx + dx) + ',' + (gcy + dy);
       if (FOG.tool === 'revelar') FOG.cells.add(key);
       else FOG.cells.delete(key);
     }
   }
   mapaDraw();
+}
+
+// Aplica revelar/ocultar em todas as células dentro do retângulo
+function fogAplicarRetangulo() {
+  const r = FOG.rectPaint;
+  if (!r) return;
+  const gs = MAP.gridSize;
+  const gx0 = Math.floor(Math.min(r.sx, r.ex) / gs), gx1 = Math.floor(Math.max(r.sx, r.ex) / gs);
+  const gy0 = Math.floor(Math.min(r.sy, r.ey) / gs), gy1 = Math.floor(Math.max(r.sy, r.ey) / gs);
+  for (let gx = gx0; gx <= gx1; gx++) {
+    for (let gy = gy0; gy <= gy1; gy++) {
+      const key = gx + ',' + gy;
+      if (FOG.tool === 'revelar') FOG.cells.add(key);
+      else FOG.cells.delete(key);
+    }
+  }
+  FOG.rectPaint = null;
+  mapaDraw(); mapaSalvarDB(); fogBroadcast();
 }
 
 // ── AÇÕES DA TOOLBAR ─────────────────────────────
@@ -404,6 +472,14 @@ function fogApagarParedes() {
   mapaDraw(); mapaSalvarDB(); fogBroadcast();
 }
 
+
+function fogSetBrush(v) { FOG.brush = Math.max(0, Math.min(6, parseInt(v))); }
+function fogToggleForma() {
+  FOG.brushShape = FOG.brushShape === 'circulo' ? 'quadrado' : 'circulo';
+  fogSyncUI();
+  toast(FOG.brushShape === 'circulo' ? 'Pincel: ⚪ circular' : 'Pincel: ⬛ quadrado', 'ok');
+}
+
 function fogSyncUI() {
   const on = document.getElementById('btn-fog-toggle');
   if (on) {
@@ -416,6 +492,10 @@ function fogSyncUI() {
   if (raio) raio.value = FOG.raio;
   const grupo = document.getElementById('fog-tools');
   if (grupo) grupo.style.display = FOG.enabled ? 'flex' : 'none';
+  const forma = document.getElementById('btn-fog-forma');
+  if (forma) forma.textContent = FOG.brushShape === 'circulo' ? '⚪' : '⬛';
+  const tam = document.getElementById('fog-brush-sel');
+  if (tam) tam.value = String(FOG.brush);
   ['revelar', 'ocultar', 'parede', 'apagar-parede'].forEach(t => {
     const b = document.getElementById('btn-fog-' + t);
     if (b) {
@@ -428,6 +508,7 @@ function fogSyncUI() {
 // ESC solta a corrente de paredes / desativa ferramenta
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && FOG.tool) {
+    if (FOG.rectPaint) { FOG.rectPaint = null; mapaDraw(); return; }
     if (FOG.wallStart) { FOG.wallStart = null; FOG.wallPreview = null; mapaDraw(); }
     else fogSetTool(FOG.tool); // toggle off
   }

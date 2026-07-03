@@ -445,12 +445,14 @@ function mapaMouseMove(e) {
   if (MAP.drag) {
     if (MAP.dragMulti.length > 1) {
       MAP.dragMulti.forEach(d => {
-        d.tok.x = Math.max(0, w.x - d.ox);
-        d.tok.y = Math.max(0, w.y - d.oy);
+        const nx = Math.max(0, w.x - d.ox), ny = Math.max(0, w.y - d.oy);
+        const pos = (typeof fogPosPermitida === 'function') ? fogPosPermitida(d.tok, nx, ny) : { x: nx, y: ny };
+        d.tok.x = pos.x; d.tok.y = pos.y;
       });
     } else {
-      MAP.drag.tok.x = Math.max(0, w.x - MAP.drag.ox);
-      MAP.drag.tok.y = Math.max(0, w.y - MAP.drag.oy);
+      const nx = Math.max(0, w.x - MAP.drag.ox), ny = Math.max(0, w.y - MAP.drag.oy);
+      const pos = (typeof fogPosPermitida === 'function') ? fogPosPermitida(MAP.drag.tok, nx, ny) : { x: nx, y: ny };
+      MAP.drag.tok.x = pos.x; MAP.drag.tok.y = pos.y;
     }
     mapaDraw(); return;
   }
@@ -602,12 +604,14 @@ function mapaTouchMove(e) {
   if (MAP.drag) {
     if (MAP.dragMulti.length > 1) {
       MAP.dragMulti.forEach(d => {
-        d.tok.x = Math.max(0, w.x - d.ox);
-        d.tok.y = Math.max(0, w.y - d.oy);
+        const nx = Math.max(0, w.x - d.ox), ny = Math.max(0, w.y - d.oy);
+        const pos = (typeof fogPosPermitida === 'function') ? fogPosPermitida(d.tok, nx, ny) : { x: nx, y: ny };
+        d.tok.x = pos.x; d.tok.y = pos.y;
       });
     } else {
-      MAP.drag.tok.x = Math.max(0, w.x - MAP.drag.ox);
-      MAP.drag.tok.y = Math.max(0, w.y - MAP.drag.oy);
+      const nx = Math.max(0, w.x - MAP.drag.ox), ny = Math.max(0, w.y - MAP.drag.oy);
+      const pos = (typeof fogPosPermitida === 'function') ? fogPosPermitida(MAP.drag.tok, nx, ny) : { x: nx, y: ny };
+      MAP.drag.tok.x = pos.x; MAP.drag.tok.y = pos.y;
     }
     mapaDraw(); return;
   }
