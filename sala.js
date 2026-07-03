@@ -595,7 +595,14 @@ function buildMapaPanel(c) {
              onclick="event.stopPropagation()"></div>
       </div>
     </div>`;
-  setTimeout(() => { MAP.canvas = null; mapaInit(); if (typeof fogSyncUI === 'function') fogSyncUI(); }, 80);
+  setTimeout(() => {
+    MAP.canvas = null; mapaInit();
+    if (typeof fogSyncUI === 'function') fogSyncUI();
+    else if (isMaster) {
+      console.error('fog.js NÃO FOI CARREGADO — o arquivo foi enviado para o servidor?');
+      toast('⚠ fog.js não carregou! Confira se o arquivo fog.js foi enviado no deploy.', 'err');
+    }
+  }, 80);
 }
 
 function buildPlayersPanel(c) {

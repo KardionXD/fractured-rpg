@@ -859,7 +859,7 @@ async function _mapaSalvarNow() {
   const urlParaSalvar = (MAP.imgUrl && MAP.imgUrl.startsWith('https://')) ? MAP.imgUrl : null;
   try {
     MAP.lastSaveTs = new Date().toISOString();
-    await db.from('mapa_estado').upsert({
+    const { error: saveErr } = await db.from('mapa_estado').upsert({
       id:           'sessao_atual',
       tokens:       MAP.tokens.map(t => ({ ...t })),
       grid_size:    MAP.gridSize,
@@ -869,7 +869,19 @@ async function _mapaSalvarNow() {
       paredes:      (typeof FOG !== 'undefined') ? FOG.paredes : [],
       updated_at:   MAP.lastSaveTs,
     });
-  } catch(e) { console.error('mapaSalvarDB:', e); }
+    if (saveErr) {
+      console.error('mapaSalvarDB (supabase):', saveErr);
+      if (/fog|paredes/i.test(saveErr.message || '')) {
+        toast('⚠ Rode MIGRACAO_FOG.sql no Supabase — colunas fog/paredes não existem!', 'err');
+      }
+    }
+  } catch(e) {
+    console.error('mapaSalvarDB:', e);
+    const emsg = (e?.message || '') + ' ' + (e?.details || '');
+    if (/fog|paredes/i.test(emsg)) {
+      toast('⚠ Banco sem as colunas de fog! Rode MIGRACAO_FOG.sql no Supabase.', 'err');
+    }
+  }
 
   // Cenas são salvas apenas manualmente pelo botão 💾
 }
@@ -881,7 +893,12 @@ async function mapaCarregarDB() {
       if (!MAP.drag) MAP.tokens = data.tokens || [];
       MAP.gridSize    = data.grid_size || 60;
       MAP.gridVisible = data.grid_visivel !== false;
-      if (typeof fogImport === 'function') fogImport(data.fog, data.paredes);
+      if (typeof fogImport === 'function') {
+        if (!('fog' in data)) {
+          console.warn('mapa_estado sem coluna fog — rode MIGRACAO_FOG.sql (o sync ao vivo funciona mesmo assim, mas o fog não persiste entre sessões).');
+        }
+        fogImport(data.fog, data.paredes);
+      }
       if (data.video_url && data.video_url.startsWith('https://')) {
         mapaCarregarVideo(data.video_url, false);
       } else if (data.mapa_url && data.mapa_url.startsWith('https://')) {
@@ -904,6 +921,9 @@ function mapaSubscribeRealtime() {
   if (_mapaSubAtiva) return;
   _mapaSubAtiva = true;
   console.log('mapaSubscribeRealtime: conectando...');
+
+  // Canal de sync ao vivo do Fog of War (broadcast, independente do banco)
+  if (typeof fogInitSync === 'function') fogInitSync();
 
   db.channel('mapa-v5-'+Date.now())
     .on('postgres_changes', { event:'UPDATE', schema:'public', table:'mapa_estado' }, payload => {

@@ -211,8 +211,39 @@ function fogRenderScreen(ctx) {
 
   // Aplica no canvas principal: mestre enxerga através (translúcido)
   ctx.save();
-  ctx.globalAlpha = isMaster ? 0.45 : 1;
-  ctx.drawImage(fc, 0, 0);
+  if (isMaster) {
+    // Tom azulado para o mestre — visível mesmo sobre mapas escuros
+    ctx.globalAlpha = 0.55;
+    ctx.drawImage(fc, 0, 0);
+    ctx.globalCompositeOperation = 'source-atop';
+    ctx.globalAlpha = 1;
+    // Tinge a névoa (usa o próprio fog canvas como máscara)
+    const tc = FOG._tintCvs || (FOG._tintCvs = document.createElement('canvas'));
+    if (tc.width !== W || tc.height !== H) { tc.width = W; tc.height = H; }
+    const tctx = tc.getContext('2d');
+    tctx.clearRect(0, 0, W, H);
+    tctx.drawImage(fc, 0, 0);
+    tctx.globalCompositeOperation = 'source-in';
+    tctx.fillStyle = 'rgba(60, 90, 160, 0.35)';
+    tctx.fillRect(0, 0, W, H);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 0.9;
+    ctx.drawImage(tc, 0, 0);
+  } else {
+    ctx.globalAlpha = 1;
+    ctx.drawImage(fc, 0, 0);
+  }
+  ctx.restore();
+
+  // Badge no canto: confirma que o fog está ativo
+  ctx.save();
+  ctx.font = 'bold 10px sans-serif';
+  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  const txt = isMaster ? '🌫 FOG ATIVO (visão do mestre)' : '🌫 FOG';
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  ctx.fillRect(4, 4, (ctx.measureText(txt)?.width || 150) + 12, 18);
+  ctx.fillStyle = 'rgba(201,168,76,0.95)';
+  ctx.fillText(txt, 10, 8);
   ctx.restore();
 }
 
@@ -239,7 +270,7 @@ function fogAtualizarExploracao() {
     }
   });
   // Só o mestre persiste a exploração (evita corrida de escrita)
-  if (mudou && isMaster) mapaSalvarDB();
+  if (mudou && isMaster) { mapaSalvarDB(); fogBroadcast(800); }
 }
 
 // ── FERRAMENTAS DO MESTRE (mouse) ────────────────
@@ -264,7 +295,7 @@ function fogToolMouseDown(e, w) {
     } else {
       if (Math.hypot(p.x - FOG.wallStart.x, p.y - FOG.wallStart.y) > 4) {
         FOG.paredes.push({ x1: FOG.wallStart.x, y1: FOG.wallStart.y, x2: p.x, y2: p.y });
-        mapaSalvarDB();
+        mapaSalvarDB(); fogBroadcast();
       }
       // Encadeia: próxima parede começa onde esta terminou
       FOG.wallStart = p;
@@ -277,7 +308,7 @@ function fogToolMouseDown(e, w) {
     const idx = FOG.paredes.findIndex(p => _distPontoSeg(w.x, w.y, p.x1, p.y1, p.x2, p.y2) < limiar);
     if (idx >= 0) {
       FOG.paredes.splice(idx, 1);
-      mapaSalvarDB();
+      mapaSalvarDB(); fogBroadcast();
       mapaDraw();
       toast('Parede removida.', 'ok');
     }
@@ -301,7 +332,7 @@ function fogToolMouseUp() {
   if (!isMaster || !FOG.tool) return false;
   if (FOG._painting) {
     FOG._painting = false;
-    mapaSalvarDB();
+    mapaSalvarDB(); fogBroadcast();
     return true;
   }
   return FOG.tool !== null;
@@ -326,13 +357,13 @@ function fogPintar(w) {
 function fogToggle() {
   FOG.enabled = !FOG.enabled;
   if (!FOG.enabled) fogSetTool(null);
-  fogSyncUI(); mapaDraw(); mapaSalvarDB();
+  fogSyncUI(); mapaDraw(); mapaSalvarDB(); fogBroadcast();
   toast(FOG.enabled ? 'Fog of War ATIVADO' : 'Fog of War desativado', 'ok');
 }
 
 function fogSetModo(m) {
   FOG.modo = m;
-  fogSyncUI(); mapaDraw(); mapaSalvarDB();
+  fogSyncUI(); mapaDraw(); mapaSalvarDB(); fogBroadcast();
 }
 
 function fogSetTool(t) {
@@ -347,7 +378,7 @@ function fogSetTool(t) {
 
 function fogSetRaio(v) {
   FOG.raio = Math.max(2, Math.min(30, parseInt(v) || 8));
-  mapaDraw(); mapaSalvarDB();
+  mapaDraw(); mapaSalvarDB(); fogBroadcast();
 }
 
 function fogRevelarTudo() {
@@ -358,19 +389,19 @@ function fogRevelarTudo() {
   for (let gx = -2; gx <= Math.ceil(w / gs) + 2; gx++)
     for (let gy = -2; gy <= Math.ceil(h / gs) + 2; gy++)
       FOG.cells.add(gx + ',' + gy);
-  mapaDraw(); mapaSalvarDB();
+  mapaDraw(); mapaSalvarDB(); fogBroadcast();
 }
 
 function fogCobrirTudo() {
   if (!confirm('Cobrir tudo com névoa novamente? (apaga a exploração)')) return;
   FOG.cells = new Set();
-  mapaDraw(); mapaSalvarDB();
+  mapaDraw(); mapaSalvarDB(); fogBroadcast();
 }
 
 function fogApagarParedes() {
   if (!confirm('Apagar TODAS as paredes?')) return;
   FOG.paredes = [];
-  mapaDraw(); mapaSalvarDB();
+  mapaDraw(); mapaSalvarDB(); fogBroadcast();
 }
 
 function fogSyncUI() {
@@ -401,3 +432,46 @@ document.addEventListener('keydown', e => {
     else fogSetTool(FOG.tool); // toggle off
   }
 });
+
+console.log('%cfog.js carregado \u2713', 'color:#c9a84c;font-weight:bold');
+
+// ── SYNC AO VIVO (Broadcast — independente do banco) ─────────
+// O estado do fog viaja por um canal realtime direto. Assim os players
+// recebem a névoa/paredes na hora, mesmo se a persistência falhar.
+FOG._chan = null;
+FOG._bcTimer = null;
+
+function fogInitSync() {
+  if (FOG._chan || typeof db === 'undefined') return;
+  FOG._chan = db.channel('fog-live', { config: { broadcast: { self: false } } });
+  FOG._chan
+    .on('broadcast', { event: 'fog' }, ({ payload }) => {
+      if (!payload) return;
+      console.log('fog-live: estado recebido', payload.fog?.enabled ? '(ATIVO)' : '(inativo)');
+      fogImport(payload.fog, payload.paredes);
+      mapaDraw();
+    })
+    .on('broadcast', { event: 'fog_request' }, () => {
+      // Um player entrou e pediu o estado atual — só o mestre responde
+      if (isMaster) fogBroadcast(0);
+    })
+    .subscribe(status => {
+      console.log('fog-live status:', status);
+      if (status === 'SUBSCRIBED' && !isMaster) {
+        // Player conectou: pede o estado atual ao mestre
+        FOG._chan.send({ type: 'broadcast', event: 'fog_request', payload: {} });
+      }
+    });
+}
+
+function fogBroadcast(delay = 300) {
+  if (!isMaster || !FOG._chan) return;
+  clearTimeout(FOG._bcTimer);
+  FOG._bcTimer = setTimeout(() => {
+    FOG._chan.send({
+      type: 'broadcast',
+      event: 'fog',
+      payload: { fog: fogExport(), paredes: FOG.paredes }
+    });
+  }, delay);
+}
