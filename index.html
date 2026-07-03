@@ -96,17 +96,21 @@ async function register() {
   if (!username || !email || !password) return showMsg('Preencha todos os campos obrigatórios.', true);
   if (password.length < 6) return showMsg('Senha precisa ter pelo menos 6 caracteres.', true);
 
-  const isMaster = masterCode === 'GUARDA2024';
-
   showMsg('Criando conta...');
   const { data, error } = await db.auth.signUp({ email, password });
   if (error) return showMsg(error.message, true);
 
+  // Perfil é criado SEMPRE como player. O status de mestre só é concedido
+  // pelo banco de dados, validando o código no servidor (função virar_mestre).
   const { error: profileError } = await db.from('profiles').insert({
     id: data.user.id,
-    username,
-    is_master: isMaster
+    username
   });
+
+  if (masterCode) {
+    const { data: ok, error: rpcErr } = await db.rpc('virar_mestre', { codigo: masterCode });
+    if (rpcErr || !ok) showMsg('Código do Mestre inválido — conta criada como player.', true);
+  }
 
   if (profileError) return showMsg('Conta criada! Faça login.', false);
   showMsg('Conta criada! Entrando...', false);

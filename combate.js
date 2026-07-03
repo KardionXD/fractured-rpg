@@ -343,7 +343,7 @@ function definirControlador(combId) {
       const btn = document.createElement('button');
       btn.className = 'ct-inimigo-item';
       btn.style.cssText = 'cursor:pointer;border:none;text-align:left;width:100%;background:var(--surface2)';
-      btn.innerHTML = `<span style="font-size:18px">🧑</span><span style="font-size:12px;flex:1">${p.username}</span><span style="font-size:10px;color:var(--muted)">${c.controlador===p.username?'✓ Atual':''}</span>`;
+      btn.innerHTML = `<span style="font-size:18px">🧑</span><span style="font-size:12px;flex:1">${esc(p.username)}</span><span style="font-size:10px;color:var(--muted)">${c.controlador===p.username?'✓ Atual':''}</span>`;
       btn.onclick = () => {
         atribuirControlador(combId, p.username);
         modal.remove();
@@ -500,7 +500,7 @@ async function renderPlayersParaCT() {
     div.innerHTML=`
       ${avatar}
       <div class="ct-inimigo-info">
-        <div class="ct-inimigo-nome">${f.nome||p.username}</div>
+        <div class="ct-inimigo-nome">${esc(f.nome||p.username)}</div>
         <div class="ct-inimigo-stats">PV ${f.pv_atual||0}/${pvMax}</div>
       </div>
       <div style="display:flex;gap:3px;flex-shrink:0">
