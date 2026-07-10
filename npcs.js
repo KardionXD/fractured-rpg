@@ -367,6 +367,13 @@ async function carregarCenas() {
     .eq('master_id', currentUser.id)
     .order('ordem');
   cenas = data || [];
+
+  // Restaura a cena ativa após F5 (antes disso, salvar após reload falhava)
+  if (!cenaAtiva) {
+    const ativa = cenas.find(c => c.ativa);
+    if (ativa) cenaAtiva = ativa.id;
+  }
+
   renderCenas();
   subscribeCenas();
 }
@@ -424,8 +431,8 @@ async function criarCena() {
   const { error } = await db.from('cenas_mapa').insert({
     master_id: currentUser.id,
     nome:      nome.trim(),
-    mapa_url:  MAP?.imgUrl || null,
-    video_url: (typeof _vidUrl !== 'undefined' ? _vidUrl : null),
+    mapa_url:  (MAP?.imgUrl && MAP.imgUrl.startsWith('https://')) ? MAP.imgUrl : null,
+    video_url: (typeof _vidUrl !== 'undefined' && _vidUrl && _vidUrl.startsWith('https://')) ? _vidUrl : null,
     tokens:    MAP?.tokens || [],
     grid_size: MAP?.gridSize || 60,
     fog:       typeof fogExport === 'function' ? fogExport() : null,
@@ -440,16 +447,36 @@ async function criarCena() {
 }
 
 async function salvarCenaAtual() {
+  if (!isMaster) return;
   if (!cenaAtiva) { toast('Nenhuma cena ativa.', 'err'); return; }
-  const { error } = await db.from('cenas_mapa').update({
-    mapa_url:  typeof mapaUrl !== 'undefined' ? mapaUrl : null,
-    tokens:    typeof tokens !== 'undefined' ? tokens : [],
-    grid_size: typeof gridSize !== 'undefined' ? gridSize : 60,
+
+  const payload = {
+    mapa_url:  (MAP?.imgUrl && MAP.imgUrl.startsWith('https://')) ? MAP.imgUrl : null,
+    video_url: (typeof _vidUrl !== 'undefined' && _vidUrl && _vidUrl.startsWith('https://')) ? _vidUrl : null,
+    tokens:    MAP?.tokens || [],
+    grid_size: MAP?.gridSize || 60,
     fog:       typeof fogExport === 'function' ? fogExport() : null,
     paredes:   (typeof FOG !== 'undefined') ? FOG.paredes : [],
-  }).eq('id', cenaAtiva);
-  if (error) { toast('Erro ao salvar!', 'err'); return; }
+  };
+
+  const { data, error } = await db.from('cenas_mapa')
+    .update(payload)
+    .eq('id', cenaAtiva)
+    .select(); // detecta update bloqueado por RLS (sem erro, 0 linhas)
+
+  if (error) { toast('Erro ao salvar: ' + error.message, 'err'); return; }
+  if (!data || !data.length) {
+    toast('⚠ Nada foi salvo — verifique a policy de UPDATE (RLS) em cenas_mapa.', 'err');
+    return;
+  }
+
+  // Atualiza o array local IMEDIATAMENTE (não depende do realtime)
+  const idx = cenas.findIndex(c => c.id === cenaAtiva);
+  if (idx !== -1) cenas[idx] = { ...cenas[idx], ...payload };
+
   toast('Cena salva!', 'ok');
+  renderCenas();
+  if (typeof renderCenasInline === 'function') renderCenasInline();
 }
 
 let _ativarCenaTimer = null;

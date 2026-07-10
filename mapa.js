@@ -151,8 +151,8 @@ function mapaDraw() {
     ctx.drawImage(img, 0, 0);
   }
 
-  // Grid
-  if (gridVisible) {
+  // Grid (otimizado: 1 path/stroke para todas as linhas; pula grid ilegível no zoom-out)
+  if (gridVisible && gridSize * zoom >= 4) {
     const hex = gridColor.replace('#', '');
     const r = parseInt(hex.slice(0,2),16), g = parseInt(hex.slice(2,4),16), b = parseInt(hex.slice(4,6),16);
     ctx.strokeStyle = `rgba(${r},${g},${b},${gridOpacity})`;
@@ -161,12 +161,14 @@ function mapaDraw() {
     const wx1 = (W-offX)/zoom, wy1 = (H-offY)/zoom;
     const sx = Math.floor(wx0/gridSize)*gridSize;
     const sy = Math.floor(wy0/gridSize)*gridSize;
+    ctx.beginPath();
     for (let x = sx; x <= wx1+gridSize; x += gridSize) {
-      ctx.beginPath(); ctx.moveTo(x, wy0); ctx.lineTo(x, wy1); ctx.stroke();
+      ctx.moveTo(x, wy0); ctx.lineTo(x, wy1);
     }
     for (let y = sy; y <= wy1+gridSize; y += gridSize) {
-      ctx.beginPath(); ctx.moveTo(wx0, y); ctx.lineTo(wx1, y); ctx.stroke();
+      ctx.moveTo(wx0, y); ctx.lineTo(wx1, y);
     }
+    ctx.stroke();
   }
 
   // Régua
@@ -955,9 +957,11 @@ function mapaSubscribeRealtime() {
         mapaStopVideo();
       } else if (novaImgUrl && novaImgUrl.startsWith('https://') && novaImgUrl !== MAP.imgUrl) {
         if (_vid) mapaStopVideo();
+        MAP.img = null;           // limpa a imagem anterior (evita flash da cena velha)
         MAP.imgUrl = novaImgUrl;
+        mapaDraw();
         const img = new Image();
-        img.onload  = () => { MAP.img = img; mapaDraw(); };
+        img.onload  = () => { if (MAP.imgUrl === novaImgUrl) { MAP.img = img; mapaDraw(); } };
         img.onerror = () => mapaDraw();
         img.src     = novaImgUrl;
       } else {
@@ -975,12 +979,15 @@ function mapaAplicarCena(cena) {
 
   if (cena.video_url && cena.video_url.startsWith('https://')) {
     MAP.img = null; MAP.imgUrl = null;
-    mapaCarregarVideo(cena.video_url, false);
+    mapaCarregarVideo(cena.video_url, false); // já ignora se for a mesma URL
   } else if (cena.mapa_url && cena.mapa_url.startsWith('https://')) {
-    if (_vid) { mapaStopVideo(); }
+    if (_vid) mapaStopVideo();
+    if (MAP.imgUrl === cena.mapa_url && MAP.img) { mapaDraw(); return; } // mesma imagem, não recarrega
+    MAP.img = null;               // limpa a imagem da cena ANTERIOR (evita flash)
     MAP.imgUrl = cena.mapa_url;
+    mapaDraw();                   // frame limpo enquanto a nova carrega
     const img = new Image();
-    img.onload  = () => { MAP.img = img; mapaDraw(); };
+    img.onload  = () => { if (MAP.imgUrl === cena.mapa_url) { MAP.img = img; mapaDraw(); } };
     img.onerror = () => mapaDraw();
     img.src     = cena.mapa_url;
   } else {
@@ -994,9 +1001,10 @@ function mapaAplicarCena(cena) {
 // ══════════════════════════════════════════════════
 //  VÍDEO/GIF — Renderizado no canvas (com zoom/pan)
 // ══════════════════════════════════════════════════
-let _vid    = null;   // elemento <video> ou <img> GIF
-let _vidUrl = null;   // URL salva no banco
-let _vidRAF = null;   // requestAnimationFrame ID
+let _vid       = null;   // elemento <video> ou <img> GIF
+let _vidUrl    = null;   // URL salva no banco
+let _vidRAF    = null;   // requestAnimationFrame ID
+let _vidLoadToken = 0;   // invalida loads antigos em andamento (evita vídeo duplicado)
 
 // Loop de animação dedicado ao vídeo
 function _vidLoop() {
@@ -1007,6 +1015,7 @@ function _vidLoop() {
 
 // Para o vídeo e cancela o loop
 function mapaStopVideo() {
+  _vidLoadToken++; // invalida qualquer load pendente
   if (_vidRAF) { cancelAnimationFrame(_vidRAF); _vidRAF = null; }
   if (_vid && _vid.tagName === 'VIDEO') { _vid.pause(); _vid.src = ''; }
   _vid = null; _vidUrl = null;
@@ -1015,6 +1024,12 @@ function mapaStopVideo() {
 
 // Carrega vídeo/GIF e inicia loop
 function mapaCarregarVideo(url, resetView = true) {
+  // Já está tocando essa URL? Não recarrega (mata o ping-pong do eco realtime)
+  if (_vid && _vidUrl === url) return;
+
+  _vidUrl = url;                    // seta ANTES do load (o eco realtime compara com isso)
+  const meuToken = ++_vidLoadToken; // invalida loads anteriores em andamento
+
   // Para qualquer vídeo anterior
   if (_vidRAF) { cancelAnimationFrame(_vidRAF); _vidRAF = null; }
   if (_vid && _vid.tagName === 'VIDEO') { _vid.pause(); _vid.src = ''; }
@@ -1026,25 +1041,46 @@ function mapaCarregarVideo(url, resetView = true) {
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => {
-      _vid = img; _vidUrl = url;
+      if (meuToken !== _vidLoadToken) return; // load antigo, descarta
+      _vid = img;
       if (resetView) mapaResetZoom();
-      _vidRAF = requestAnimationFrame(_vidLoop);
+      _vidStartLoop();
     };
-    img.onerror = () => toast('Erro ao carregar GIF.', 'err');
+    img.onerror = () => { if (meuToken === _vidLoadToken) toast('Erro ao carregar GIF.', 'err'); };
     img.src = url;
   } else {
     const v = document.createElement('video');
     v.src = url; v.loop = true; v.muted = true;
     v.playsInline = true; v.crossOrigin = 'anonymous';
     v.oncanplay = () => {
-      _vid = v; _vidUrl = url;
+      if (meuToken !== _vidLoadToken) { v.pause(); v.src = ''; return; } // load antigo
+      if (_vid === v) return; // oncanplay pode disparar mais de uma vez
+      _vid = v;
       v.play().then(() => {
         if (resetView) mapaResetZoom();
-        _vidRAF = requestAnimationFrame(_vidLoop);
+        _vidStartLoop();
       }).catch(() => {});
     };
-    v.onerror = () => toast('Erro ao carregar vídeo.', 'err');
+    v.onerror = () => { if (meuToken === _vidLoadToken) toast('Erro ao carregar vídeo.', 'err'); };
     v.load();
+  }
+}
+
+// Loop otimizado: usa requestVideoFrameCallback quando disponível
+// (redesenha só quando há frame NOVO do vídeo — ~24/30fps em vez de 60)
+function _vidStartLoop() {
+  if (_vidRAF) { cancelAnimationFrame(_vidRAF); _vidRAF = null; }
+
+  if (_vid && _vid.tagName === 'VIDEO' && 'requestVideoFrameCallback' in _vid) {
+    const vRef = _vid;
+    const step = () => {
+      if (_vid !== vRef || !MAP.canvas) return; // vídeo trocou, encerra o loop
+      mapaDraw();
+      vRef.requestVideoFrameCallback(step);
+    };
+    vRef.requestVideoFrameCallback(step);
+  } else {
+    _vidRAF = requestAnimationFrame(_vidLoop); // fallback (GIF / navegadores antigos)
   }
 }
 
@@ -1069,9 +1105,9 @@ async function mapaImportarVideo() {
     const { data } = db.storage.from('tokens').getPublicUrl(path);
     _vidUrl = data.publicUrl;
 
-    // Salva na cena ativa
+    // Salva na cena ativa (limpa mapa_url para a cena não ficar com imagem E vídeo)
     if (typeof cenaAtiva !== 'undefined' && cenaAtiva) {
-      await db.from('cenas_mapa').update({ video_url: _vidUrl }).eq('id', cenaAtiva);
+      await db.from('cenas_mapa').update({ video_url: _vidUrl, mapa_url: null }).eq('id', cenaAtiva);
     }
     // Propaga para players via mapa_estado (campo extra)
     await db.from('mapa_estado').update({
