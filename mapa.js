@@ -853,10 +853,10 @@ async function _mapaSalvarNow() {
   if (!isMaster) {
     // Player: salva apenas seus próprios tokens
     try {
-      const { data } = await db.from('mapa_estado').select('tokens').eq('id','sessao_atual').single();
+      const { data } = await db.from('mapa_estado').select('tokens').eq('id', mesaId()).single();
       let toks = (data?.tokens || []).filter(t => t.userId !== currentUser.id);
       toks = [...toks, ...MAP.tokens.filter(t => t.userId === currentUser.id)];
-      await db.from('mapa_estado').upsert({ id:'sessao_atual', tokens:toks, updated_at:new Date().toISOString() });
+      await db.from('mapa_estado').upsert({ id: mesaId(), tokens:toks, updated_at:new Date().toISOString() });
     } catch(e) {}
     return;
   }
@@ -866,7 +866,7 @@ async function _mapaSalvarNow() {
   try {
     MAP.lastSaveTs = new Date().toISOString();
     const { error: saveErr } = await db.from('mapa_estado').upsert({
-      id:           'sessao_atual',
+      id:           mesaId(),
       tokens:       MAP.tokens.map(t => ({ ...t })),
       grid_size:    MAP.gridSize,
       grid_visivel: MAP.gridVisible,
@@ -894,7 +894,7 @@ async function _mapaSalvarNow() {
 
 async function mapaCarregarDB() {
   try {
-    const { data } = await db.from('mapa_estado').select('*').eq('id','sessao_atual').single();
+    const { data } = await db.from('mapa_estado').select('*').eq('id', mesaId()).single();
     if (data) {
       if (!MAP.drag) MAP.tokens = data.tokens || [];
       MAP.gridSize    = data.grid_size || 60;
@@ -931,8 +931,8 @@ function mapaSubscribeRealtime() {
   // Canal de sync ao vivo do Fog of War (broadcast, independente do banco)
   if (typeof fogInitSync === 'function') fogInitSync();
 
-  db.channel('mapa-v5-'+Date.now())
-    .on('postgres_changes', { event:'UPDATE', schema:'public', table:'mapa_estado' }, payload => {
+  db.channel('mapa-v5-'+mesaId())
+    .on('postgres_changes', { event:'UPDATE', schema:'public', table:'mapa_estado', filter: 'id=eq.' + mesaId() }, payload => {
       const d = payload.new; if (!d) return;
       console.log('mapa realtime: UPDATE recebido, tokens:', d.tokens?.length);
 
@@ -1113,7 +1113,7 @@ async function mapaImportarVideo() {
     await db.from('mapa_estado').update({
       video_url: _vidUrl,
       mapa_url:  null,       // limpa imagem se tinha
-    }).eq('id', 'sessao_atual');
+    }).eq('id', mesaId());
 
     toast('Vídeo/GIF ativado!', 'ok');
   };

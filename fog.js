@@ -524,7 +524,7 @@ FOG._bcTimer = null;
 
 function fogInitSync() {
   if (FOG._chan || typeof db === 'undefined') return;
-  FOG._chan = db.channel('fog-live', { config: { broadcast: { self: false } } });
+  FOG._chan = db.channel('fog-live-' + mesaId(), { config: { broadcast: { self: false } } });
   FOG._chan
     .on('broadcast', { event: 'fog' }, ({ payload }) => {
       if (!payload) return;

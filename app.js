@@ -51,19 +51,15 @@ async function init() {
       return;
     }
     currentProfile = newProfile;
-    isMaster = false;
   } else {
     currentProfile = profile;
-    isMaster = profile.is_master;
   }
 
   document.getElementById('topbar-username').textContent = currentProfile.username;
-  if (isMaster) {
-    const b1 = document.getElementById('master-badge');
-    if (b1) b1.style.display = '';
-    const b2 = document.getElementById('nav-master-section');
-    if (b2) b2.style.display = '';
-  }
+
+  // ── MESAS: escolhe/cria a mesa ANTES de carregar o resto ──
+  // isMaster agora é por mesa (definido em _mesaAtivar via mesas.js)
+  await mesaEscolher();
 
   buildAttrGrid();
   buildPips('pip-pv', pvMax, pvAtual, 'red', onPVClick, 'pip-pv-val');
@@ -416,7 +412,8 @@ async function carregarFicha() {
     .from('fichas')
     .select('*')
     .eq('user_id', currentUser.id)
-    .single();
+    .eq('mesa_id', mesaId())
+    .maybeSingle();
 
   if (data) {
     fichaId = data.id;
@@ -432,6 +429,7 @@ function autoSave() {
 
 async function salvarFicha(silencioso = false) {
   const dados = coletarFicha();
+  dados.mesa_id = mesaId();
   let error;
 
   if (fichaId) {
@@ -485,8 +483,8 @@ async function subscribeToSala() {
   _salaSubAtiva = true;
 
   realtimeSub = db
-    .channel('sala-publica-' + Date.now())
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'sala' }, payload => {
+    .channel('sala-publica-' + mesaId())
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'sala', filter: 'mesa_id=eq.' + mesaId() }, payload => {
       const msg = payload.new;
       if (msg.tipo === 'tensao') {
         tensaoSala = msg.conteudo.valor;
@@ -514,6 +512,7 @@ async function carregarFeed() {
   const { data: raw } = await db
     .from('sala')
     .select('*')
+    .eq('mesa_id', mesaId())
     .order('created_at', { ascending: false })
     .limit(80);
   const data = raw ? raw.reverse() : raw;
@@ -534,6 +533,7 @@ async function carregarTensaoSala() {
     const { data } = await db
       .from('sala')
       .select('conteudo')
+      .eq('mesa_id', mesaId())
       .eq('tipo', 'tensao')
       .order('created_at', { ascending: false })
       .limit(1);
@@ -551,6 +551,7 @@ function scrollFeedToBottom() {
 
 async function publicarSala(tipo, conteudo) {
   await db.from('sala').insert({
+    mesa_id: mesaId(),
     user_id: currentUser.id,
     username: currentProfile.username,
     tipo,
@@ -561,7 +562,7 @@ async function publicarSala(tipo, conteudo) {
 async function limparHistorico() {
   if (!isMaster) return toast('Só o mestre pode limpar o histórico.', 'err');
   if (!confirm('Limpar todo o histórico de rolls da sala? Não pode ser desfeito.')) return;
-  const { error } = await db.from('sala').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  const { error } = await db.from('sala').delete().eq('mesa_id', mesaId());
   if (error) return toast('Erro ao limpar histórico!', 'err');
   tensaoSala = 0;
   buildTensaoPips('tensao-pips-sala', 0, false);
@@ -745,6 +746,7 @@ async function carregarNotas() {
     .from('notas_sessao')
     .select('*')
     .eq('user_id', currentUser.id)
+    .eq('mesa_id', mesaId())
     .order('sessao', { ascending: false });
 
   notas = data || [];
@@ -798,6 +800,7 @@ async function salvarNota() {
   if (!titulo) return toast('Coloca um título na nota!', 'err');
 
   const payload = {
+    mesa_id: mesaId(),
     user_id: currentUser.id,
     titulo,
     sessao,

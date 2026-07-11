@@ -49,7 +49,7 @@ function npcAtualizarEmoji() {
 async function carregarNPCs() {
   const { data, error } = await db.from('npcs_mestre')
     .select('*')
-    .eq('master_id', currentUser.id)
+    .eq('mesa_id', mesaId())
     .order('pasta').order('nome');
   if (error) { console.error(error); return; }
   npcList = data || [];
@@ -262,7 +262,7 @@ async function salvarNPC() {
   if (npcEditando) {
     ({ error } = await db.from('npcs_mestre').update(payload).eq('id', npcEditando.id));
   } else {
-    ({ error } = await db.from('npcs_mestre').insert(payload));
+    ({ error } = await db.from('npcs_mestre').insert({ ...payload, mesa_id: mesaId() }));
   }
 
   if (error) { toast('Erro ao salvar NPC: ' + error.message, 'err'); return; }
@@ -364,7 +364,7 @@ function npcImgPreview(input) {
 async function carregarCenas() {
   const { data } = await db.from('cenas_mapa')
     .select('*')
-    .eq('master_id', currentUser.id)
+    .eq('mesa_id', mesaId())
     .order('ordem');
   cenas = data || [];
 
@@ -382,8 +382,9 @@ async function carregarCenaAtiva() {
   // Players carregam a cena ativa
   const { data } = await db.from('cenas_mapa')
     .select('*')
+    .eq('mesa_id', mesaId())
     .eq('ativa', true)
-    .single();
+    .maybeSingle();
   if (data) aplicarCena(data);
 }
 
@@ -429,6 +430,7 @@ async function criarCena() {
 
   // Salva tokens e mapa atual como nova cena
   const { error } = await db.from('cenas_mapa').insert({
+    mesa_id:   mesaId(),
     master_id: currentUser.id,
     nome:      nome.trim(),
     mapa_url:  (MAP?.imgUrl && MAP.imgUrl.startsWith('https://')) ? MAP.imgUrl : null,
@@ -499,7 +501,7 @@ async function ativarCena(id) {
   console.log('ativarCena: salvando mapa_estado, url=', urlCena||'null');
   try {
     const { error } = await db.from('mapa_estado').upsert({
-      id:           'sessao_atual',
+      id:           mesaId(),
       tokens:       cena.tokens || [],
       grid_size:    cena.grid_size || 60,
       grid_visivel: true,
@@ -515,7 +517,7 @@ async function ativarCena(id) {
   try {
     await db.from('cenas_mapa')
       .update({ ativa: false })
-      .eq('master_id', currentUser.id);
+      .eq('mesa_id', mesaId());
     await db.from('cenas_mapa')
       .update({ ativa: true })
       .eq('id', id);
@@ -545,8 +547,8 @@ async function deletarCena(id) {
 
 function subscribeCenas() {
   if (cenaRealtimeSub) return;
-  cenaRealtimeSub = db.channel('cenas-live')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'cenas_mapa' }, async payload => {
+  cenaRealtimeSub = db.channel('cenas-live-'+mesaId())
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'cenas_mapa', filter: 'mesa_id=eq.' + mesaId() }, async payload => {
       await carregarCenas();
       // Aplica cena ativa para todos (mestre já aplicou localmente)
       if (payload.new?.ativa) {

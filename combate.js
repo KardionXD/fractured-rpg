@@ -81,7 +81,7 @@ async function salvarCT() {
   ctSaveTimer = setTimeout(async () => {
     try {
       await db.from('combat_state').upsert({
-        id: 'sessao',
+        id: mesaId(),
         combatentes,
         rodada: rodadaAtual,
         turno: turnoAtual,
@@ -95,7 +95,7 @@ async function salvarCT() {
 
 async function carregarCT() {
   try {
-    const { data } = await db.from('combat_state').select('*').eq('id','sessao').single();
+    const { data } = await db.from('combat_state').select('*').eq('id', mesaId()).single();
     if (!data) return;
     combatentes      = data.combatentes || [];
     rodadaAtual      = data.rodada || 1;
@@ -121,11 +121,12 @@ function subscribeCT() {
   carregarCT();
 
   if (ctRealtimeSub) return;
-  ctRealtimeSub = db.channel('ct-live-'+Date.now())
+  ctRealtimeSub = db.channel('ct-live-'+mesaId())
     .on('postgres_changes', {
       event: '*',
       schema: 'public',
-      table: 'combat_state'
+      table: 'combat_state',
+      filter: 'id=eq.' + mesaId()
     }, payload => {
       // Só aplica se não for o próprio mestre enviando
       if (isMaster) return;
@@ -271,7 +272,7 @@ function adicionarInimigoCT(inimigo) {
 // Adicionar ficha de player ao CT e mapa
 async function adicionarPlayerCT(userId) {
   if (!isMaster) return;
-  const { data: ficha } = await db.from('fichas').select('*').eq('user_id', userId).single();
+  const { data: ficha } = await db.from('fichas').select('*').eq('user_id', userId).eq('mesa_id', mesaId()).maybeSingle();
   const { data: profile } = await db.from('profiles').select('username').eq('id', userId).single();
   if (!ficha) return toast('Esse player não tem ficha ainda.', 'err');
 
@@ -301,7 +302,7 @@ async function adicionarPlayerCT(userId) {
 
 // Player adiciona o próprio personagem
 async function adicionarMeuPersonagem() {
-  const { data: ficha } = await db.from('fichas').select('*').eq('user_id', currentUser.id).single();
+  const { data: ficha } = await db.from('fichas').select('*').eq('user_id', currentUser.id).eq('mesa_id', mesaId()).maybeSingle();
   if (!ficha) return toast('Você ainda não criou sua ficha!', 'err');
 
   const pvMax = Math.max((ficha.attr_res||0)*4, 4);
@@ -481,11 +482,15 @@ function renderBestiarioCT() {
 // Lista players com ficha para mestre adicionar
 async function renderPlayersParaCT() {
   const lista = document.getElementById('ct-players-lista'); if(!lista||!isMaster) return;
-  const { data: profiles, error: pe } = await db.from('profiles').select('id,username').eq('is_master',false);
+  const { data: _membros, error: pe } = await db.from('mesa_membros')
+    .select('user_id, profiles(username)').eq('mesa_id', mesaId());
+  const profiles = (_membros || [])
+    .filter(m => m.user_id !== MESA?.master_id)
+    .map(m => ({ id: m.user_id, username: m.profiles?.username || 'Player' }));
   console.log('profiles:', profiles, 'error:', pe);
   if (!profiles?.length) { lista.innerHTML='<div style="font-size:10px;color:var(--muted);padding:4px">Sem players</div>'; return; }
   // Busca todas as fichas e filtra localmente (evita erro 400 com muitos IDs no .in())
-  const { data: fichas, error: fe } = await db.from('fichas').select('*');
+  const { data: fichas, error: fe } = await db.from('fichas').select('*').eq('mesa_id', mesaId());
   console.log('fichas:', fichas?.length, 'error:', fe);
   lista.innerHTML='';
   let count = 0;
@@ -522,7 +527,7 @@ async function renderPlayersParaCT() {
 // Mapa movido para mapa.js
 
 async function adicionarPlayerSomenteCT(userId) {
-  const { data: ficha } = await db.from('fichas').select('*').eq('user_id', userId).single();
+  const { data: ficha } = await db.from('fichas').select('*').eq('user_id', userId).eq('mesa_id', mesaId()).maybeSingle();
   const { data: profile } = await db.from('profiles').select('username').eq('id', userId).single();
   if (!ficha) return toast('Esse player não tem ficha ainda.', 'err');
   const pvMax = Math.max((ficha.attr_res||0)*4, 4);
@@ -544,7 +549,7 @@ async function adicionarPlayerSomenteCT(userId) {
 }
 
 async function adicionarPlayerSomenteMapa(userId) {
-  const { data: ficha } = await db.from('fichas').select('*').eq('user_id', userId).single();
+  const { data: ficha } = await db.from('fichas').select('*').eq('user_id', userId).eq('mesa_id', mesaId()).maybeSingle();
   const { data: profile } = await db.from('profiles').select('username').eq('id', userId).single();
   if (!ficha) return toast('Esse player não tem ficha ainda.', 'err');
   const pvMax = Math.max((ficha.attr_res||0)*4, 4);

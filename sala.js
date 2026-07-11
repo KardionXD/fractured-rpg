@@ -654,6 +654,7 @@ document.addEventListener('click', e => {
 async function carregarGaleria() {
   const { data } = await db.from('sala')
     .select('*')
+    .eq('mesa_id', mesaId())
     .eq('tipo', 'imagem')
     .order('created_at', { ascending: false })
     .limit(50);
@@ -697,6 +698,7 @@ async function enviarImagemGaleria(input) {
 
   // Salva no feed como mensagem de imagem
   await db.from('sala').insert({
+    mesa_id:  mesaId(),
     user_id:  currentUser.id,
     username: currentProfile?.username || 'Mestre',
     tipo:     'imagem',
