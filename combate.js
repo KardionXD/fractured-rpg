@@ -335,8 +335,11 @@ function definirControlador(combId) {
   document.body.appendChild(modal);
   modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); });
 
-  // Carrega lista de players
-  db.from('profiles').select('id,username').eq('is_master',false).then(({data}) => {
+  // Carrega lista de players (membros da mesa atual, exceto o mestre)
+  db.from('mesa_membros').select('user_id, profiles(username)').eq('mesa_id', mesaId()).then(({data: _mm}) => {
+    const data = (_mm || [])
+      .filter(m => m.user_id !== MESA?.master_id)
+      .map(m => ({ id: m.user_id, username: m.profiles?.username || 'Player' }));
     const lista = document.getElementById('ctrl-players-list');
     if (!lista || !data?.length) return;
     lista.innerHTML = '';

@@ -849,13 +849,18 @@ async function carregarPlayers(mostrarTodos = false) {
   const grid = document.getElementById('players-grid');
   grid.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><p>Carregando...</p></div>';
 
-  const { data: profiles } = await db
-    .from('profiles')
-    .select('id, username, is_master')
-    .eq('is_master', false);
+  const { data: _membros } = await db
+    .from('mesa_membros')
+    .select('user_id, profiles(username)')
+    .eq('mesa_id', mesaId());
+
+  // Membros da mesa, exceto o mestre dela
+  const profiles = (_membros || [])
+    .filter(m => m.user_id !== MESA?.master_id)
+    .map(m => ({ id: m.user_id, username: m.profiles?.username || 'Player' }));
 
   if (!profiles || profiles.length === 0) {
-    grid.innerHTML = '<div class="empty-state"><div class="empty-icon">👥</div><p>Nenhum player cadastrado ainda.</p></div>';
+    grid.innerHTML = '<div class="empty-state"><div class="empty-icon">👥</div><p>Nenhum player entrou na mesa ainda.<br><span style="font-size:11px;color:var(--muted)">Mande o código de convite pra eles!</span></p></div>';
     return;
   }
 
@@ -863,6 +868,7 @@ async function carregarPlayers(mostrarTodos = false) {
   const { data: fichas } = await db
     .from('fichas')
     .select('*')
+    .eq('mesa_id', mesaId())
     .in('user_id', ids);
 
   // Separa quem tem e quem não tem ficha
@@ -954,15 +960,16 @@ async function carregarPlayers(mostrarTodos = false) {
 }
 
 async function apagarFichaPlayer(userId, nome) {
-  if (!confirm(`Apagar a ficha de "${nome}"? Isso não pode ser desfeito.`)) return;
-  const { error } = await db.from('fichas').delete().eq('user_id', userId);
+  if (!confirm(`Apagar a ficha de "${nome}" desta mesa? Isso não pode ser desfeito.`)) return;
+  // Escopado à mesa atual — a ficha do player em OUTRAS mesas não é tocada
+  const { error } = await db.from('fichas').delete().eq('user_id', userId).eq('mesa_id', mesaId());
   if (error) return toast('Erro ao apagar ficha!', 'err');
   toast(`Ficha de ${nome} apagada.`, 'ok');
   carregarPlayers();
 }
 
 async function verFichaCompleta(userId) {
-  const { data: ficha } = await db.from('fichas').select('*').eq('user_id', userId).single();
+  const { data: ficha } = await db.from('fichas').select('*').eq('user_id', userId).eq('mesa_id', mesaId()).maybeSingle();
   const { data: profile } = await db.from('profiles').select('username').eq('id', userId).single();
   if (!ficha) return toast('Ficha não encontrada.', 'err');
 
