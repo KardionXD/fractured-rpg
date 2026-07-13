@@ -522,10 +522,29 @@ async function subscribeToSala() {
       if (msg.tipo === 'video_mapa_stop' && !isMaster) {
         if (typeof mapaStopVideo === 'function') mapaStopVideo();
       }
+      if (_ehEcoLocal(msg)) return; // já renderizada na hora do envio
       appendFeedMsg(msg);
     })
-    .subscribe();
+    .subscribe(status => {
+      // ═══ FIX 2: reconexão automática ═══
+      // No celular, bloquear a tela ou trocar de app derruba o canal;
+      // sem isso o feed congelava até dar F5.
+      if (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        _salaSubAtiva = false;
+        try { db.removeChannel(realtimeSub); } catch(e) {}
+        setTimeout(() => { if (!_salaSubAtiva) subscribeToSala(); }, 1500);
+      }
+    });
 }
+
+// Ao voltar pro app (celular destravado / aba reaberta): ressincroniza
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && typeof mesaId === 'function' && mesaId()) {
+    carregarFeed();
+    carregarTensaoSala();
+    if (!_salaSubAtiva) subscribeToSala();
+  }
+});
 
 async function carregarFeed() {
   // Busca as 80 mensagens MAIS RECENTES e inverte para exibir em ordem cronológica.
@@ -571,14 +590,43 @@ function scrollFeedToBottom() {
   if (feed) feed.scrollTop = feed.scrollHeight;
 }
 
+// Fila de mensagens locais aguardando o eco do realtime (dedupe)
+const _ecoPendente = [];
+
 async function publicarSala(tipo, conteudo) {
-  await db.from('sala').insert({
+  // Append otimista: rolagem/mensagem aparece NA HORA pra quem enviou,
+  // sem esperar a viagem servidor→realtime→volta (lenta no 4G).
+  if (tipo === 'roll' || tipo === 'mensagem') {
+    const msgLocal = {
+      user_id: currentUser.id,
+      username: currentProfile.username,
+      tipo, conteudo,
+      created_at: new Date().toISOString(),
+    };
+    _ecoPendente.push({ tipo, json: JSON.stringify(conteudo), ts: Date.now() });
+    if (_ecoPendente.length > 20) _ecoPendente.shift();
+    try { appendFeedMsg(msgLocal); } catch(e) {}
+  }
+
+  const { error } = await db.from('sala').insert({
     mesa_id: mesaId(),
     user_id: currentUser.id,
     username: currentProfile.username,
     tipo,
     conteudo
   });
+  if (error) toast('⚠ Mensagem não enviada (conexão). Tente de novo.', 'err');
+}
+
+// O eco desta mensagem já foi renderizado localmente?
+function _ehEcoLocal(msg) {
+  if (msg.user_id !== currentUser.id) return false;
+  if (msg.tipo !== 'roll' && msg.tipo !== 'mensagem') return false;
+  const json = JSON.stringify(msg.conteudo);
+  const i = _ecoPendente.findIndex(p => p.tipo === msg.tipo && p.json === json && Date.now() - p.ts < 10000);
+  if (i === -1) return false;
+  _ecoPendente.splice(i, 1);
+  return true;
 }
 
 async function limparHistorico() {

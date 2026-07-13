@@ -257,7 +257,7 @@ async function adicionarPlayerCT(userId) {
       id, nome: ficha.nome || profile.username,
       emoji: '🧑', imgUrl: ficha.foto_url || null,
       pvMax, pvAtual: ficha.pv_atual || pvMax,
-      iniciativa: Math.floor(Math.random()*20)+1,
+      iniciativa: Math.floor(Math.random()*20)+1 + ((ficha.attr_agi || 0) - 3), // d20 + mod AGI
       tipo: 'pc', isPC: true, userId,
       condicoes: [], controlador: profile.username,
     });
@@ -597,7 +597,7 @@ async function adicionarPlayerSomenteCT(userId) {
       id, nome: ficha.nome || profile.username,
       emoji: '🧑', imgUrl: ficha.foto_url || null,
       pvMax, pvAtual: ficha.pv_atual || pvMax,
-      iniciativa: Math.floor(Math.random()*20)+1,
+      iniciativa: Math.floor(Math.random()*20)+1 + ((ficha.attr_agi || 0) - 3), // d20 + mod AGI
       tipo: 'pc', isPC: true, userId,
       condicoes: [], controlador: profile.username,
     });
