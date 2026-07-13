@@ -94,7 +94,7 @@ function _musAplicarEstado(st) {
   _musAtualizarWidget();
   if (!MUSICA.pronto || !st) return;
 
-  if (!st.playing || !st.videoId) {
+  if (!st.playing || (!st.videoId && !st.playlistId)) {
     try { MUSICA.player.pauseVideo(); } catch(e) {}
     return;
   }
@@ -202,7 +202,7 @@ async function musicaPausar() {
 }
 
 async function musicaRetomar() {
-  if (!isMaster || !MUSICA.estado?.videoId) return;
+  if (!isMaster || !(MUSICA.estado?.videoId || MUSICA.estado?.playlistId)) return;
   const st = { ...MUSICA.estado, playing: true, startedAt: Date.now() };
   MUSICA.somLiberado = true;
   _musAplicarEstado(st);
@@ -277,7 +277,7 @@ function _musAtualizarWidget() {
     if (toggle) toggle.style.borderColor = 'var(--gold, #c9a84c)';
     if (toggle) toggle.style.animation = 'mus-pulse 2s infinite';
   } else {
-    agora.textContent = st?.videoId ? '⏸ Pausado' : 'Nada tocando.';
+    agora.textContent = (st?.videoId || st?.playlistId) ? '⏸ Pausado' : 'Nada tocando.';
     if (toggle) toggle.style.animation = '';
   }
 
