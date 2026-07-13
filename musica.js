@@ -52,7 +52,7 @@ function _musCriarPlayer() {
       },
       onStateChange: (e) => {
         // Loop manual (mais confiável que playlist trick)
-        if (e.data === YT.PlayerState.ENDED && MUSICA.estado?.loop && MUSICA.estado?.playing) {
+        if (e.data === YT.PlayerState.ENDED && MUSICA.estado?.loop && MUSICA.estado?.playing && !MUSICA.estado?.playlistId) {
           MUSICA.player.seekTo(0, true);
           MUSICA.player.playVideo();
         }
@@ -101,12 +101,28 @@ function _musAplicarEstado(st) {
 
   // Offset: onde a música está agora (sincroniza quem entrou depois)
   const offset = Math.max(0, (st.offset || 0) + (Date.now() - (st.startedAt || Date.now())) / 1000);
-  const atual = MUSICA.player.getVideoData?.()?.video_id;
 
   MUSICA.player.setVolume(st.volume ?? 60);
   // Sem gesto do usuário o navegador só permite tocar MUDO
   if (!MUSICA.somLiberado && !isMaster) MUSICA.player.mute();
 
+  // ── PLAYLIST ──
+  if (st.playlistId) {
+    if (MUSICA.playlistAtual !== st.playlistId) {
+      MUSICA.playlistAtual = st.playlistId;
+      MUSICA.player.loadPlaylist({ list: st.playlistId, listType: 'playlist', index: st.index || 0 });
+      setTimeout(() => { try { MUSICA.player.setLoop(!!st.loop); } catch(e) {} }, 1500);
+    } else if ((st.index ?? null) !== null && MUSICA.player.getPlaylistIndex?.() !== st.index) {
+      MUSICA.player.playVideoAt(st.index); // mestre pulou de faixa
+    } else {
+      MUSICA.player.playVideo();
+    }
+    return;
+  }
+
+  // ── VÍDEO ÚNICO ──
+  MUSICA.playlistAtual = null;
+  const atual = MUSICA.player.getVideoData?.()?.video_id;
   if (atual !== st.videoId) {
     MUSICA.player.loadVideoById({ videoId: st.videoId, startSeconds: offset });
   } else {
@@ -114,6 +130,17 @@ function _musAplicarEstado(st) {
     if (delta > 3) MUSICA.player.seekTo(offset, true); // ressincroniza se desalinhar
     MUSICA.player.playVideo();
   }
+}
+
+// Pular faixa da playlist (mestre) — sincroniza todo mundo
+async function musicaPular(dir) {
+  if (!isMaster || !MUSICA.estado?.playlistId) return;
+  const len = MUSICA.player?.getPlaylist?.()?.length || 1;
+  const atual = MUSICA.player?.getPlaylistIndex?.() || 0;
+  const novo = ((atual + dir) % len + len) % len;
+  const st = { ...MUSICA.estado, index: novo, playing: true, startedAt: Date.now(), offset: 0 };
+  MUSICA.player.playVideoAt(novo);
+  await _musPublicar(st);
 }
 
 function musicaLiberarSom() {
@@ -128,14 +155,22 @@ function _musExtrairId(url) {
   return m ? m[1] : (/^[A-Za-z0-9_-]{11}$/.test(url.trim()) ? url.trim() : null);
 }
 
+function _musExtrairPlaylist(url) {
+  const m = String(url).match(/[?&]list=([A-Za-z0-9_-]+)/);
+  return m ? m[1] : null;
+}
+
 async function musicaTocar() {
   if (!isMaster) return;
   const url = document.getElementById('mus-url')?.value.trim();
+  const playlistId = _musExtrairPlaylist(url);
   const videoId = _musExtrairId(url);
-  if (!videoId) { toast('Link do YouTube inválido. Cola o link do vídeo.', 'err'); return; }
+  if (!videoId && !playlistId) { toast('Link do YouTube inválido. Cola o link do vídeo ou da playlist.', 'err'); return; }
 
   const estado = {
-    videoId,
+    videoId: playlistId ? null : videoId,
+    playlistId: playlistId || null,
+    index: 0,
     titulo: url,
     playing: true,
     startedAt: Date.now(),
@@ -203,10 +238,12 @@ function _musWidget() {
       <div id="mus-agora" style="font-size:11px;color:var(--muted,#888);margin-bottom:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Nada tocando.</div>
       <button id="mus-liberar" onclick="musicaLiberarSom()" style="display:none;width:100%;margin-bottom:8px;padding:7px;border-radius:6px;border:1px solid var(--gold,#c9a84c);background:rgba(201,168,76,0.12);color:var(--gold,#c9a84c);font-size:11px;cursor:pointer">🔊 Ativar som da mesa</button>
       <div id="mus-master" style="display:none">
-        <input id="mus-url" placeholder="Cola o link do YouTube aqui"
+        <input id="mus-url" placeholder="Link do YouTube (vídeo ou playlist)"
           style="width:100%;box-sizing:border-box;background:rgba(0,0,0,0.4);border:1px solid var(--border,#333);border-radius:6px;color:var(--text,#eee);padding:7px 9px;font-size:11px;margin-bottom:7px">
         <div style="display:flex;gap:5px;margin-bottom:7px">
           <button class="btn-ghost" onclick="musicaTocar()" style="flex:1;font-size:11px;padding:6px">▶ Tocar</button>
+          <button class="btn-ghost" onclick="musicaPular(-1)" style="font-size:11px;padding:6px 8px" title="Faixa anterior (playlist)">⏮</button>
+          <button class="btn-ghost" onclick="musicaPular(1)" style="font-size:11px;padding:6px 8px" title="Próxima faixa (playlist)">⏭</button>
           <button class="btn-ghost" onclick="musicaPausar()" style="font-size:11px;padding:6px 9px" title="Pausar">⏸</button>
           <button class="btn-ghost" onclick="musicaRetomar()" style="font-size:11px;padding:6px 9px" title="Retomar">⏵</button>
           <button class="btn-ghost" onclick="musicaParar()" style="font-size:11px;padding:6px 9px;color:var(--red,#c0392b)" title="Parar">⏹</button>
@@ -236,7 +273,7 @@ function _musAtualizarWidget() {
 
   const st = MUSICA.estado;
   if (st?.playing && st.videoId) {
-    agora.textContent = '▶ ' + (st.titulo && !st.titulo.startsWith('http') ? st.titulo : 'Tocando...');
+    agora.textContent = (st.playlistId ? '📻 ' : '▶ ') + (st.titulo && !st.titulo.startsWith('http') ? st.titulo : (st.playlistId ? 'Playlist tocando...' : 'Tocando...'));
     if (toggle) toggle.style.borderColor = 'var(--gold, #c9a84c)';
     if (toggle) toggle.style.animation = 'mus-pulse 2s infinite';
   } else {

@@ -116,6 +116,9 @@ const ATTRS = [
   { abbr: 'AGI', name: 'Agilidade',    id: 'agi' },
 ];
 
+// Total de pontos para distribuir nos atributos (ajuste se a regra mudar)
+const PONTOS_ATRIBUTOS = 18;
+
 function buildAttrGrid() {
   const grid = document.getElementById('attr-grid');
   grid.innerHTML = '';
@@ -135,6 +138,31 @@ function buildAttrGrid() {
     `;
     grid.appendChild(card);
   });
+
+  // Contador de pontos gastos
+  let cont = document.getElementById('attr-pontos');
+  if (!cont) {
+    cont = document.createElement('div');
+    cont.id = 'attr-pontos';
+    cont.style.cssText = 'grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;margin-top:8px;padding:7px 12px;border:1px solid var(--border);border-radius:8px;background:rgba(0,0,0,0.25);font-size:11px';
+    grid.parentNode.insertBefore(cont, grid.nextSibling);
+  }
+  atualizarContadorPontos();
+}
+
+function atualizarContadorPontos() {
+  const cont = document.getElementById('attr-pontos');
+  if (!cont) return;
+  let gasto = 0;
+  ATTRS.forEach(a => { gasto += parseInt(document.getElementById('a-' + a.id)?.value) || 0; });
+  const resta = PONTOS_ATRIBUTOS - gasto;
+  const cor = resta === 0 ? 'var(--green)' : resta > 0 ? 'var(--gold)' : 'var(--red)';
+  cont.innerHTML = `
+    <span style="color:var(--muted);letter-spacing:1px">PONTOS DE ATRIBUTO</span>
+    <span style="font-weight:700;color:${cor}">
+      ${gasto} / ${PONTOS_ATRIBUTOS} gastos
+      ${resta > 0 ? `· restam ${resta}` : resta < 0 ? `· ${-resta} acima do limite!` : '· ✔'}
+    </span>`;
 }
 
 function calcMod(v) {
@@ -145,6 +173,7 @@ function calcMod(v) {
 function onAttrInput(id) {
   const val = document.getElementById('a-' + id).value;
   document.getElementById('m-' + id).value = calcMod(val);
+  atualizarContadorPontos();
   if (id === 'res') {
     pvMax = Math.max((parseInt(val) || 0) * 4, 4);
     document.getElementById('pv-formula').textContent = `RES (${val || 0}) × 4 = máx ${pvMax}`;
@@ -372,6 +401,7 @@ function aplicarFicha(d) {
     document.getElementById(`a-${a.id}`).value = val;
     document.getElementById(`m-${a.id}`).value = calcMod(val);
   });
+  atualizarContadorPontos();
 
   pvAtual  = d.pv_atual || 0;
   pvMax    = Math.max((d.attr_res || 0) * 4, 4);
@@ -920,11 +950,17 @@ async function carregarPlayers(mostrarTodos = false) {
       const pvColor = pct > 50 ? 'var(--green)' : pct > 25 ? 'var(--gold)' : 'var(--red)';
 
       card.innerHTML = `
-        <div class="player-card-header">
-          <div>
+        <div class="player-card-header" style="display:flex;align-items:center;gap:10px">
+          ${ficha.foto_url
+            ? `<img src="${ficha.foto_url}" style="width:44px;height:44px;border-radius:50%;object-fit:cover;border:2px solid var(--gold);flex-shrink:0">`
+            : `<div style="width:44px;height:44px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">🧑</div>`}
+          <div style="min-width:0">
             <div class="player-card-name">${ficha.nome || player.username}</div>
             <div class="player-card-prof">${ficha.profissao || 'Profissão não definida'} · ${player.username}</div>
           </div>
+        </div>
+        <div style="height:6px;border-radius:3px;background:rgba(255,255,255,0.08);margin:8px 0 4px;overflow:hidden">
+          <div style="height:100%;width:${Math.max(0,Math.min(100,pct))}%;background:${pvColor};border-radius:3px;transition:width .3s"></div>
         </div>
         <div class="player-stat-row">
           <div class="player-stat">
