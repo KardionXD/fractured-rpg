@@ -113,6 +113,17 @@ async function mesaDeletar(id, nome) {
   _mesaCarregarLista();
 }
 
+async function mesaSair(id, nome) {
+  if (!confirm(`Sair da mesa "${nome}"?\nVocê deixa de ser membro dela. Sua ficha fica guardada — se entrar de novo com o código, ela volta.`)) return;
+  const { error } = await db.from('mesa_membros')
+    .delete().eq('mesa_id', id).eq('user_id', currentUser.id);
+  if (error) { toast('Erro ao sair: ' + error.message, 'err'); return; }
+  if (MESA?.id === id) { MESA = null; localStorage.removeItem('fractured_mesa'); }
+  if (localStorage.getItem('fractured_mesa') === id) localStorage.removeItem('fractured_mesa');
+  toast(`Você saiu de "${nome}".`, 'ok');
+  _mesaCarregarLista();
+}
+
 function mesaCopiarCodigo() {
   if (!MESA) return;
   navigator.clipboard?.writeText(MESA.codigo)
@@ -312,7 +323,9 @@ async function _mesaCarregarLista() {
         <div style="font-size:13px;font-weight:600;color:var(--text,#eee);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(m.nome)}</div>
         <div style="font-size:10px;color:var(--muted,#888)">${sou ? 'Mestre · código ' + m.codigo : 'Player'}</div>
       </div>
-      ${sou ? `<button class="ct-pv-btn" style="color:var(--red,#c0392b)" title="Deletar mesa" onclick="event.stopPropagation();mesaDeletar('${m.id}','${esc(m.nome)}')">✕</button>` : ''}`;
+      ${sou
+        ? `<button class="ct-pv-btn" style="color:var(--red,#c0392b)" title="Deletar mesa" onclick="event.stopPropagation();mesaDeletar('${m.id}','${esc(m.nome)}')">✕</button>`
+        : `<button class="ct-pv-btn" style="color:var(--red,#c0392b)" title="Sair desta mesa" onclick="event.stopPropagation();mesaSair('${m.id}','${esc(m.nome)}')">🚪</button>`}`;
     div.onclick = () => mesaSelecionarExistente(m.id);
     el.appendChild(div);
   });
@@ -333,8 +346,8 @@ function _mesaBotaoTopbar() {
   btn.title = 'Clique para copiar o código de convite · segure para trocar de mesa';
   btn.innerHTML = `🎲 <span id="mesa-topbar-nome">${esc(MESA.nome)}</span>`;
   btn.onclick = () => {
-    if (isMaster) mesaCopiarCodigo();
-    else if (confirm(`Sair da mesa "${MESA.nome}" e escolher outra?`)) trocarMesa();
+    if (isMaster) { mesaCopiarCodigo(); return; }
+    if (confirm(`Trocar de mesa?\n(OK = só trocar · para SAIR de vez da mesa, use o botão 🚪 na tela de mesas)`)) trocarMesa();
   };
   btn.oncontextmenu = e => { e.preventDefault(); if (confirm('Trocar de mesa?')) trocarMesa(); };
   right.insertBefore(btn, right.firstChild);
