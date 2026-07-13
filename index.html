@@ -54,6 +54,10 @@
         <label>Código do Mestre <span class="muted">(deixe em branco se for player)</span></label>
         <input type="text" id="reg-master" placeholder="Código secreto do mestre">
       </div>
+      <div class="field">
+        <label>Convite de cadastro *</label>
+        <input type="text" id="reg-convite" placeholder="Código fornecido pelo administrador" style="text-transform:uppercase">
+      </div>
       <button class="btn-primary" onclick="register()">Criar Conta</button>
     </div>
 
@@ -92,13 +96,20 @@ async function register() {
   const email = document.getElementById('reg-email').value.trim();
   const password = document.getElementById('reg-password').value;
   const masterCode = document.getElementById('reg-master').value.trim();
+  const convite = document.getElementById('reg-convite').value.trim().toUpperCase();
 
   if (!username || !email || !password) return showMsg('Preencha todos os campos obrigatórios.', true);
+  if (!convite) return showMsg('É necessário um convite de cadastro. Peça ao administrador.', true);
   if (password.length < 6) return showMsg('Senha precisa ter pelo menos 6 caracteres.', true);
 
   showMsg('Criando conta...');
-  const { data, error } = await db.auth.signUp({ email, password });
-  if (error) return showMsg(error.message, true);
+  const { data, error } = await db.auth.signUp({ email, password, options: { data: { convite } } });
+  if (error) {
+    const msg = /convite|Database error/i.test(error.message)
+      ? 'Convite inválido ou já utilizado.'
+      : error.message;
+    return showMsg(msg, true);
+  }
 
   // Perfil é criado SEMPRE como player. O status de mestre só é concedido
   // pelo banco de dados, validando o código no servidor (função virar_mestre).
