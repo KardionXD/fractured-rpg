@@ -459,9 +459,10 @@ function buildDadosPanel(c) {
           </select>
           <label class="formula-label">Dificuldade</label>
           <div style="display:flex;gap:5px;align-items:center">
-            <select id="roll-dif" class="formula-select" style="flex:1" onchange="if(this.value==='custom'){document.getElementById('roll-dif-custom').style.display='block'}else{document.getElementById('roll-dif-custom').style.display='none';document.getElementById('roll-dif-val').value=this.value}">
+            <select id="roll-dif" class="formula-select" style="flex:1" onchange="document.getElementById('roll-dif-val').style.display=(this.value==='custom')?'block':'none'">
+              <option value="" selected>— livre (sem dificuldade) —</option>
               <option value="8">8 — Fácil</option>
-              <option value="11" selected>11 — Moderado</option>
+              <option value="11">11 — Moderado</option>
               <option value="14">14 — Difícil</option>
               <option value="17">17 — Severo</option>
               <option value="20">20 — Extremo</option>

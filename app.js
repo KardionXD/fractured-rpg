@@ -759,11 +759,14 @@ function rolarFormula() {
   const modAtrib  = parseInt(document.getElementById('roll-atrib')?.value)   || 0;
   const modPer    = parseInt(document.getElementById('roll-pericia')?.value)  || 0;
   const modSit    = parseInt(document.getElementById('roll-situacao')?.value) || 0;
-  // Lê dificuldade — se for 'custom', usa o campo de texto
+  // Dificuldade é OPCIONAL: vazio = rolagem livre (só mostra o total com bônus)
   const difSel = document.getElementById('roll-dif')?.value;
-  const dif = difSel === 'custom'
-    ? parseInt(document.getElementById('roll-dif-custom-val')?.value) || 11
-    : parseInt(difSel) || 11;
+  let dif = null;
+  if (difSel === 'custom') {
+    dif = parseInt(document.getElementById('roll-dif-val')?.value) || null; // (id corrigido: antes lia um campo inexistente e caía sempre em 11)
+  } else if (difSel !== '' && difSel != null) {
+    dif = parseInt(difSel) || null;
+  }
   const modCustom = parseInt(document.getElementById('roll-bonus-custom')?.value) || 0;
 
   // Ajudas: cada ajudante dá +2 (máx 3 ajudantes = +6)
