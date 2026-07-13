@@ -116,9 +116,6 @@ const ATTRS = [
   { abbr: 'AGI', name: 'Agilidade',    id: 'agi' },
 ];
 
-// Total de pontos para distribuir nos atributos (ajuste se a regra mudar)
-const PONTOS_ATRIBUTOS = 18;
-
 function buildAttrGrid() {
   const grid = document.getElementById('attr-grid');
   grid.innerHTML = '';
@@ -155,14 +152,9 @@ function atualizarContadorPontos() {
   if (!cont) return;
   let gasto = 0;
   ATTRS.forEach(a => { gasto += parseInt(document.getElementById('a-' + a.id)?.value) || 0; });
-  const resta = PONTOS_ATRIBUTOS - gasto;
-  const cor = resta === 0 ? 'var(--green)' : resta > 0 ? 'var(--gold)' : 'var(--red)';
   cont.innerHTML = `
     <span style="color:var(--muted);letter-spacing:1px">PONTOS DE ATRIBUTO</span>
-    <span style="font-weight:700;color:${cor}">
-      ${gasto} / ${PONTOS_ATRIBUTOS} gastos
-      ${resta > 0 ? `· restam ${resta}` : resta < 0 ? `· ${-resta} acima do limite!` : '· ✔'}
-    </span>`;
+    <span style="font-weight:700;color:var(--gold)">${gasto} ${gasto === 1 ? 'ponto gasto' : 'pontos gastos'}</span>`;
 }
 
 function calcMod(v) {
