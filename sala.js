@@ -26,7 +26,7 @@ async function initSala() {
   // CT + Bestiário
   subscribeCT();
   if (isMaster) {
-    renderBestiarioCT();
+    carregarBestiario();   // busca o bestiário DESTA mesa no banco
     renderPlayersParaCT();
   }
 
@@ -41,7 +41,7 @@ async function initSala() {
 function refreshSalaContent() {
   // Reconstrói apenas o conteúdo dinâmico sem recriar o DOM todo
   renderCT();
-  if (isMaster) { renderBestiarioCT(); renderPlayersParaCT(); }
+  if (isMaster) { carregarBestiario(); renderPlayersParaCT(); }
   buildTensaoPips('tensao-pips-sala', tensaoSala, false);
   setTimeout(() => { if (canvas) desenharMapa(); }, 100);
 }

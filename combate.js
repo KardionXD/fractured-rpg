@@ -2,65 +2,39 @@
 //  FRACTURED — combate.js v3
 // ══════════════════════════════════════════════════
 
-const BESTIARIO = {
-  infectados: [
-    { id:'corredor',     nome:'Corredor',          pv:10, com:1,  agi:2,  res:0,  emoji:'🧟', tipo:'infectado',
-      habilidades:['Enxame: 3+ atacam o mesmo alvo','Hesitação: para 1 round ao ver rosto familiar','Grito de Atração'],
-      fraqueza:'Qualquer dano direto. Separe e elimine.' },
-    { id:'perseguidor',  nome:'Perseguidor',        pv:15, com:2,  agi:1,  res:1,  emoji:'🧟', tipo:'infectado',
-      habilidades:['Emboscada automática','Gavinhas: +3 surpresa','Perseguição Tenaz'],
-      fraqueza:'Fogo e impacto. Armadilhas de arame.' },
-    { id:'estalador',    nome:'Estalador',          pv:20, com:3,  agi:1,  res:2,  emoji:'🕷️', tipo:'infectado',
-      habilidades:['Sonar: detecta >30dB','Agarrão Fatal: mata em 1 round','Blindagem: −2 dano exceto fogo'],
-      fraqueza:'Fogo. Morte silenciosa: AGI≥17 + faca.' },
-    { id:'baiacu',       nome:'Baiacu',             pv:35, com:4,  agi:-1, res:4,  emoji:'💀', tipo:'infectado',
-      habilidades:['Armadura: dano÷2','Nuvem de Esporos 5m ao morrer','Investida: +2d6'],
-      fraqueza:'Explosivos e fogo prolongado APENAS.' },
-    { id:'tropego',      nome:'Trôpego',            pv:30, com:3,  agi:-1, res:3,  emoji:'💣', tipo:'infectado',
-      habilidades:['Não morde','Explosão: qualquer dano→esporos 3m','Resistência Ácida'],
-      fraqueza:'Explosivos a distância APENAS.' },
-    { id:'rei_ratos',    nome:'Rei dos Ratos',      pv:80, com:5,  agi:-2, res:6,  emoji:'👑', tipo:'infectado',
-      habilidades:['Divisão: 50%PV→2d4 infectados','Rede 100m','Cascata de Morte','Regen +5PV/round'],
-      fraqueza:'Destrua 5+ nós da rede primeiro.' },
-  ],
-  animais: [
-    { id:'lobo',   nome:'Lobo / Cão Selvagem', pv:12, com:2, agi:3,  res:0,  emoji:'🐺', tipo:'animal',
-      habilidades:['Flanqueio: +2 dano','Avaliação de Presa','Perseguição 500m'],
-      fraqueza:'Mate o alfa→60% recua. Fogo afasta.' },
-    { id:'urso',   nome:'Urso',                pv:45, com:4, agi:0,  res:5,  emoji:'🐻', tipo:'animal',
-      habilidades:['Investida: +3, derruba','Resistência: −2 dano','Com filhotes: nunca recua'],
-      fraqueza:'Rifle pesado ou explosivos.' },
-    { id:'javali', nome:'Javali',              pv:20, com:3, agi:1,  res:2,  emoji:'🐗', tipo:'animal',
-      habilidades:['Carga: AGI≥13 desviar','Presa: 2d6+3','Bando: +1 Tensão'],
-      fraqueza:'Tiro na cabeça. Suba.' },
-    { id:'corvo',  nome:'Corvo de Bando',      pv:3,  com:0, agi:4,  res:-2, emoji:'🐦', tipo:'animal',
-      habilidades:['Delator: revela posição','Alarme: +1 Tensão'],
-      fraqueza:'Ignore. Matar piora.' },
-  ],
-  humanos: [
-    { id:'saqueador', nome:'Saqueador',          pv:14, com:1, agi:1,  res:-1, emoji:'🔪', tipo:'humano',
-      habilidades:['Moral Frágil: SOCIAL≥11','Rendição possível','Armamento improvisado'],
-      fraqueza:'Intimide antes de atacar.' },
-    { id:'atirador',  nome:'Atirador de Facção', pv:18, com:3, agi:2,  res:0,  emoji:'🔫', tipo:'humano',
-      habilidades:['Cobertura: +2 defesa','Relata à facção em 1d4 dias','Tiro coordenado'],
-      fraqueza:'Flanqueie ou destrua cobertura.' },
-    { id:'lider',     nome:'Líder de Bando',     pv:25, com:4, agi:2,  res:3,  emoji:'😈', tipo:'humano',
-      habilidades:['Imune a intimidação simples','Eleva aliados','Negocia por interesse'],
-      fraqueza:'Eliminar o líder quebra o grupo.' },
-    { id:'cacador',   nome:'Caçador Profissional',pv:22, com:4, agi:3,  res:-2, emoji:'🏹', tipo:'humano',
-      habilidades:['Emboscada: INSTINTO≥16','Rastreamento 24h','Tiro Silencioso'],
-      fraqueza:'Mude de rota. Inverta a caça.' },
-  ],
-  animais_infectados: [
-    { id:'cao_corredor',   nome:'Cão Corredor',   pv:16, com:3, agi:4,  res:1,  emoji:'🐕', tipo:'animal_infectado',
-      habilidades:['Age 2x/round','Rastreamento fúngico','Mordida infectante RES≥13'],
-      fraqueza:'Armadilhas de laço. Fogo desorienta.' },
-    { id:'urso_estalador', nome:'Urso Estalador', pv:60, com:5, agi:0,  res:6,  emoji:'🐻', tipo:'animal_infectado',
-      habilidades:['Sonar: >20dB','Armadura: −3 dano','Investida: +3d6','Agarrão: 2d8/round'],
-      fraqueza:'Explosivos e fogo prolongado. Fuja em silêncio.' },
-  ]
-};
-const TODOS_INIMIGOS = Object.values(BESTIARIO).flat();
+// ══════════════════════════════════════════════════
+//  BESTIÁRIO — agora vive no banco, POR MESA.
+//  Cada mestre só vê e edita os monstros da sua mesa
+//  (bloqueado por RLS no servidor, não só no cliente).
+// ══════════════════════════════════════════════════
+let BESTIARIO = {};        // { categoria: [monstros] }
+let TODOS_INIMIGOS = [];   // lista achatada p/ quick-add do mapa
+let _bestiarioCarregado = false;
+
+async function carregarBestiario(force = false) {
+  if (!isMaster || !mesaId()) return;
+  if (_bestiarioCarregado && !force) { renderBestiarioCT(); return; }
+  const { data, error } = await db.from('bestiario')
+    .select('*')
+    .eq('mesa_id', mesaId())
+    .order('categoria').order('created_at');
+  if (error) {
+    console.error('carregarBestiario:', error);
+    if (/bestiario/i.test(error.message || '')) {
+      toast('⚠ Rode MIGRACAO_BESTIARIO.sql no Supabase!', 'err');
+    }
+    return;
+  }
+  BESTIARIO = {};
+  (data || []).forEach(row => {
+    const m = { ...(row.dados || {}), _dbId: row.id };
+    (BESTIARIO[row.categoria] = BESTIARIO[row.categoria] || []).push(m);
+  });
+  TODOS_INIMIGOS = Object.values(BESTIARIO).flat();
+  _bestiarioCarregado = true;
+  renderBestiarioCT();
+  if (typeof renderMapaBestiarioQuick === 'function') renderMapaBestiarioQuick();
+}
 
 // ── ESTADO ────────────────────────────────────────
 let combatentes       = [];
@@ -460,26 +434,109 @@ function renderBestiarioCT() {
   if (!isMaster) { lista.innerHTML=''; return; }
   const filtro=(document.getElementById('ct-filtro')?.value||'').toLowerCase();
   lista.innerHTML='';
+
+  // Botão de criar monstro (bestiário é por mesa, cada mestre monta o seu)
+  const addBtn=document.createElement('button');
+  addBtn.className='btn-ghost';
+  addBtn.style.cssText='width:100%;font-size:10px;padding:5px;margin-bottom:6px';
+  addBtn.textContent='＋ Novo monstro';
+  addBtn.onclick=()=>abrirFormMonstro();
+  lista.appendChild(addBtn);
+
   const nomes={infectados:'Infectados',animais:'Animais',humanos:'Humanos',animais_infectados:'Animais Infectados'};
-  Object.entries(BESTIARIO).forEach(([cat,inimigos])=>{
+  const cats=Object.entries(BESTIARIO);
+  if(!cats.length){
+    const vazio=document.createElement('div');
+    vazio.style.cssText='font-size:11px;color:var(--muted);padding:8px;text-align:center';
+    vazio.textContent='Bestiário vazio. Crie seus monstros!';
+    lista.appendChild(vazio);
+    return;
+  }
+  cats.forEach(([cat,inimigos])=>{
     const fil=inimigos.filter(i=>i.nome.toLowerCase().includes(filtro));
     if(!fil.length) return;
-    const h=document.createElement('div'); h.className='ct-categoria'; h.textContent=nomes[cat]; lista.appendChild(h);
+    const h=document.createElement('div'); h.className='ct-categoria'; h.textContent=nomes[cat]||cat; lista.appendChild(h);
     fil.forEach(ini=>{
       const div=document.createElement('div'); div.className='ct-inimigo-item';
+      const iniLimpo={...ini}; delete iniLimpo._dbId;
       div.innerHTML=`
         <span class="ct-inimigo-emoji">${ini.emoji}</span>
         <div class="ct-inimigo-info">
-          <div class="ct-inimigo-nome">${ini.nome}</div>
+          <div class="ct-inimigo-nome">${esc(ini.nome)}</div>
           <div class="ct-inimigo-stats">PV ${ini.pv} · COM ${ini.com>=0?'+':''}${ini.com}</div>
         </div>
         <div style="display:flex;gap:3px;flex-shrink:0">
-          <button class="ct-add-btn" onclick='adicionarInimigoCT(${JSON.stringify(ini).replace(/'/g,"&#39;")})'>+CT</button>
-          <button class="ct-add-btn ct-add-mapa" onclick='adicionarTokenMapa(${JSON.stringify(ini).replace(/'/g,"&#39;")})'>+🗺</button>
+          <button class="ct-add-btn" onclick='adicionarInimigoCT(${JSON.stringify(iniLimpo).replace(/'/g,"&#39;")})'>+CT</button>
+          <button class="ct-add-btn ct-add-mapa" onclick='adicionarTokenMapa(${JSON.stringify(iniLimpo).replace(/'/g,"&#39;")})'>+🗺</button>
+          <button class="ct-add-btn" style="color:var(--red)" title="Deletar monstro" onclick="deletarMonstro('${ini._dbId}','${esc(ini.nome).replace(/'/g,"&#39;")}')">✕</button>
         </div>`;
       lista.appendChild(div);
     });
   });
+}
+
+// ── CRIAR / DELETAR MONSTROS ──────────────────────
+function abrirFormMonstro() {
+  if (document.getElementById('modal-monstro')) return;
+  const modal=document.createElement('div');
+  modal.id='modal-monstro';
+  modal.style.cssText='position:fixed;inset:0;z-index:8500;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;padding:16px';
+  const inp='width:100%;box-sizing:border-box;background:rgba(0,0,0,0.4);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:6px 8px;font-size:12px';
+  modal.innerHTML=`
+    <div style="width:100%;max-width:380px;max-height:90vh;overflow-y:auto;background:var(--bg,#0d0b08);border:1px solid var(--border);border-radius:10px;padding:14px">
+      <div style="font-size:12px;font-weight:700;color:var(--gold);letter-spacing:1px;margin-bottom:10px">📖 NOVO MONSTRO</div>
+      <div style="display:grid;grid-template-columns:1fr 70px;gap:6px;margin-bottom:6px">
+        <input id="mon-nome" placeholder="Nome" style="${inp}">
+        <input id="mon-emoji" placeholder="🧟" maxlength="4" style="${inp};text-align:center">
+      </div>
+      <input id="mon-categoria" placeholder="Categoria (ex: infectados, humanos...)" list="mon-cats" style="${inp};margin-bottom:6px">
+      <datalist id="mon-cats">${Object.keys(BESTIARIO).map(c=>`<option value="${c}">`).join('')}</datalist>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:6px">
+        <input id="mon-pv"  type="number" placeholder="PV"  style="${inp}">
+        <input id="mon-com" type="number" placeholder="COM" style="${inp}">
+        <input id="mon-agi" type="number" placeholder="AGI" style="${inp}">
+        <input id="mon-res" type="number" placeholder="RES" style="${inp}">
+      </div>
+      <textarea id="mon-hab" placeholder="Habilidades (uma por linha)" rows="4" style="${inp};resize:vertical;margin-bottom:6px"></textarea>
+      <input id="mon-fraq" placeholder="Fraqueza" style="${inp};margin-bottom:10px">
+      <div style="display:flex;gap:6px">
+        <button class="btn-ghost" style="flex:1;font-size:11px;padding:7px" onclick="document.getElementById('modal-monstro').remove()">Cancelar</button>
+        <button class="btn-ghost" style="flex:1;font-size:11px;padding:7px;color:var(--gold);border-color:var(--gold)" onclick="salvarMonstro()">Salvar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener('click',e=>{ if(e.target===modal) modal.remove(); });
+}
+
+async function salvarMonstro() {
+  const nome=document.getElementById('mon-nome')?.value.trim();
+  if(!nome){ toast('Dá um nome pro monstro!','err'); return; }
+  const categoria=(document.getElementById('mon-categoria')?.value.trim().toLowerCase().replace(/\s+/g,'_'))||'outros';
+  const dados={
+    id: nome.toLowerCase().replace(/\s+/g,'_'),
+    nome,
+    emoji: document.getElementById('mon-emoji')?.value.trim()||'👾',
+    pv:  parseInt(document.getElementById('mon-pv')?.value)||10,
+    com: parseInt(document.getElementById('mon-com')?.value)||0,
+    agi: parseInt(document.getElementById('mon-agi')?.value)||0,
+    res: parseInt(document.getElementById('mon-res')?.value)||0,
+    tipo: categoria,
+    habilidades: (document.getElementById('mon-hab')?.value||'').split('\n').map(s=>s.trim()).filter(Boolean),
+    fraqueza: document.getElementById('mon-fraq')?.value.trim()||'',
+  };
+  const { error }=await db.from('bestiario').insert({ mesa_id: mesaId(), categoria, dados });
+  if(error){ toast('Erro ao salvar: '+error.message,'err'); return; }
+  document.getElementById('modal-monstro')?.remove();
+  toast(`"${nome}" adicionado ao bestiário!`,'ok');
+  carregarBestiario(true);
+}
+
+async function deletarMonstro(dbId,nome) {
+  if(!confirm(`Deletar "${nome}" do bestiário?`)) return;
+  const { error }=await db.from('bestiario').delete().eq('id',dbId).eq('mesa_id',mesaId());
+  if(error){ toast('Erro: '+error.message,'err'); return; }
+  toast('Monstro removido.','ok');
+  carregarBestiario(true);
 }
 
 // Lista players com ficha para mestre adicionar
