@@ -593,6 +593,15 @@ function scrollFeedToBottom() {
 // Fila de mensagens locais aguardando o eco do realtime (dedupe)
 const _ecoPendente = [];
 
+// Stringify com chaves ordenadas — o jsonb do Postgres reordena as chaves,
+// então JSON.stringify simples nunca batia entre o local e o eco.
+function _jsonEstavel(v) {
+  if (Array.isArray(v)) return '[' + v.map(_jsonEstavel).join(',') + ']';
+  if (v && typeof v === 'object')
+    return '{' + Object.keys(v).sort().map(k => JSON.stringify(k) + ':' + _jsonEstavel(v[k])).join(',') + '}';
+  return JSON.stringify(v);
+}
+
 async function publicarSala(tipo, conteudo) {
   // Append otimista: rolagem/mensagem aparece NA HORA pra quem enviou,
   // sem esperar a viagem servidor→realtime→volta (lenta no 4G).
@@ -603,7 +612,7 @@ async function publicarSala(tipo, conteudo) {
       tipo, conteudo,
       created_at: new Date().toISOString(),
     };
-    _ecoPendente.push({ tipo, json: JSON.stringify(conteudo), ts: Date.now() });
+    _ecoPendente.push({ tipo, json: _jsonEstavel(conteudo), ts: Date.now() });
     if (_ecoPendente.length > 20) _ecoPendente.shift();
     try { appendFeedMsg(msgLocal); } catch(e) {}
   }
@@ -622,7 +631,7 @@ async function publicarSala(tipo, conteudo) {
 function _ehEcoLocal(msg) {
   if (msg.user_id !== currentUser.id) return false;
   if (msg.tipo !== 'roll' && msg.tipo !== 'mensagem') return false;
-  const json = JSON.stringify(msg.conteudo);
+  const json = _jsonEstavel(msg.conteudo);
   const i = _ecoPendente.findIndex(p => p.tipo === msg.tipo && p.json === json && Date.now() - p.ts < 10000);
   if (i === -1) return false;
   _ecoPendente.splice(i, 1);
@@ -1160,7 +1169,9 @@ function appendFeedMsg(msg) {
   if (emptyState) emptyState.remove();
 
   const div = document.createElement('div');
-  const hora = new Date(msg.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  let _ts = msg.created_at || new Date().toISOString();
+  if (typeof _ts === 'string' && !/Z|[+-]\d{2}:?\d{2}$/.test(_ts)) _ts += 'Z'; // sem fuso = UTC
+  const hora = new Date(_ts).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
   if (msg.tipo === 'roll') {
     const c = msg.conteudo;
