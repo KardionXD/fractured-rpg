@@ -39,7 +39,7 @@
     <!-- REGISTER -->
     <div id="tab-register" style="display:none">
       <div class="field">
-        <label>Nome do Jogador</label>
+        <label>Nome do Usuário</label>
         <input type="text" id="reg-username" placeholder="Como você quer ser chamado">
       </div>
       <div class="field">
@@ -49,10 +49,6 @@
       <div class="field">
         <label>Senha</label>
         <input type="password" id="reg-password" placeholder="mínimo 6 caracteres">
-      </div>
-      <div class="field">
-        <label>Código do Mestre <span class="muted">(deixe em branco se for player)</span></label>
-        <input type="text" id="reg-master" placeholder="Código secreto do mestre">
       </div>
       <div class="field">
         <label>Convite de cadastro *</label>
@@ -95,12 +91,17 @@ async function register() {
   const username = document.getElementById('reg-username').value.trim();
   const email = document.getElementById('reg-email').value.trim();
   const password = document.getElementById('reg-password').value;
-  const masterCode = document.getElementById('reg-master').value.trim();
   const convite = document.getElementById('reg-convite').value.trim().toUpperCase();
 
   if (!username || !email || !password) return showMsg('Preencha todos os campos obrigatórios.', true);
   if (!convite) return showMsg('É necessário um convite de cadastro. Peça ao administrador.', true);
   if (password.length < 6) return showMsg('Senha precisa ter pelo menos 6 caracteres.', true);
+
+  showMsg('Verificando convite...');
+  // Checa o convite ANTES de criar a conta (mensagem de erro clara)
+  const { data: ok, error: convErr } = await db.rpc('checar_convite', { cod: convite });
+  if (convErr) return showMsg('Erro ao verificar convite: ' + convErr.message, true);
+  if (!ok) return showMsg('Convite inválido ou já utilizado.', true);
 
   showMsg('Criando conta...');
   const { data, error } = await db.auth.signUp({ email, password, options: { data: { convite } } });
@@ -111,17 +112,11 @@ async function register() {
     return showMsg(msg, true);
   }
 
-  // Perfil é criado SEMPRE como player. O status de mestre só é concedido
-  // pelo banco de dados, validando o código no servidor (função virar_mestre).
+  // Perfil é criado sempre como player — mestre agora é por mesa (quem cria a mesa).
   const { error: profileError } = await db.from('profiles').insert({
     id: data.user.id,
     username
   });
-
-  if (masterCode) {
-    const { data: ok, error: rpcErr } = await db.rpc('virar_mestre', { codigo: masterCode });
-    if (rpcErr || !ok) showMsg('Código do Mestre inválido — conta criada como player.', true);
-  }
 
   if (profileError) return showMsg('Conta criada! Faça login.', false);
   showMsg('Conta criada! Entrando...', false);
