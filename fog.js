@@ -313,7 +313,7 @@ function fogAtualizarExploracao() {
     }
   });
   // Só o mestre persiste a exploração (evita corrida de escrita)
-  if (mudou && isMaster) { mapaSalvarDB(); fogBroadcast(800); }
+  if (mudou && isMaster) { mapaSalvarFogDB(); fogBroadcast(800); }
 }
 
 // ── FERRAMENTAS DO MESTRE (mouse) ────────────────
@@ -343,7 +343,7 @@ function fogToolMouseDown(e, w) {
     } else {
       if (Math.hypot(p.x - FOG.wallStart.x, p.y - FOG.wallStart.y) > 4) {
         FOG.paredes.push({ x1: FOG.wallStart.x, y1: FOG.wallStart.y, x2: p.x, y2: p.y });
-        mapaSalvarDB(); fogBroadcast();
+        mapaSalvarFogDB(); fogBroadcast();
       }
       // Encadeia: próxima parede começa onde esta terminou
       FOG.wallStart = p;
@@ -356,7 +356,7 @@ function fogToolMouseDown(e, w) {
     const idx = FOG.paredes.findIndex(p => _distPontoSeg(w.x, w.y, p.x1, p.y1, p.x2, p.y2) < limiar);
     if (idx >= 0) {
       FOG.paredes.splice(idx, 1);
-      mapaSalvarDB(); fogBroadcast();
+      mapaSalvarFogDB(); fogBroadcast();
       mapaDraw();
       toast('Parede removida.', 'ok');
     }
@@ -382,7 +382,7 @@ function fogToolMouseUp() {
   if (FOG.rectPaint) { fogAplicarRetangulo(); return true; }
   if (FOG._painting) {
     FOG._painting = false;
-    mapaSalvarDB(); fogBroadcast();
+    mapaSalvarFogDB(); fogBroadcast();
     return true;
   }
   return FOG.tool !== null;
@@ -418,20 +418,20 @@ function fogAplicarRetangulo() {
     }
   }
   FOG.rectPaint = null;
-  mapaDraw(); mapaSalvarDB(); fogBroadcast();
+  mapaDraw(); mapaSalvarFogDB(); fogBroadcast();
 }
 
 // ── AÇÕES DA TOOLBAR ─────────────────────────────
 function fogToggle() {
   FOG.enabled = !FOG.enabled;
   if (!FOG.enabled) fogSetTool(null);
-  fogSyncUI(); mapaDraw(); mapaSalvarDB(); fogBroadcast();
+  fogSyncUI(); mapaDraw(); mapaSalvarFogDB(); fogBroadcast();
   toast(FOG.enabled ? 'Fog of War ATIVADO' : 'Fog of War desativado', 'ok');
 }
 
 function fogSetModo(m) {
   FOG.modo = m;
-  fogSyncUI(); mapaDraw(); mapaSalvarDB(); fogBroadcast();
+  fogSyncUI(); mapaDraw(); mapaSalvarFogDB(); fogBroadcast();
 }
 
 function fogSetTool(t) {
@@ -446,7 +446,7 @@ function fogSetTool(t) {
 
 function fogSetRaio(v) {
   FOG.raio = Math.max(2, Math.min(30, parseInt(v) || 8));
-  mapaDraw(); mapaSalvarDB(); fogBroadcast();
+  mapaDraw(); mapaSalvarFogDB(); fogBroadcast();
 }
 
 function fogRevelarTudo() {
@@ -457,19 +457,19 @@ function fogRevelarTudo() {
   for (let gx = -2; gx <= Math.ceil(w / gs) + 2; gx++)
     for (let gy = -2; gy <= Math.ceil(h / gs) + 2; gy++)
       FOG.cells.add(gx + ',' + gy);
-  mapaDraw(); mapaSalvarDB(); fogBroadcast();
+  mapaDraw(); mapaSalvarFogDB(); fogBroadcast();
 }
 
 function fogCobrirTudo() {
   if (!confirm('Cobrir tudo com névoa novamente? (apaga a exploração)')) return;
   FOG.cells = new Set();
-  mapaDraw(); mapaSalvarDB(); fogBroadcast();
+  mapaDraw(); mapaSalvarFogDB(); fogBroadcast();
 }
 
 function fogApagarParedes() {
   if (!confirm('Apagar TODAS as paredes?')) return;
   FOG.paredes = [];
-  mapaDraw(); mapaSalvarDB(); fogBroadcast();
+  mapaDraw(); mapaSalvarFogDB(); fogBroadcast();
 }
 
 

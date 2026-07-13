@@ -871,10 +871,10 @@ async function _mapaSalvarNow() {
       grid_size:    MAP.gridSize,
       grid_visivel: MAP.gridVisible,
       mapa_url:     urlParaSalvar,
-      fog:          typeof fogExport === 'function' ? fogExport() : null,
-      paredes:      (typeof FOG !== 'undefined') ? FOG.paredes : [],
       updated_at:   MAP.lastSaveTs,
     });
+    // Fog e paredes agora vivem em fog_estado (tabela própria):
+    // isso evita reenviar o fog inteiro pela rede a cada token movido.
     if (saveErr) {
       console.error('mapaSalvarDB (supabase):', saveErr);
       if (/fog|paredes/i.test(saveErr.message || '')) {
@@ -892,6 +892,25 @@ async function _mapaSalvarNow() {
   // Cenas são salvas apenas manualmente pelo botão 💾
 }
 
+let _fogSaveTimer = null;
+function mapaSalvarFogDB() {
+  if (!isMaster) return;
+  clearTimeout(_fogSaveTimer);
+  _fogSaveTimer = setTimeout(async () => {
+    try {
+      const { error } = await db.from('fog_estado').upsert({
+        id:         mesaId(),
+        fog:        typeof fogExport === 'function' ? fogExport() : null,
+        paredes:    (typeof FOG !== 'undefined') ? FOG.paredes : [],
+        updated_at: new Date().toISOString(),
+      });
+      if (error && /fog_estado/i.test(error.message || '')) {
+        toast('⚠ Rode OTIMIZACAO_GERAL.sql no Supabase!', 'err');
+      }
+    } catch(e) { console.error('mapaSalvarFogDB:', e); }
+  }, 2000);
+}
+
 async function mapaCarregarDB() {
   try {
     const { data } = await db.from('mapa_estado').select('*').eq('id', mesaId()).single();
@@ -900,6 +919,14 @@ async function mapaCarregarDB() {
       MAP.gridSize    = data.grid_size || 60;
       MAP.gridVisible = data.grid_visivel !== false;
       if (typeof fogImport === 'function') {
+        // Tenta a tabela nova primeiro (formato otimizado)
+        try {
+          const { data: fogRow } = await db.from('fog_estado').select('*').eq('id', mesaId()).maybeSingle();
+          if (fogRow) {
+            fogImport(fogRow.fog, fogRow.paredes);
+            data.fog = undefined; data.paredes = undefined; // não reimporta o legado abaixo
+          }
+        } catch(e) {}
         if (!('fog' in data)) {
           console.warn('mapa_estado sem coluna fog — rode MIGRACAO_FOG.sql (o sync ao vivo funciona mesmo assim, mas o fog não persiste entre sessões).');
         }
@@ -932,6 +959,13 @@ function mapaSubscribeRealtime() {
   if (typeof fogInitSync === 'function') fogInitSync();
 
   db.channel('mapa-v5-'+mesaId())
+    .on('postgres_changes', { event:'*', schema:'public', table:'fog_estado', filter: 'id=eq.' + mesaId() }, payload => {
+      const f = payload.new; if (!f) return;
+      if (typeof fogImport === 'function' && !(isMaster && FOG.tool)) {
+        fogImport(f.fog, f.paredes);
+        mapaDraw();
+      }
+    })
     .on('postgres_changes', { event:'UPDATE', schema:'public', table:'mapa_estado', filter: 'id=eq.' + mesaId() }, payload => {
       const d = payload.new; if (!d) return;
       console.log('mapa realtime: UPDATE recebido, tokens:', d.tokens?.length);
@@ -942,10 +976,7 @@ function mapaSubscribeRealtime() {
       MAP.tokens      = d.tokens || [];
       MAP.gridSize    = d.grid_size || 60;
       MAP.gridVisible = d.grid_visivel !== false;
-      // Fog: mestre ignora o eco do próprio save enquanto usa ferramenta
-      if (typeof fogImport === 'function' && !(isMaster && FOG.tool)) {
-        fogImport(d.fog, d.paredes);
-      }
+      // Fog não viaja mais neste payload (vive em fog_estado + canal fog-live)
 
       // Atualiza imagem só se URL mudou e é válida
       const novaVideoUrl = d.video_url;

@@ -549,7 +549,9 @@ function subscribeCenas() {
   if (cenaRealtimeSub) return;
   cenaRealtimeSub = db.channel('cenas-live-'+mesaId())
     .on('postgres_changes', { event: '*', schema: 'public', table: 'cenas_mapa', filter: 'mesa_id=eq.' + mesaId() }, async payload => {
-      await carregarCenas();
+      // Debounce: a troca de cena dispara vários eventos seguidos
+      clearTimeout(window._cenasReloadTimer);
+      window._cenasReloadTimer = setTimeout(() => carregarCenas(), 400);
       // Aplica cena ativa para todos (mestre já aplicou localmente)
       if (payload.new?.ativa) {
         if (!isMaster) {

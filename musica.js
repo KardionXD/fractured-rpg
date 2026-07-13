@@ -287,7 +287,8 @@ function _musAtualizarWidget() {
   if (!document.getElementById('mus-pulse-style')) {
     const s = document.createElement('style');
     s.id = 'mus-pulse-style';
-    s.textContent = '@keyframes mus-pulse{0%,100%{box-shadow:0 0 0 0 rgba(201,168,76,0.4)}50%{box-shadow:0 0 0 7px rgba(201,168,76,0)}}';
+    s.textContent = '@keyframes mus-pulse{0%,100%{box-shadow:0 0 0 0 rgba(201,168,76,0.4)}50%{box-shadow:0 0 0 7px rgba(201,168,76,0)}}'
+      + '@media (max-width:768px){#musica-widget{bottom:78px !important;left:10px !important}#mus-painel{width:min(270px,calc(100vw - 40px)) !important}}';
     document.head.appendChild(s);
   }
 }
