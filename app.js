@@ -87,6 +87,7 @@ function navigate(page) {
   if (page === 'sala') setTimeout(() => scrollFeedToBottom(), 100);
   if (page === 'notas') renderListaNotas();
   if (page === 'arquivos') arquivosInit();
+  if (page === 'ficha' && typeof fichaCustomInit === 'function') fichaCustomInit();
 }
 
 // ── TOAST ─────────────────────────────────────────
@@ -999,7 +1000,8 @@ async function carregarPlayers(mostrarTodos = false) {
       `;
     } else {
       const pvMax = Math.max((ficha.attr_res || 0) * 4, 4);
-      const pct = Math.round((ficha.pv_atual / pvMax) * 100);
+      let pct = Math.round((ficha.pv_atual / pvMax) * 100);
+      if (!isFinite(pct)) pct = 0; // ficha custom (sem PV do FRACTURED)
       const pvColor = pct > 50 ? 'var(--green)' : pct > 25 ? 'var(--gold)' : 'var(--red)';
 
       card.innerHTML = `
@@ -1059,6 +1061,28 @@ async function apagarFichaPlayer(userId, nome) {
 
 async function verFichaCompleta(userId) {
   const { data: ficha } = await db.from('fichas').select('*').eq('user_id', userId).eq('mesa_id', mesaId()).maybeSingle();
+  if (ficha?.dados_custom && MESA?.ficha_template?.secoes?.length) {
+    // Ficha do modelo customizado da mesa
+    let html = '';
+    MESA.ficha_template.secoes.forEach(sec => {
+      html += `<div style="font-size:11px;font-weight:700;letter-spacing:2px;color:var(--gold);text-transform:uppercase;margin:12px 0 6px">${esc(sec.titulo)}</div>`;
+      (sec.campos || []).forEach(c => {
+        const v = ficha.dados_custom[c.id];
+        const txt = (v && typeof v === 'object') ? `${v.atual ?? 0} / ${v.max ?? 0}` : (v ?? '—');
+        html += `<div style="display:flex;gap:8px;font-size:12px;margin-bottom:4px">
+          <span style="color:var(--muted);min-width:130px">${esc(c.label)}:</span>
+          <span style="color:var(--text);white-space:pre-wrap">${esc(String(txt))}</span></div>`;
+      });
+    });
+    const m = document.createElement('div');
+    m.style.cssText = 'position:fixed;inset:0;z-index:8600;background:rgba(0,0,0,0.72);display:flex;align-items:center;justify-content:center;padding:16px';
+    m.innerHTML = `<div style="width:100%;max-width:520px;max-height:90vh;overflow-y:auto;background:var(--bg,#0d0b08);border:1px solid var(--border);border-radius:10px;padding:16px">
+      <div style="font-size:15px;font-weight:700;color:var(--gold);margin-bottom:6px">📋 ${esc(ficha.nome || 'Ficha')}</div>${html}
+      <button class="btn-ghost" style="width:100%;margin-top:12px;font-size:11px;padding:8px" onclick="this.closest('div').parentElement.remove()">Fechar</button></div>`;
+    m.addEventListener('click', e => { if (e.target === m) m.remove(); });
+    document.body.appendChild(m);
+    return;
+  }
   const { data: profile } = await db.from('profiles').select('username').eq('id', userId).single();
   if (!ficha) return toast('Ficha não encontrada.', 'err');
 
