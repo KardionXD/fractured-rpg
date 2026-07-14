@@ -1067,8 +1067,13 @@ async function verFichaCompleta(userId) {
     MESA.ficha_template.secoes.forEach(sec => {
       html += `<div style="font-size:11px;font-weight:700;letter-spacing:2px;color:var(--gold);text-transform:uppercase;margin:12px 0 6px">${esc(sec.titulo)}</div>`;
       (sec.campos || []).forEach(c => {
-        const v = ficha.dados_custom[c.id];
-        const txt = (v && typeof v === 'object') ? `${v.atual ?? 0} / ${v.max ?? 0}` : (v ?? '—');
+        let v = ficha.dados_custom[c.id];
+        if (v && typeof v === 'object') v = v.atual; // formato antigo
+        let txt;
+        if (c.tipo === 'barra' || c.tipo === 'marcador') txt = `${v ?? c.max ?? 0} / ${c.max ?? 0}`;
+        else if (c.tipo === 'check') txt = v ? '✔ Sim' : '✖ Não';
+        else if (c.tipo === 'atributo_mod') { const m = Math.floor(((parseInt(v)||0)-10)/2); txt = `${v ?? 10} (${m>=0?'+':''}${m})`; }
+        else txt = v ?? '—';
         html += `<div style="display:flex;gap:8px;font-size:12px;margin-bottom:4px">
           <span style="color:var(--muted);min-width:130px">${esc(c.label)}:</span>
           <span style="color:var(--text);white-space:pre-wrap">${esc(String(txt))}</span></div>`;
