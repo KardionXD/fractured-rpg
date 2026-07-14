@@ -89,10 +89,19 @@ function _arqMontarPagina() {
       .arq-rich a{color:var(--gold)}
       .arq-paper{background:linear-gradient(180deg,rgba(255,255,255,0.028),rgba(255,255,255,0.012));border:1px solid var(--border);border-radius:10px;padding:22px 24px;box-shadow:inset 0 1px 0 rgba(255,255,255,0.04)}
       /* ── Barra de ferramentas ── */
-      .arq-tb{display:flex;flex-wrap:wrap;gap:3px;padding:6px;border:1px solid var(--border);border-radius:8px 8px 0 0;background:rgba(0,0,0,0.35);position:sticky;top:0;z-index:2}
-      .arq-tb button,.arq-tb select{background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:12px;min-width:30px;height:30px;cursor:pointer;padding:0 7px}
+      .arq-tb{display:flex;flex-wrap:wrap;gap:3px;padding:6px;border:1px solid var(--border);border-radius:8px 8px 0 0;background:rgba(0,0,0,0.35);position:sticky;top:0;z-index:3}
+      .arq-tb button{background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:12px;min-width:30px;height:30px;cursor:pointer;padding:0 7px}
       .arq-tb button:hover{border-color:var(--gold);color:var(--gold)}
       .arq-tb .sep{width:1px;background:var(--border);margin:3px 3px}
+      .arq-dd{position:relative}
+      .arq-dd-menu{display:none;position:absolute;top:33px;left:0;min-width:180px;background:#161209;border:1px solid var(--gold);border-radius:8px;z-index:9;box-shadow:0 6px 20px rgba(0,0,0,0.7);overflow:hidden}
+      .arq-dd-menu div{padding:9px 13px;font-size:12px;color:var(--text);cursor:pointer;white-space:nowrap}
+      .arq-dd-menu div:hover{background:rgba(201,168,76,0.14);color:var(--gold)}
+      .arq-cor{width:30px;height:30px;padding:2px;border:1px solid var(--border);border-radius:5px;background:rgba(255,255,255,0.05);cursor:pointer}
+      .arq-cor::-webkit-color-swatch-wrapper{padding:2px}
+      .arq-cor::-webkit-color-swatch{border:none;border-radius:3px}
+      .arq-corbox{display:flex;flex-direction:column;align-items:center;gap:0}
+      .arq-corbox label{font-size:8px;color:var(--muted);line-height:1;margin-top:1px}
       .arq-editor{min-height:300px;max-height:52vh;overflow-y:auto;outline:none;border:1px solid var(--border);border-top:none;border-radius:0 0 8px 8px;padding:18px 20px;background:linear-gradient(180deg,rgba(255,255,255,0.028),rgba(255,255,255,0.012))}
       .arq-editor:focus{border-color:rgba(201,168,76,0.5)}
       @media (max-width:768px){ .arq-tb button,.arq-tb select{min-width:34px;height:34px} .arq-editor{max-height:46vh;padding:14px} }
@@ -262,6 +271,37 @@ function _arqCmd(cmd, val = null) {
   document.execCommand(cmd, false, val);
 }
 
+// Dropdown customizado (o select nativo fica ilegível no tema escuro)
+function _arqDD(btn) {
+  const menu = btn.nextElementSibling;
+  const aberto = menu.style.display === 'block';
+  document.querySelectorAll('.arq-dd-menu').forEach(m => m.style.display = 'none');
+  menu.style.display = aberto ? 'none' : 'block';
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('.arq-dd')) document.querySelectorAll('.arq-dd-menu').forEach(m => m.style.display = 'none');
+});
+
+// Tamanho de fonte em px LIVRE (execCommand nativo só vai de 1 a 7;
+// truque: aplica o 7 e converte no tamanho exato escolhido)
+function _arqTamanho(px) {
+  const ed = document.getElementById('arqdoc-editor');
+  if (!ed) return;
+  ed.focus();
+  document.execCommand('fontSize', false, '7');
+  ed.querySelectorAll('font[size="7"]').forEach(f => {
+    const span = document.createElement('span');
+    span.style.fontSize = px + 'px';
+    span.innerHTML = f.innerHTML;
+    f.replaceWith(span);
+  });
+}
+
+function _arqTamanhoCustom() {
+  const v = parseInt(prompt('Tamanho da letra (px):', '16'));
+  if (v >= 8 && v <= 96) _arqTamanho(v);
+}
+
 function arqEditarDoc(id) {
   const d = id ? ARQ.docs.find(x => x.id === id) : null;
   const inp = 'width:100%;box-sizing:border-box;background:rgba(0,0,0,0.4);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:8px 10px;font-size:14px;font-weight:600';
@@ -270,27 +310,61 @@ function arqEditarDoc(id) {
     <input id="arqdoc-titulo" placeholder="Título do documento" value="${d ? esc(d.titulo).replace(/"/g,'&quot;') : ''}" style="${inp};margin-bottom:8px">
 
     <div class="arq-tb">
+      <div class="arq-dd">
+        <button onclick="_arqDD(this)">Estilo ▾</button>
+        <div class="arq-dd-menu">
+          <div onclick="_arqCmd('formatBlock','H1')" style="font-size:16px;color:var(--gold);font-weight:700">Título grande</div>
+          <div onclick="_arqCmd('formatBlock','H2')" style="font-size:14px;color:var(--gold);font-weight:700">Subtítulo</div>
+          <div onclick="_arqCmd('formatBlock','P')">Texto normal</div>
+          <div onclick="_arqCmd('formatBlock','BLOCKQUOTE')" style="font-style:italic;border-left:3px solid var(--gold);padding-left:10px">Citação</div>
+        </div>
+      </div>
+      <div class="arq-dd">
+        <button onclick="_arqDD(this)" title="Tipo de letra">Fonte ▾</button>
+        <div class="arq-dd-menu">
+          <div onclick="_arqCmd('fontName','Georgia')" style="font-family:Georgia,serif">Documento (serifada)</div>
+          <div onclick="_arqCmd('fontName','Arial')" style="font-family:Arial,sans-serif">Moderna</div>
+          <div onclick="_arqCmd('fontName','Courier New')" style="font-family:'Courier New',monospace">Máquina de escrever</div>
+          <div onclick="_arqCmd('fontName','cursive')" style="font-family:cursive">Manuscrita</div>
+        </div>
+      </div>
+      <div class="arq-dd">
+        <button onclick="_arqDD(this)" title="Tamanho da letra">Aa ▾</button>
+        <div class="arq-dd-menu" style="min-width:130px">
+          <div onclick="_arqTamanho(12)" style="font-size:12px">Pequena (12)</div>
+          <div onclick="_arqTamanho(15)" style="font-size:15px">Normal (15)</div>
+          <div onclick="_arqTamanho(18)" style="font-size:18px">Média (18)</div>
+          <div onclick="_arqTamanho(24)" style="font-size:22px">Grande (24)</div>
+          <div onclick="_arqTamanho(32)" style="font-size:26px">Enorme (32)</div>
+          <div onclick="_arqTamanhoCustom()" style="color:var(--gold)">✏️ Outro tamanho…</div>
+        </div>
+      </div>
+      <div class="sep"></div>
       <button title="Negrito (Ctrl+B)" onclick="_arqCmd('bold')"><b>B</b></button>
       <button title="Itálico (Ctrl+I)" onclick="_arqCmd('italic')"><i>I</i></button>
       <button title="Sublinhado (Ctrl+U)" onclick="_arqCmd('underline')"><u>U</u></button>
       <button title="Riscado" onclick="_arqCmd('strikeThrough')"><s>S</s></button>
       <div class="sep"></div>
-      <select title="Estilo do texto" onchange="_arqCmd('formatBlock', this.value); this.selectedIndex=0">
-        <option value="">Estilo…</option>
-        <option value="H1">Título grande</option>
-        <option value="H2">Subtítulo</option>
-        <option value="P">Texto normal</option>
-        <option value="BLOCKQUOTE">❝ Citação</option>
-      </select>
+      <div class="arq-corbox" title="Cor do texto — clique e escolha QUALQUER cor">
+        <input type="color" class="arq-cor" value="#c9a84c" oninput="_arqCmd('foreColor', this.value)">
+        <label>texto</label>
+      </div>
+      <div class="arq-corbox" title="Marca-texto — escolha a cor do fundo">
+        <input type="color" class="arq-cor" value="#5a4a1e" oninput="_arqCmd('hiliteColor', this.value)">
+        <label>marca</label>
+      </div>
+      <button title="Remover marca-texto" onclick="_arqCmd('hiliteColor','transparent')" style="font-size:10px">✕🖍</button>
+      <div class="sep"></div>
+      <button title="Alinhar à esquerda" onclick="_arqCmd('justifyLeft')">⯇☰</button>
+      <button title="Centralizar" onclick="_arqCmd('justifyCenter')">☰</button>
+      <button title="Alinhar à direita" onclick="_arqCmd('justifyRight')">☰⯈</button>
+      <button title="Justificar" onclick="_arqCmd('justifyFull')">▤</button>
       <div class="sep"></div>
       <button title="Lista com marcadores" onclick="_arqCmd('insertUnorderedList')">•≡</button>
       <button title="Lista numerada" onclick="_arqCmd('insertOrderedList')">1≡</button>
+      <button title="Aumentar recuo" onclick="_arqCmd('indent')">⇥</button>
+      <button title="Diminuir recuo" onclick="_arqCmd('outdent')">⇤</button>
       <button title="Linha divisória" onclick="_arqCmd('insertHorizontalRule')">—</button>
-      <div class="sep"></div>
-      <button title="Texto dourado" style="color:var(--gold)" onclick="_arqCmd('foreColor','#c9a84c')">A</button>
-      <button title="Texto vermelho" style="color:#c0392b" onclick="_arqCmd('foreColor','#c0392b')">A</button>
-      <button title="Texto verde" style="color:#27ae60" onclick="_arqCmd('foreColor','#27ae60')">A</button>
-      <button title="Texto padrão" onclick="_arqCmd('foreColor','#e8e2d5')">A</button>
       <div class="sep"></div>
       <button title="Desfazer" onclick="_arqCmd('undo')">↶</button>
       <button title="Refazer" onclick="_arqCmd('redo')">↷</button>
@@ -305,7 +379,8 @@ function arqEditarDoc(id) {
     <div style="display:flex;gap:6px">
       <button class="btn-ghost" style="flex:1;font-size:11px;padding:8px" onclick="document.getElementById('arq-modal').remove()">Cancelar</button>
       <button class="btn-ghost" style="flex:1;font-size:11px;padding:8px;color:var(--gold);border-color:var(--gold)" onclick="arqSalvarDoc(${d ? `'${d.id}'` : 'null'})">💾 Salvar</button>
-    </div>`, 720);
+    </div>`, 760);
+  setTimeout(() => { try { document.execCommand('styleWithCSS', false, true); } catch(e) {} }, 60);
 }
 
 async function arqSalvarDoc(id) {
