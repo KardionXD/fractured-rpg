@@ -77,6 +77,25 @@ function _arqMontarPagina() {
       .arq-eye{background:none;border:1px solid var(--border);border-radius:5px;cursor:pointer;font-size:11px;padding:2px 6px;flex-shrink:0}
       .arq-eye.on{border-color:var(--green);color:var(--green)}
       .arq-eye.off{border-color:var(--muted);color:var(--muted);opacity:0.7}
+      /* ── Documento estilo "papel" (leitura e edição) ── */
+      .arq-rich{font-family:Georgia,'Times New Roman',serif;font-size:14.5px;line-height:1.7;color:#e8e2d5}
+      .arq-rich h1{font-size:21px;color:var(--gold);border-bottom:1px solid rgba(201,168,76,0.35);padding-bottom:6px;margin:14px 0 10px;font-weight:700;letter-spacing:0.5px}
+      .arq-rich h2{font-size:17px;color:var(--gold);margin:12px 0 8px;font-weight:700}
+      .arq-rich p{margin:0 0 10px}
+      .arq-rich ul,.arq-rich ol{margin:0 0 10px;padding-left:24px}
+      .arq-rich li{margin-bottom:4px}
+      .arq-rich blockquote{border-left:3px solid var(--gold);margin:10px 0;padding:6px 14px;color:#cfc8b8;font-style:italic;background:rgba(201,168,76,0.05);border-radius:0 6px 6px 0}
+      .arq-rich hr{border:none;border-top:1px dashed rgba(201,168,76,0.4);margin:14px 0}
+      .arq-rich a{color:var(--gold)}
+      .arq-paper{background:linear-gradient(180deg,rgba(255,255,255,0.028),rgba(255,255,255,0.012));border:1px solid var(--border);border-radius:10px;padding:22px 24px;box-shadow:inset 0 1px 0 rgba(255,255,255,0.04)}
+      /* ── Barra de ferramentas ── */
+      .arq-tb{display:flex;flex-wrap:wrap;gap:3px;padding:6px;border:1px solid var(--border);border-radius:8px 8px 0 0;background:rgba(0,0,0,0.35);position:sticky;top:0;z-index:2}
+      .arq-tb button,.arq-tb select{background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:12px;min-width:30px;height:30px;cursor:pointer;padding:0 7px}
+      .arq-tb button:hover{border-color:var(--gold);color:var(--gold)}
+      .arq-tb .sep{width:1px;background:var(--border);margin:3px 3px}
+      .arq-editor{min-height:300px;max-height:52vh;overflow-y:auto;outline:none;border:1px solid var(--border);border-top:none;border-radius:0 0 8px 8px;padding:18px 20px;background:linear-gradient(180deg,rgba(255,255,255,0.028),rgba(255,255,255,0.012))}
+      .arq-editor:focus{border-color:rgba(201,168,76,0.5)}
+      @media (max-width:768px){ .arq-tb button,.arq-tb select{min-width:34px;height:34px} .arq-editor{max-height:46vh;padding:14px} }
     </style>`;
   _arqRender();
 }
@@ -140,13 +159,13 @@ function _arqRender() {
   docs.forEach(d => {
     const card = document.createElement('div');
     card.className = 'arq-doc';
-    const preview = (d.conteudo || '').replace(/\s+/g, ' ').slice(0, 90);
+    const preview = _arqPreview(d.conteudo).slice(0, 90);
     card.innerHTML = `
       <div style="display:flex;align-items:center;gap:8px">
         <span style="font-size:14px">📄</span>
         <div style="flex:1;min-width:0">
           <div style="font-size:13px;font-weight:600;color:var(--gold)">${esc(d.titulo)}</div>
-          <div style="font-size:10px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(preview)}${(d.conteudo||'').length > 90 ? '…' : ''}</div>
+          <div style="font-size:10px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(preview)}${_arqPreview(d.conteudo).length > 90 ? '…' : ''}</div>
         </div>
         ${isMaster ? `
           <button class="arq-eye ${d.visivel ? 'on' : 'off'}" title="${d.visivel ? 'Visível — clique pra esconder' : 'Oculto — clique pra revelar'}"
@@ -193,23 +212,92 @@ async function arqDeletarPasta(id, nome) {
   _arqCarregar();
 }
 
+// ── SANITIZAÇÃO (permite formatação, bloqueia scripts) ──
+const _ARQ_TAGS_OK = new Set(['P','BR','B','STRONG','I','EM','U','S','STRIKE','H1','H2','H3','UL','OL','LI','BLOCKQUOTE','HR','A','SPAN','DIV','FONT']);
+function _arqSanitizar(html) {
+  const tpl = document.createElement('template');
+  tpl.innerHTML = html || '';
+  (function limpar(node) {
+    [...node.children].forEach(el => {
+      if (!_ARQ_TAGS_OK.has(el.tagName)) { el.replaceWith(...el.childNodes); limpar(node); return; }
+      [...el.attributes].forEach(a => {
+        const n = a.name.toLowerCase();
+        const ok = (n === 'style' && !/url\s*\(|expression/i.test(a.value))
+                || (n === 'href' && /^(https?:|mailto:)/i.test(a.value))
+                || n === 'color' || n === 'face';
+        if (!ok) el.removeAttribute(a.name);
+      });
+      if (el.tagName === 'A') { el.setAttribute('target','_blank'); el.setAttribute('rel','noopener'); }
+      limpar(el);
+    });
+  })(tpl.content);
+  return tpl.innerHTML;
+}
+
+// Conteúdo antigo era texto puro; converte para exibição
+function _arqParaHtml(conteudo) {
+  if (!conteudo) return '';
+  if (/<[a-z][^>]*>/i.test(conteudo)) return _arqSanitizar(conteudo);
+  return '<p>' + esc(conteudo).replace(/\n/g, '<br>') + '</p>';
+}
+
+function _arqPreview(conteudo) {
+  const tpl = document.createElement('template');
+  tpl.innerHTML = _arqParaHtml(conteudo);
+  return (tpl.content.textContent || '').replace(/\s+/g, ' ').trim();
+}
+
 // ── AÇÕES: DOCUMENTOS ──────────────────────────────
 function arqVerDoc(id) {
   const d = ARQ.docs.find(x => x.id === id);
   if (!d) return;
   if (isMaster) { arqEditarDoc(id); return; }
   _arqModal(`
-    <div style="font-size:15px;font-weight:700;color:var(--gold);margin-bottom:10px">📄 ${esc(d.titulo)}</div>
-    <div style="font-size:13px;color:var(--text);line-height:1.55;white-space:pre-wrap;max-height:60vh;overflow-y:auto">${esc(d.conteudo || '')}</div>`);
+    <div style="font-size:16px;font-weight:700;color:var(--gold);margin-bottom:12px;letter-spacing:0.5px">📄 ${esc(d.titulo)}</div>
+    <div class="arq-paper arq-rich" style="max-height:64vh;overflow-y:auto">${_arqParaHtml(d.conteudo)}</div>`);
+}
+
+function _arqCmd(cmd, val = null) {
+  document.getElementById('arqdoc-editor')?.focus();
+  document.execCommand(cmd, false, val);
 }
 
 function arqEditarDoc(id) {
   const d = id ? ARQ.docs.find(x => x.id === id) : null;
-  const inp = 'width:100%;box-sizing:border-box;background:rgba(0,0,0,0.4);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:8px 10px;font-size:13px';
+  const inp = 'width:100%;box-sizing:border-box;background:rgba(0,0,0,0.4);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:8px 10px;font-size:14px;font-weight:600';
   _arqModal(`
     <div style="font-size:12px;font-weight:700;color:var(--gold);letter-spacing:1px;margin-bottom:10px">${d ? '✏️ EDITAR' : '📄 NOVO'} DOCUMENTO</div>
-    <input id="arqdoc-titulo" placeholder="Título" value="${d ? esc(d.titulo).replace(/"/g,'&quot;') : ''}" style="${inp};margin-bottom:8px">
-    <textarea id="arqdoc-conteudo" rows="12" placeholder="Conteúdo do documento... (lore, cartas, relatórios, segredos)" style="${inp};resize:vertical">${d ? esc(d.conteudo || '') : ''}</textarea>
+    <input id="arqdoc-titulo" placeholder="Título do documento" value="${d ? esc(d.titulo).replace(/"/g,'&quot;') : ''}" style="${inp};margin-bottom:8px">
+
+    <div class="arq-tb">
+      <button title="Negrito (Ctrl+B)" onclick="_arqCmd('bold')"><b>B</b></button>
+      <button title="Itálico (Ctrl+I)" onclick="_arqCmd('italic')"><i>I</i></button>
+      <button title="Sublinhado (Ctrl+U)" onclick="_arqCmd('underline')"><u>U</u></button>
+      <button title="Riscado" onclick="_arqCmd('strikeThrough')"><s>S</s></button>
+      <div class="sep"></div>
+      <select title="Estilo do texto" onchange="_arqCmd('formatBlock', this.value); this.selectedIndex=0">
+        <option value="">Estilo…</option>
+        <option value="H1">Título grande</option>
+        <option value="H2">Subtítulo</option>
+        <option value="P">Texto normal</option>
+        <option value="BLOCKQUOTE">❝ Citação</option>
+      </select>
+      <div class="sep"></div>
+      <button title="Lista com marcadores" onclick="_arqCmd('insertUnorderedList')">•≡</button>
+      <button title="Lista numerada" onclick="_arqCmd('insertOrderedList')">1≡</button>
+      <button title="Linha divisória" onclick="_arqCmd('insertHorizontalRule')">—</button>
+      <div class="sep"></div>
+      <button title="Texto dourado" style="color:var(--gold)" onclick="_arqCmd('foreColor','#c9a84c')">A</button>
+      <button title="Texto vermelho" style="color:#c0392b" onclick="_arqCmd('foreColor','#c0392b')">A</button>
+      <button title="Texto verde" style="color:#27ae60" onclick="_arqCmd('foreColor','#27ae60')">A</button>
+      <button title="Texto padrão" onclick="_arqCmd('foreColor','#e8e2d5')">A</button>
+      <div class="sep"></div>
+      <button title="Desfazer" onclick="_arqCmd('undo')">↶</button>
+      <button title="Refazer" onclick="_arqCmd('redo')">↷</button>
+      <button title="Limpar formatação" onclick="_arqCmd('removeFormat')">✕fmt</button>
+    </div>
+    <div id="arqdoc-editor" class="arq-editor arq-rich" contenteditable="true">${d ? _arqParaHtml(d.conteudo) : '<p></p>'}</div>
+
     <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);margin:10px 0;cursor:pointer">
       <input type="checkbox" id="arqdoc-visivel" ${d?.visivel ? 'checked' : ''} style="accent-color:var(--gold)">
       👁 Visível para os players
@@ -217,7 +305,7 @@ function arqEditarDoc(id) {
     <div style="display:flex;gap:6px">
       <button class="btn-ghost" style="flex:1;font-size:11px;padding:8px" onclick="document.getElementById('arq-modal').remove()">Cancelar</button>
       <button class="btn-ghost" style="flex:1;font-size:11px;padding:8px;color:var(--gold);border-color:var(--gold)" onclick="arqSalvarDoc(${d ? `'${d.id}'` : 'null'})">💾 Salvar</button>
-    </div>`);
+    </div>`, 720);
 }
 
 async function arqSalvarDoc(id) {
@@ -225,7 +313,7 @@ async function arqSalvarDoc(id) {
   if (!titulo) { toast('Dá um título pro documento!', 'err'); return; }
   const payload = {
     titulo,
-    conteudo: document.getElementById('arqdoc-conteudo')?.value || '',
+    conteudo: _arqSanitizar(document.getElementById('arqdoc-editor')?.innerHTML || ''),
     visivel: document.getElementById('arqdoc-visivel')?.checked || false,
   };
   let error;
@@ -255,12 +343,12 @@ async function arqDeletarDoc(id, titulo) {
 }
 
 // ── MODAL GENÉRICO ─────────────────────────────────
-function _arqModal(html) {
+function _arqModal(html, largura = 560) {
   document.getElementById('arq-modal')?.remove();
   const m = document.createElement('div');
   m.id = 'arq-modal';
   m.style.cssText = 'position:fixed;inset:0;z-index:8600;background:rgba(0,0,0,0.72);display:flex;align-items:center;justify-content:center;padding:16px';
-  m.innerHTML = `<div style="width:100%;max-width:560px;max-height:92vh;overflow-y:auto;background:var(--bg,#0d0b08);border:1px solid var(--border);border-radius:10px;padding:16px">${html}</div>`;
+  m.innerHTML = `<div style="width:100%;max-width:${largura}px;max-height:92vh;overflow-y:auto;background:var(--bg,#0d0b08);border:1px solid var(--border);border-radius:10px;padding:16px">${html}</div>`;
   m.addEventListener('click', e => { if (e.target === m) m.remove(); });
   document.body.appendChild(m);
 }
