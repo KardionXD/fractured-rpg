@@ -29,6 +29,7 @@
       <button class="nav-item active" onclick="navigate('ficha')" id="nav-ficha"><span class="icon">📋</span> Ficha</button>
       <button class="nav-item" onclick="navigate('sala')" id="nav-sala"><span class="icon">🎲</span> Sala</button>
       <button class="nav-item" onclick="navigate('notas')" id="nav-notas"><span class="icon">📓</span> Notas</button>
+      <button class="nav-item" onclick="navigate('arquivos')" id="nav-arquivos"><span class="icon">📂</span> Arquivos</button>
     </div>
     <div class="nav-section" id="nav-master-section" style="display:none">
       <div class="nav-label">Mestre</div>
@@ -174,6 +175,8 @@
     </div>
 
     <!-- NPCs -->
+    <div id="page-arquivos" style="display:none"></div>
+
     <div id="page-npcs" style="display:none">
       <div class="page-header">
         <div><div class="page-title">Fichas de NPCs</div><div class="page-sub">Aliados, Inimigos e Neutros</div></div>
@@ -222,6 +225,9 @@
   </button>
   <button class="mobile-nav-btn" id="mnav-notas" onclick="navigate('notas')">
     <span style="font-size:20px">📓</span><span>Notas</span>
+  </button>
+  <button class="mobile-nav-btn" id="mnav-arquivos" onclick="navigate('arquivos')">
+    <span style="font-size:20px">📂</span><span>Arquivos</span>
   </button>
   <button class="mobile-nav-btn" id="mnav-npcs" onclick="navigate('npcs')" style="display:none">
     <span style="font-size:20px">👥</span><span>NPCs</span>
@@ -392,7 +398,8 @@
 <script src="combate.js?v=18"></script>
 <script src="npcs.js?v=17"></script>
 <script src="sala.js?v=20"></script>
+<script src="arquivos.js?v=21"></script>
 <script src="musica.js?v=17"></script>
-<script src="app.js?v=20"></script>
+<script src="app.js?v=21"></script>
 </body>
 </html>

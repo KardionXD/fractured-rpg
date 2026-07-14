@@ -76,7 +76,7 @@ async function init() {
 
 // ── NAVIGATION ────────────────────────────────────
 function navigate(page) {
-  ['ficha','sala','notas','master','npcs'].forEach(p => {
+  ['ficha','sala','notas','master','npcs','arquivos'].forEach(p => {
     const el = document.getElementById('page-' + p);
     if (!el) return;
     el.style.display = p === page ? (p==='sala'?'flex':'block') : 'none';
@@ -86,6 +86,7 @@ function navigate(page) {
   if (page === 'master') carregarPlayers();
   if (page === 'sala') setTimeout(() => scrollFeedToBottom(), 100);
   if (page === 'notas') renderListaNotas();
+  if (page === 'arquivos') arquivosInit();
 }
 
 // ── TOAST ─────────────────────────────────────────
