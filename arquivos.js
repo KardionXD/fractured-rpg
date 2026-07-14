@@ -87,6 +87,10 @@ function _arqMontarPagina() {
       .arq-rich blockquote{border-left:3px solid var(--gold);margin:10px 0;padding:6px 14px;color:#cfc8b8;font-style:italic;background:rgba(201,168,76,0.05);border-radius:0 6px 6px 0}
       .arq-rich hr{border:none;border-top:1px dashed rgba(201,168,76,0.4);margin:14px 0}
       .arq-rich a{color:var(--gold)}
+      .arq-rich img{max-width:100%;border-radius:6px;height:auto}
+      .arq-paper{overflow:auto}
+      .arq-editor{overflow:auto}
+      .arq-editor img{cursor:pointer}
       .arq-paper{background:linear-gradient(180deg,rgba(255,255,255,0.028),rgba(255,255,255,0.012));border:1px solid var(--border);border-radius:10px;padding:22px 24px;box-shadow:inset 0 1px 0 rgba(255,255,255,0.04)}
       /* ── Barra de ferramentas ── */
       .arq-tb{display:flex;flex-wrap:wrap;gap:3px;padding:6px;border:1px solid var(--border);border-radius:8px 8px 0 0;background:rgba(0,0,0,0.35);position:sticky;top:0;z-index:3}
@@ -222,7 +226,7 @@ async function arqDeletarPasta(id, nome) {
 }
 
 // ── SANITIZAÇÃO (permite formatação, bloqueia scripts) ──
-const _ARQ_TAGS_OK = new Set(['P','BR','B','STRONG','I','EM','U','S','STRIKE','H1','H2','H3','UL','OL','LI','BLOCKQUOTE','HR','A','SPAN','DIV','FONT']);
+const _ARQ_TAGS_OK = new Set(['P','BR','B','STRONG','I','EM','U','S','STRIKE','H1','H2','H3','UL','OL','LI','BLOCKQUOTE','HR','A','SPAN','DIV','FONT','IMG']);
 function _arqSanitizar(html) {
   const tpl = document.createElement('template');
   tpl.innerHTML = html || '';
@@ -266,9 +270,39 @@ function arqVerDoc(id) {
     <div class="arq-paper arq-rich" style="max-height:64vh;overflow-y:auto">${_arqParaHtml(d.conteudo)}</div>`);
 }
 
+// A seleção do texto se desfazia quando o clique na barra tirava o foco
+// do editor — por isso trocar fonte/estilo "não funcionava". Agora a
+// seleção é salva no mousedown da barra e restaurada antes do comando.
+let _arqRange = null;
+
+function _arqSalvarSel() {
+  const ed = document.getElementById('arqdoc-editor');
+  const sel = window.getSelection();
+  if (ed && sel.rangeCount && ed.contains(sel.anchorNode)) {
+    _arqRange = sel.getRangeAt(0).cloneRange();
+  }
+}
+
+function _arqRestaurarSel() {
+  const ed = document.getElementById('arqdoc-editor');
+  if (!ed || !_arqRange) return;
+  ed.focus();
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(_arqRange);
+}
+
+function _arqTbDown(e) {
+  _arqSalvarSel();
+  // preventDefault mantém o foco (e a seleção) no editor;
+  // inputs de cor precisam do clique real pra abrir a paleta
+  if (e.target.tagName !== 'INPUT') e.preventDefault();
+}
+
 function _arqCmd(cmd, val = null) {
-  document.getElementById('arqdoc-editor')?.focus();
+  _arqRestaurarSel();
   document.execCommand(cmd, false, val);
+  _arqSalvarSel();
 }
 
 // Dropdown customizado (o select nativo fica ilegível no tema escuro)
@@ -287,7 +321,7 @@ document.addEventListener('click', e => {
 function _arqTamanho(px) {
   const ed = document.getElementById('arqdoc-editor');
   if (!ed) return;
-  ed.focus();
+  _arqRestaurarSel();
   document.execCommand('fontSize', false, '7');
   ed.querySelectorAll('font[size="7"]').forEach(f => {
     const span = document.createElement('span');
@@ -302,6 +336,67 @@ function _arqTamanhoCustom() {
   if (v >= 8 && v <= 96) _arqTamanho(v);
 }
 
+// ── IMAGENS NO DOCUMENTO ───────────────────────────
+async function _arqImgUpload(input) {
+  const file = input.files?.[0];
+  input.value = '';
+  if (!file) return;
+  if (file.size > 4 * 1024 * 1024) { toast('Imagem muito grande (máx 4MB).', 'err'); return; }
+  toast('Enviando imagem...', 'ok');
+  const path = `docs/${mesaId()}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '')}`;
+  const { error } = await db.storage.from('tokens').upload(path, file, { upsert: true });
+  if (error) { toast('Erro no upload: ' + error.message, 'err'); return; }
+  const { data } = db.storage.from('tokens').getPublicUrl(path);
+  _arqInserirImg(data.publicUrl);
+}
+
+function _arqImgUrl() {
+  const url = prompt('Cole o link da imagem (https://...):');
+  if (!url?.trim()) return;
+  if (!/^https:\/\//i.test(url.trim())) { toast('Use um link https válido.', 'err'); return; }
+  _arqInserirImg(url.trim());
+}
+
+function _arqInserirImg(src) {
+  _arqRestaurarSel();
+  document.execCommand('insertHTML', false,
+    `<img src="${src}" style="max-width:100%;width:60%;display:block;margin:10px auto;border-radius:6px">`);
+  toast('Imagem inserida! Clique nela para posicionar.', 'ok');
+}
+
+// Clique numa imagem do editor abre a barra de posicionamento
+function _arqImgClique(e) {
+  const antiga = document.getElementById('arq-img-bar');
+  if (antiga) antiga.remove();
+  document.querySelectorAll('#arqdoc-editor img').forEach(i => i.style.outline = '');
+  if (e.target.tagName !== 'IMG') return;
+
+  const img = e.target;
+  img.style.outline = '2px solid var(--gold)';
+  const bar = document.createElement('div');
+  bar.id = 'arq-img-bar';
+  bar.style.cssText = 'position:sticky;bottom:0;display:flex;flex-wrap:wrap;gap:3px;padding:6px;background:#161209;border:1px solid var(--gold);border-radius:8px;margin-top:6px;z-index:4';
+  const b = (rotulo, titulo, fn) => {
+    const btn = document.createElement('button');
+    btn.textContent = rotulo; btn.title = titulo;
+    btn.style.cssText = 'background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:11px;height:28px;padding:0 8px;cursor:pointer';
+    btn.onmousedown = ev => ev.preventDefault();
+    btn.onclick = () => { fn(img); };
+    return btn;
+  };
+  bar.append(
+    b('⯇ texto', 'Imagem à esquerda, texto contorna', i => { i.style.cssText = 'float:left;width:' + (i.style.width || '40%') + ';max-width:60%;margin:4px 14px 8px 0;border-radius:6px;display:inline' }),
+    b('▣ centro', 'Centralizada', i => { i.style.cssText = 'display:block;margin:10px auto;width:' + (i.style.width || '60%') + ';max-width:100%;border-radius:6px;float:none' }),
+    b('texto ⯈', 'Imagem à direita, texto contorna', i => { i.style.cssText = 'float:right;width:' + (i.style.width || '40%') + ';max-width:60%;margin:4px 0 8px 14px;border-radius:6px;display:inline' }),
+    b('25%', 'Tamanho pequeno', i => i.style.width = '25%'),
+    b('40%', 'Tamanho médio',   i => i.style.width = '40%'),
+    b('60%', 'Tamanho grande',  i => i.style.width = '60%'),
+    b('100%', 'Largura total',  i => { i.style.width = '100%'; i.style.float = 'none'; i.style.display = 'block'; }),
+    b('🗑', 'Remover imagem', i => { i.remove(); bar.remove(); }),
+  );
+  document.getElementById('arqdoc-editor').after(bar);
+}
+
 function arqEditarDoc(id) {
   const d = id ? ARQ.docs.find(x => x.id === id) : null;
   const inp = 'width:100%;box-sizing:border-box;background:rgba(0,0,0,0.4);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:8px 10px;font-size:14px;font-weight:600';
@@ -309,7 +404,7 @@ function arqEditarDoc(id) {
     <div style="font-size:12px;font-weight:700;color:var(--gold);letter-spacing:1px;margin-bottom:10px">${d ? '✏️ EDITAR' : '📄 NOVO'} DOCUMENTO</div>
     <input id="arqdoc-titulo" placeholder="Título do documento" value="${d ? esc(d.titulo).replace(/"/g,'&quot;') : ''}" style="${inp};margin-bottom:8px">
 
-    <div class="arq-tb">
+    <div class="arq-tb" onmousedown="_arqTbDown(event)">
       <div class="arq-dd">
         <button onclick="_arqDD(this)">Estilo ▾</button>
         <div class="arq-dd-menu">
@@ -366,6 +461,15 @@ function arqEditarDoc(id) {
       <button title="Diminuir recuo" onclick="_arqCmd('outdent')">⇤</button>
       <button title="Linha divisória" onclick="_arqCmd('insertHorizontalRule')">—</button>
       <div class="sep"></div>
+      <div class="arq-dd">
+        <button onclick="_arqDD(this)" title="Inserir imagem">🖼 ▾</button>
+        <div class="arq-dd-menu" style="min-width:190px">
+          <div onclick="document.getElementById('arqdoc-img-file').click()">📤 Enviar do dispositivo</div>
+          <div onclick="_arqImgUrl()">🔗 Da internet (URL)</div>
+        </div>
+      </div>
+      <input type="file" id="arqdoc-img-file" accept="image/*" style="display:none" onchange="_arqImgUpload(this)">
+      <div class="sep"></div>
       <button title="Desfazer" onclick="_arqCmd('undo')">↶</button>
       <button title="Refazer" onclick="_arqCmd('redo')">↷</button>
       <button title="Limpar formatação" onclick="_arqCmd('removeFormat')">✕fmt</button>
@@ -380,7 +484,10 @@ function arqEditarDoc(id) {
       <button class="btn-ghost" style="flex:1;font-size:11px;padding:8px" onclick="document.getElementById('arq-modal').remove()">Cancelar</button>
       <button class="btn-ghost" style="flex:1;font-size:11px;padding:8px;color:var(--gold);border-color:var(--gold)" onclick="arqSalvarDoc(${d ? `'${d.id}'` : 'null'})">💾 Salvar</button>
     </div>`, 760);
-  setTimeout(() => { try { document.execCommand('styleWithCSS', false, true); } catch(e) {} }, 60);
+  setTimeout(() => {
+    try { document.execCommand('styleWithCSS', false, true); } catch(e) {}
+    document.getElementById('arqdoc-editor')?.addEventListener('click', _arqImgClique);
+  }, 60);
 }
 
 async function arqSalvarDoc(id) {
