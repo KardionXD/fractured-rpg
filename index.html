@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>FRACTURED RPG</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link rel="stylesheet" href="style.css">
 </head>
@@ -11,10 +14,10 @@
 
 <div class="login-container">
   <div class="login-brand">
-    <div class="brand-symbol">⬡</div>
+    <div class="brand-diamond"><span></span></div>
     <h1 class="brand-title">FRACTURED</h1>
-    <p class="brand-sub">RPG DE SOBREVIVÊNCIA · SISTEMA D20</p>
-    <p class="brand-quote">"Não é o fungo que te destrói.<br>É o que você se torna para sobreviver a ele."</p>
+    <p class="brand-sub">VTT · MESA VIRTUAL DE RPG</p>
+    <p class="brand-tag">Crie mesas, role dados e jogue com seus amigos.</p>
   </div>
 
   <div class="login-card">
@@ -34,6 +37,7 @@
         <input type="password" id="login-password" placeholder="••••••••">
       </div>
       <button class="btn-primary" onclick="login()">Entrar</button>
+      <button type="button" class="forgot-link" onclick="forgotPassword()">Esqueci a senha</button>
     </div>
 
     <!-- REGISTER -->
@@ -59,6 +63,8 @@
 
     <div id="auth-msg" class="auth-msg"></div>
   </div>
+
+  <p class="login-foot">© 2026 Fractured RPG · <span class="foot-lang active">PT</span> · <span class="foot-lang">EN</span></p>
 </div>
 
 <script src="supabase.js"></script>
@@ -85,6 +91,17 @@ async function login() {
   const { error } = await db.auth.signInWithPassword({ email, password });
   if (error) return showMsg(error.message, true);
   window.location.href = 'app.html';
+}
+
+async function forgotPassword() {
+  const email = document.getElementById('login-email').value.trim();
+  if (!email) return showMsg('Digite seu email no campo acima para receber o link de redefinição.', true);
+  showMsg('Enviando link de redefinição...');
+  const { error } = await db.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin + '/index.html'
+  });
+  if (error) return showMsg(error.message, true);
+  showMsg('Se houver conta com esse email, enviamos um link de redefinição.', false);
 }
 
 async function register() {
