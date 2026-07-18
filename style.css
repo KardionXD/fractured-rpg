@@ -2389,36 +2389,13 @@ h1,h2,h3 { letter-spacing: .04em; }
 }
 #page-ficha.tema-ouro .section-card-title {
   color: var(--f-accent);
-  justify-content: center;
   letter-spacing: 3.5px;
 }
-#page-ficha.tema-ouro .section-card-title::before,
-#page-ficha.tema-ouro .section-card-title::after {
-  content: "◆"; color: var(--f-accent); opacity: .8;
-  font-size: 8px; margin: 0 10px; letter-spacing: 0;
+#page-ficha.tema-ouro .section-card-title::before {
+  content: "◆"; color: var(--f-accent); opacity: .85;
+  font-size: 8px; letter-spacing: 0;
 }
-/* atributos em losango */
-#page-ficha.tema-ouro .attr-card {
-  position: relative; background: transparent; border: none;
-  padding: 20px 6px 10px; overflow: visible;
-}
-#page-ficha.tema-ouro .attr-card::before {
-  content: ""; position: absolute; top: 12px; left: 50%;
-  width: 74px; height: 74px; margin-left: -37px;
-  border: 1.5px solid rgba(143,122,232,.55);
-  background: rgba(143,122,232,.07);
-  border-radius: 10px; transform: rotate(45deg);
-  transition: border-color .15s, box-shadow .15s;
-}
-#page-ficha.tema-ouro .attr-card:hover::before {
-  border-color: var(--f-accent);
-  box-shadow: 0 0 18px rgba(217,180,91,.30);
-}
-#page-ficha.tema-ouro .attr-card > * { position: relative; z-index: 1; }
-#page-ficha.tema-ouro .attr-abbr { color: var(--f-accent); }
-#page-ficha.tema-ouro .attr-val,
-#page-ficha.tema-ouro .attr-mod { background: transparent; border-color: transparent; }
-#page-ficha.tema-ouro .attr-val { font-size: 20px; color: #f3ecd8; }
+/* atributos: ver bloco LAYOUT DOS ATRIBUTOS no fim */
 /* recursos em barra segmentada roxa */
 #page-ficha.tema-ouro .pip {
   width: 15px; height: 9px; border-radius: 2px;
@@ -2453,30 +2430,13 @@ h1,h2,h3 { letter-spacing: .04em; }
   border-radius: 8px;
 }
 #page-ficha.tema-verde .section-card-title {
-  color: var(--f-accent); letter-spacing: 3px; justify-content: center;
+  color: var(--f-accent); letter-spacing: 3px;
   font-family: 'Courier New', ui-monospace, monospace;
 }
-#page-ficha.tema-verde .section-card-title::before,
-#page-ficha.tema-verde .section-card-title::after {
-  content: "○"; color: var(--f-accent); opacity: .6; font-size: 8px; margin: 0 9px;
+#page-ficha.tema-verde .section-card-title::before {
+  content: "○"; color: var(--f-accent); opacity: .7; font-size: 8px;
 }
-/* atributos: cards quadrados com pontos de canto */
-#page-ficha.tema-verde .attr-card {
-  background: rgba(16,24,16,.9);
-  border: 1px solid rgba(159,214,122,.22);
-  border-radius: 8px; position: relative;
-}
-#page-ficha.tema-verde .attr-card::before,
-#page-ficha.tema-verde .attr-card::after {
-  content: ""; position: absolute; width: 3px; height: 3px; border-radius: 50%;
-  background: rgba(159,214,122,.45);
-}
-#page-ficha.tema-verde .attr-card::before { top: 6px; left: 6px; }
-#page-ficha.tema-verde .attr-card::after  { top: 6px; right: 6px; }
-#page-ficha.tema-verde .attr-card:hover { border-color: var(--f-warn); }
-#page-ficha.tema-verde .attr-abbr { color: var(--f-accent); }
-#page-ficha.tema-verde .attr-val { color: #dff0cd; font-size: 20px; }
-#page-ficha.tema-verde .attr-val:focus { border-color: var(--f-accent); }
+/* atributos verde: ver bloco LAYOUT DOS ATRIBUTOS no fim */
 /* recursos: barras segmentadas verdes */
 #page-ficha.tema-verde .pip {
   width: 15px; height: 9px; border-radius: 2px;
@@ -2496,11 +2456,129 @@ h1,h2,h3 { letter-spacing: .04em; }
 
 @media (max-width: 640px) {
   #page-ficha.tema-ouro, #page-ficha.tema-verde { padding: 12px; }
-  #page-ficha.tema-ouro .attr-card::before { width: 62px; height: 62px; margin-left: -31px; }
   .tema-btn { padding: 5px 8px; font-size: 9px; }
 }
 
 /* Padrão: recursos em roxo (fiel ao turno 2b) */
 #page-ficha.tema-padrao .pip.red.on {
   background: var(--accent); border-color: #a78bfa; box-shadow: 0 0 6px var(--accent-glow);
+}
+
+/* ══════════════════════════════════════════════════════════
+   LAYOUT DOS ATRIBUTOS — fiel ao design
+   Reordena por CSS (flex order): número+mod DENTRO da forma,
+   sigla e nome ABAIXO. Sem alterar o HTML gerado pelo app.js.
+   ══════════════════════════════════════════════════════════ */
+
+/* 6 atributos numa linha só (como no design) */
+#page-ficha.tema-ouro  .attr-grid,
+#page-ficha.tema-verde .attr-grid { grid-template-columns: repeat(6, 1fr); gap: 10px; }
+
+/* Card vira coluna compacta e centrada */
+#page-ficha.tema-ouro  .attr-card,
+#page-ficha.tema-verde .attr-card {
+  position: relative;
+  background: transparent;
+  border: none;
+  padding: 0 0 6px;
+  gap: 0;
+  overflow: visible;
+}
+/* Zona do número (é onde a forma fica atrás) */
+#page-ficha.tema-ouro  .attr-inputs,
+#page-ficha.tema-verde .attr-inputs {
+  order: 1;
+  position: relative; z-index: 1;
+  width: 108px; height: 108px;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 1px;
+  margin: 0 auto;
+}
+#page-ficha.tema-ouro  .attr-abbr,
+#page-ficha.tema-verde .attr-abbr { order: 2; margin-top: 4px; }
+#page-ficha.tema-ouro  .attr-name,
+#page-ficha.tema-verde .attr-name { order: 3; }
+#page-ficha.tema-ouro  .attr-sub,
+#page-ficha.tema-verde .attr-sub { display: none; }
+
+/* Inputs sem caixa — o número é o protagonista */
+#page-ficha.tema-ouro  .attr-val, #page-ficha.tema-ouro  .attr-mod,
+#page-ficha.tema-verde .attr-val, #page-ficha.tema-verde .attr-mod {
+  background: transparent; border: none; padding: 0;
+  width: 62px; text-align: center; box-shadow: none;
+}
+#page-ficha.tema-ouro  .attr-val, #page-ficha.tema-verde .attr-val {
+  font-size: 27px; font-weight: 700; line-height: 1;
+}
+#page-ficha.tema-ouro  .attr-mod, #page-ficha.tema-verde .attr-mod {
+  font-size: 11px; font-weight: 600; line-height: 1;
+}
+/* remove as setinhas do input number */
+#page-ficha.tema-ouro  .attr-val::-webkit-outer-spin-button,
+#page-ficha.tema-ouro  .attr-val::-webkit-inner-spin-button,
+#page-ficha.tema-verde .attr-val::-webkit-outer-spin-button,
+#page-ficha.tema-verde .attr-val::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+#page-ficha.tema-ouro .attr-val, #page-ficha.tema-verde .attr-val { -moz-appearance: textfield; }
+
+/* Botão de rolar: discreto no canto */
+#page-ficha.tema-ouro  .attr-roll-btn,
+#page-ficha.tema-verde .attr-roll-btn {
+  position: absolute; top: 2px; right: 2px; z-index: 2;
+  opacity: .35; font-size: 11px; transition: opacity .15s;
+}
+#page-ficha.tema-ouro  .attr-card:hover .attr-roll-btn,
+#page-ficha.tema-verde .attr-card:hover .attr-roll-btn { opacity: 1; }
+
+/* ── Forma: LOSANGO (tema dourada) ── */
+#page-ficha.tema-ouro .attr-inputs::before {
+  content: ""; position: absolute; z-index: -1;
+  top: 16px; left: 16px; width: 76px; height: 76px;
+  border: 1.5px solid rgba(143,122,232,.55);
+  background: rgba(143,122,232,.08);
+  border-radius: 10px; transform: rotate(45deg);
+  transition: border-color .15s, box-shadow .15s, background .15s;
+}
+#page-ficha.tema-ouro .attr-card:hover .attr-inputs::before {
+  border-color: var(--f-accent);
+  background: rgba(217,180,91,.08);
+  box-shadow: 0 0 20px rgba(217,180,91,.28);
+}
+#page-ficha.tema-ouro .attr-val { color: #f3ecd8; }
+#page-ficha.tema-ouro .attr-mod { color: #a78bfa; }
+#page-ficha.tema-ouro .attr-abbr { color: var(--f-accent); }
+
+/* ── Forma: QUADRADO (tema verde) ── */
+#page-ficha.tema-verde .attr-inputs::before {
+  content: ""; position: absolute; z-index: -1;
+  top: 8px; left: 8px; right: 8px; bottom: 8px;
+  border: 1px solid rgba(159,214,122,.30);
+  background: rgba(16,24,16,.9);
+  border-radius: 8px;
+  transition: border-color .15s, box-shadow .15s;
+}
+#page-ficha.tema-verde .attr-card:hover .attr-inputs::before {
+  border-color: var(--f-warn); box-shadow: 0 0 16px rgba(224,123,60,.22);
+}
+/* pontinhos de canto */
+#page-ficha.tema-verde .attr-inputs::after {
+  content: ""; position: absolute; top: 15px; left: 15px;
+  width: 3px; height: 3px; border-radius: 50%;
+  background: rgba(159,214,122,.5);
+  box-shadow: 66px 0 0 rgba(159,214,122,.5), 0 66px 0 rgba(159,214,122,.5), 66px 66px 0 rgba(159,214,122,.5);
+}
+#page-ficha.tema-verde .attr-val { color: #dff0cd; }
+#page-ficha.tema-verde .attr-mod { color: #9fd67a; }
+#page-ficha.tema-verde .attr-abbr { color: var(--f-accent); }
+
+/* Responsivo */
+@media (max-width: 1100px) {
+  #page-ficha.tema-ouro .attr-grid, #page-ficha.tema-verde .attr-grid { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 560px) {
+  #page-ficha.tema-ouro .attr-grid, #page-ficha.tema-verde .attr-grid { grid-template-columns: repeat(2, 1fr); gap: 6px; }
+  #page-ficha.tema-ouro .attr-inputs, #page-ficha.tema-verde .attr-inputs { width: 92px; height: 92px; }
+  #page-ficha.tema-ouro .attr-inputs::before { top: 13px; left: 13px; width: 65px; height: 65px; }
+  #page-ficha.tema-verde .attr-inputs::after { box-shadow: 54px 0 0 rgba(159,214,122,.5), 0 54px 0 rgba(159,214,122,.5), 54px 54px 0 rgba(159,214,122,.5); }
+  #page-ficha.tema-ouro .attr-val, #page-ficha.tema-verde .attr-val { font-size: 23px; }
 }
