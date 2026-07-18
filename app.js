@@ -238,6 +238,20 @@ function onHumClick(i, cid, total, valId) {
   autoSave();
 }
 
+// Botões +/− da barra de recursos (temas dourada/verde) — os pips continuam
+// sendo a fonte de verdade, isso só empurra o valor e redesenha os dois.
+function ajustarRecurso(tipo, delta) {
+  const cfg = {
+    pv:  { get: () => pvAtual,  set: v => pvAtual = v,  max: pvMax, cid: 'pip-pv',  valId: 'pip-pv-val',  color: 'roxo',    click: onPVClick  },
+    sup: { get: () => supAtual, set: v => supAtual = v, max: 10,    cid: 'pip-sup', valId: 'pip-sup-val', color: 'dourado', click: onSupClick },
+    hum: { get: () => humAtual, set: v => humAtual = v, max: 10,    cid: 'pip-hum', valId: 'pip-hum-val', color: 'roxo2',   click: onHumClick },
+  }[tipo];
+  if (!cfg) return;
+  cfg.set(Math.max(0, Math.min(cfg.max, cfg.get() + delta)));
+  buildPips(cfg.cid, cfg.max, cfg.get(), cfg.color, cfg.click, cfg.valId);
+  autoSave();
+}
+
 // ── TENSÃO PIPS ──────────────────────────────────
 function buildTensaoPips(containerId, active, forFicha) {
   const targets = containerId === 'tensao-pips-sala'
