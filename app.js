@@ -21,6 +21,7 @@ let tensaoSala = 0;
 let notaAtual = null;
 let notaEditada = false;
 let realtimeSub = null;
+let vinculosCount = 1;
 
 const TENSAO_TYPES = ['C','C','C','A','A','A','P','P','T','T'];
 
@@ -62,9 +63,9 @@ async function init() {
   await mesaEscolher();
 
   buildAttrGrid();
-  buildPips('pip-pv', pvMax, pvAtual, 'red', onPVClick, 'pip-pv-val');
-  buildPips('pip-sup', 10, supAtual, 'blue', onSupClick, 'pip-sup-val');
-  buildPips('pip-hum', 10, humAtual, 'green', onHumClick, 'pip-hum-val');
+  buildPips('pip-pv', pvMax, pvAtual, 'roxo', onPVClick, 'pip-pv-val');
+  buildPips('pip-sup', 10, supAtual, 'dourado', onSupClick, 'pip-sup-val');
+  buildPips('pip-hum', 10, humAtual, 'roxo2', onHumClick, 'pip-hum-val');
   buildTensaoPips('tensao-pips-ficha', tensaoFicha, true);
   buildPericias();
   buildVinculos();
@@ -291,11 +292,30 @@ function buildPericias() {
   });
 }
 
-// ── VÍNCULOS ─────────────────────────────────────
-function buildVinculos() {
+// ── VÍNCULOS (lista dinâmica — clique pra adicionar/remover) ──
+const VINCULO_TIPOS = ['Proteção','Culpa','Amor','Respeito','Desconfiança','Gratidão'];
+
+function _coletarVinculosDoDOM() {
+  const arr = [];
+  for (let i = 0; i < vinculosCount; i++) {
+    arr.push({
+      personagem: document.getElementById(`v-per-${i}`)?.value || '',
+      promessa:   document.getElementById(`v-pro-${i}`)?.value || '',
+      divida:     document.getElementById(`v-div-${i}`)?.value || '',
+      tipo:       document.getElementById(`v-tip-${i}`)?.value || ''
+    });
+  }
+  return arr;
+}
+
+function buildVinculos(dados) {
+  const existentes = dados && dados.length ? dados : _coletarVinculosDoDOM();
+  vinculosCount = Math.max(1, existentes.length);
+
   const list = document.getElementById('vinculos-list');
   list.innerHTML = '';
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < vinculosCount; i++) {
+    const v = existentes[i] || {};
     const card = document.createElement('div');
     card.className = 'vinculo-card';
     card.innerHTML = `
@@ -303,34 +323,50 @@ function buildVinculos() {
         <div class="vinculo-num">${i+1}</div>
         <div class="field" style="flex:1">
           <label>Personagem</label>
-          <input type="text" id="v-per-${i}" placeholder="Nome do aliado..." oninput="autoSave()">
+          <input type="text" id="v-per-${i}" placeholder="Nome do aliado..." value="${esc(v.personagem || '')}" oninput="autoSave()">
         </div>
+        ${vinculosCount > 1 ? `<button type="button" class="vinculo-remove-btn" onclick="removerVinculo(${i})" title="Remover vínculo">🗑</button>` : ''}
       </div>
       <div class="vinculo-grid">
         <div class="field">
           <label>Promessa</label>
-          <input type="text" id="v-pro-${i}" placeholder="O que você prometeu..." oninput="autoSave()">
+          <input type="text" id="v-pro-${i}" placeholder="O que você prometeu..." value="${esc(v.promessa || '')}" oninput="autoSave()">
         </div>
         <div class="field">
           <label>Dívida</label>
-          <input type="text" id="v-div-${i}" placeholder="O que você deve..." oninput="autoSave()">
+          <input type="text" id="v-div-${i}" placeholder="O que você deve..." value="${esc(v.divida || '')}" oninput="autoSave()">
         </div>
         <div class="field">
           <label>Tipo</label>
           <select id="v-tip-${i}" onchange="autoSave()">
             <option value="">Selecionar...</option>
-            <option>Proteção</option>
-            <option>Culpa</option>
-            <option>Amor</option>
-            <option>Respeito</option>
-            <option>Desconfiança</option>
-            <option>Gratidão</option>
+            ${VINCULO_TIPOS.map(t => `<option${t === v.tipo ? ' selected' : ''}>${t}</option>`).join('')}
           </select>
         </div>
       </div>
     `;
     list.appendChild(card);
   }
+
+  const addBtn = document.createElement('div');
+  addBtn.className = 'vinculo-add-btn';
+  addBtn.textContent = '+ Adicionar Vínculo';
+  addBtn.onclick = adicionarVinculo;
+  list.appendChild(addBtn);
+}
+
+function adicionarVinculo() {
+  const arr = _coletarVinculosDoDOM();
+  arr.push({});
+  buildVinculos(arr);
+  autoSave();
+}
+
+function removerVinculo(i) {
+  const arr = _coletarVinculosDoDOM();
+  arr.splice(i, 1);
+  buildVinculos(arr.length ? arr : [{}]);
+  autoSave();
 }
 
 // ── SAVE / LOAD FICHA ─────────────────────────────
@@ -339,12 +375,7 @@ function coletarFicha() {
     nome: document.getElementById(`p-nome-${i}`)?.value || '',
     atrib: document.getElementById(`p-atrib-${i}`)?.value || ''
   }));
-  const vinculos = Array.from({length:4}, (_,i) => ({
-    personagem: document.getElementById(`v-per-${i}`)?.value || '',
-    promessa:   document.getElementById(`v-pro-${i}`)?.value || '',
-    divida:     document.getElementById(`v-div-${i}`)?.value || '',
-    tipo:       document.getElementById(`v-tip-${i}`)?.value || ''
-  }));
+  const vinculos = _coletarVinculosDoDOM();
 
   return {
     user_id: currentUser.id,
@@ -404,9 +435,9 @@ function aplicarFicha(d) {
   tensaoFicha = d.tensao || 0;
 
   document.getElementById('pv-formula').textContent = `RES (${d.attr_res || 0}) × 4 = máx ${pvMax}`;
-  buildPips('pip-pv',  pvMax, pvAtual,  'red',   onPVClick,  'pip-pv-val');
-  buildPips('pip-sup', 10,    supAtual, 'blue',  onSupClick, 'pip-sup-val');
-  buildPips('pip-hum', 10,    humAtual, 'green', onHumClick, 'pip-hum-val');
+  buildPips('pip-pv',  pvMax, pvAtual,  'roxo',    onPVClick,  'pip-pv-val');
+  buildPips('pip-sup', 10,    supAtual, 'dourado', onSupClick, 'pip-sup-val');
+  buildPips('pip-hum', 10,    humAtual, 'roxo2',   onHumClick, 'pip-hum-val');
   buildTensaoPips('tensao-pips-ficha', tensaoFicha, true);
 
   if (Array.isArray(d.pericias)) {
@@ -417,18 +448,7 @@ function aplicarFicha(d) {
       if (a) a.value = p.atrib || '';
     });
   }
-  if (Array.isArray(d.vinculos)) {
-    d.vinculos.forEach((v, i) => {
-      const per = document.getElementById(`v-per-${i}`);
-      const pro = document.getElementById(`v-pro-${i}`);
-      const div = document.getElementById(`v-div-${i}`);
-      const tip = document.getElementById(`v-tip-${i}`);
-      if (per) per.value = v.personagem || '';
-      if (pro) pro.value = v.promessa || '';
-      if (div) div.value = v.divida || '';
-      if (tip) tip.value = v.tipo || '';
-    });
-  }
+  buildVinculos(Array.isArray(d.vinculos) && d.vinculos.length ? d.vinculos : [{}]);
 }
 
 async function carregarFicha() {

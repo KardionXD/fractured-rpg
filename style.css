@@ -2,27 +2,30 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg:        #080810;
-  --surface:   #10101a;
-  --surface2:  #181824;
-  --surface3:  #20202e;
-  --border:    #2a2a3e;
+  --bg:        #08080c;
+  --surface:   #101016;
+  --surface2:  #0d0d13;
+  --surface3:  #0b0b10;
+  --border:    #26262e;
   --border2:   #3a3a52;
   --red:       #c0392b;
   --red-glow:  rgba(192,57,43,.35);
   --red-dim:   #7a2419;
-  --gold:      #c9a84c;
+  --gold:      #d9b45b;
+  --gold-dim:  #8a7433;
+  --gold-text: #e8c979;
   --green:     #27ae60;
   --blue:      #2980b9;
   --purple:    #8e44ad;
   --accent:        #8f7ae8;
+  --accent2:       #a78bfa;
   --accent-glow:   rgba(143,122,232,.35);
   --accent-soft:   rgba(143,122,232,.14);
   --accent-border: #4a3d85;
   --accent-text:   #c9bdfa;
   --gold-grad:     linear-gradient(180deg,#e0bd63,#c3993f);
-  --text:      #e0e0ee;
-  --muted:     #7070a0;
+  --text:      #e9e8ee;
+  --muted:     #8b8a99;
   --font:      'Segoe UI', system-ui, -apple-system, sans-serif;
 }
 
@@ -107,6 +110,21 @@ h1,h2,h3 { letter-spacing: .04em; }
   transition: all .15s;
 }
 .btn-ghost:hover { border-color: var(--red); color: var(--red); }
+
+/* Ação secundária "importante" (Enviar, Iniciar combate...) — contorno dourado, sem preenchimento */
+.btn-gold {
+  background: transparent;
+  border: 1px solid var(--gold-dim);
+  border-radius: 6px;
+  color: var(--gold-text);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  padding: 7px 14px;
+  transition: all .15s;
+}
+.btn-gold:hover { border-color: var(--gold); background: rgba(217,180,91,.06); }
 
 .btn-icon {
   background: transparent;
@@ -528,9 +546,10 @@ h1,h2,h3 { letter-spacing: .04em; }
   -webkit-tap-highlight-color: transparent;
   flex-shrink: 0;
 }
-.pip.red.on   { background: var(--red);    border-color: #e74c3c; box-shadow: 0 0 6px var(--red-glow); }
-.pip.blue.on  { background: var(--blue);   border-color: #3498db; box-shadow: 0 0 6px rgba(41,128,185,.4); }
-.pip.green.on { background: var(--green);  border-color: #2ecc71; box-shadow: 0 0 6px rgba(39,174,96,.4); }
+/* Vida = roxo vivo · Suprimentos = dourado · Humanidade = roxo médio (design-tokens.md) */
+.pip.roxo.on    { background: var(--accent2); border-color: var(--accent2); box-shadow: 0 0 6px var(--accent-glow); }
+.pip.dourado.on { background: var(--gold);    border-color: var(--gold);    box-shadow: 0 0 6px rgba(217,180,91,.35); }
+.pip.roxo2.on   { background: var(--accent);  border-color: var(--accent2); box-shadow: 0 0 6px var(--accent-glow); }
 .pip-val { font-size: 11px; color: var(--muted); min-width: 36px; }
 
 /* ── TENSÃO PIPS ────────────────────────────────── */
@@ -546,10 +565,10 @@ h1,h2,h3 { letter-spacing: .04em; }
   transition: all .12s;
   -webkit-tap-highlight-color: transparent;
 }
-.tpip.c.on { background: #e67e22; border-color: #f39c12; color: #000; }
-.tpip.a.on { background: var(--red); border-color: #e74c3c; color: #fff; }
-.tpip.p.on { background: var(--purple); border-color: #9b59b6; color: #fff; }
-.tpip.t.on { background: #2c3e50; border-color: #7f8c8d; color: #ecf0f1; }
+/* Design (2b): todo estado "ligado" usa a mesma cor roxa — só a letra muda */
+.tpip.c.on, .tpip.a.on, .tpip.p.on, .tpip.t.on {
+  background: var(--accent-soft); border-color: var(--accent-border); color: var(--accent-text);
+}
 
 /* ── ATTR GRID ──────────────────────────────────── */
 .attr-grid {
@@ -619,12 +638,30 @@ h1,h2,h3 { letter-spacing: .04em; }
 .vinculo-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
 .vinculo-num {
   width: 22px; height: 22px; border-radius: 50%;
-  background: rgba(192,57,43,.2); border: 1px solid var(--red-dim);
+  background: rgba(217,180,91,.12); border: 1px solid var(--gold-dim);
   display: flex; align-items: center; justify-content: center;
-  font-size: 10px; font-weight: 700; color: var(--red); flex-shrink: 0;
+  font-size: 10px; font-weight: 700; color: var(--gold-text); flex-shrink: 0;
 }
+.vinculo-remove-btn {
+  background: transparent; border: none; color: var(--muted); cursor: pointer;
+  font-size: 13px; padding: 4px 6px; border-radius: 5px; flex-shrink: 0; transition: color .12s;
+}
+.vinculo-remove-btn:hover { color: var(--red); }
 .vinculo-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
 @media (max-width: 500px) { .vinculo-grid { grid-template-columns: 1fr; } }
+.vinculo-add-btn {
+  border: 1px dashed var(--gold-dim);
+  border-radius: 10px;
+  padding: 12px;
+  text-align: center;
+  font-size: 11.5px;
+  letter-spacing: .1em;
+  color: var(--gold-text);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .12s, border-color .12s;
+}
+.vinculo-add-btn:hover { background: rgba(217,180,91,.06); border-color: var(--gold); }
 
 /* ── SALA ───────────────────────────────────────── */
 .sala-layout {
@@ -792,9 +829,9 @@ h1,h2,h3 { letter-spacing: .04em; }
 }
 .player-stat-label { font-size: 8px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }
 .player-stat-val { font-size: 18px; font-weight: 700; }
-.player-stat-val.pv   { color: var(--red); }
-.player-stat-val.hum  { color: var(--green); }
-.player-stat-val.sup  { color: var(--blue); }
+.player-stat-val.pv   { color: var(--accent-text); }
+.player-stat-val.hum  { color: var(--accent-text); }
+.player-stat-val.sup  { color: var(--gold-text); }
 
 /* ── NOTAS ──────────────────────────────────────── */
 .notas-grid {
@@ -841,9 +878,11 @@ h1,h2,h3 { letter-spacing: .04em; }
 /* ── UTILS ──────────────────────────────────────── */
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+.grid-recursos-tensao { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; }
 @media (max-width: 500px) {
   .grid-2 { grid-template-columns: 1fr; }
   .grid-3 { grid-template-columns: 1fr 1fr; }
+  .grid-recursos-tensao { grid-template-columns: 1fr; }
 }
 .gap-12 { display: flex; flex-direction: column; gap: 12px; }
 .toast {

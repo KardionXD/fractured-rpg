@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=IM+Fell+English&family=Share+Tech+Mono&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=9">
+<link rel="stylesheet" href="style.css?v=10">
 </head>
 <body>
 
@@ -54,7 +54,7 @@
             <button class="tema-btn"        data-tema="ouro"    onclick="setTemaFicha('ouro')">Dourada</button>
             <button class="tema-btn"        data-tema="verde"   onclick="setTemaFicha('verde')">Verde</button>
           </div>
-          <button class="btn-ghost" onclick="salvarFicha()">💾 Salvar</button>
+          <button class="btn-primary" style="width:auto;margin:0;padding:9px 20px" onclick="salvarFicha()">💾 Salvar</button>
         </div>
       </div>
       <div class="section-card">
@@ -89,21 +89,21 @@
         </div>
       </div>
       <div class="section-card"><div class="section-card-title">Atributos — 15 pontos (máx 4)</div><div class="attr-grid" id="attr-grid"></div></div>
-      <div class="section-card">
-        <div class="section-card-title">Recursos</div>
-        <div class="pip-row"><span class="pip-label">Pontos de Vida</span><div class="pips" id="pip-pv"></div><span class="pip-val" id="pip-pv-val">0/20</span></div>
-        <div style="font-size:10px;color:var(--muted);margin-bottom:8px;padding-left:108px" id="pv-formula">RES × 4 = máx 20</div>
-        <div class="pip-row"><span class="pip-label">Suprimentos</span><div class="pips" id="pip-sup"></div><span class="pip-val" id="pip-sup-val">0/10</span></div>
-        <div class="pip-row" style="margin-top:5px"><span class="pip-label">Humanidade</span><div class="pips" id="pip-hum"></div><span class="pip-val" id="pip-hum-val">10/10</span></div>
-      </div>
-      <div class="section-card">
-        <div class="section-card-title">Tensão</div>
-        <div class="tensao-pips" id="tensao-pips-ficha"></div>
-        <div style="margin-top:6px;font-size:9px;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap">
-          <span><span style="color:#e67e22">■</span> C=Calma</span><span><span style="color:#c0392b">■</span> A=Alerta</span>
-          <span><span style="color:#8e44ad">■</span> P=Perigo</span><span><span style="color:#7f8c8d">■</span> T=Terror</span>
+      <div class="grid-recursos-tensao">
+        <div class="section-card">
+          <div class="section-card-title">Recursos</div>
+          <div class="pip-row"><span class="pip-label">Pontos de Vida</span><div class="pips" id="pip-pv"></div><span class="pip-val" id="pip-pv-val">0/20</span></div>
+          <div style="font-size:10px;color:var(--muted);margin-bottom:8px;padding-left:108px" id="pv-formula">RES × 4 = máx 20</div>
+          <div class="pip-row"><span class="pip-label">Suprimentos</span><div class="pips" id="pip-sup"></div><span class="pip-val" id="pip-sup-val">0/10</span></div>
+          <div class="pip-row" style="margin-top:5px"><span class="pip-label">Humanidade</span><div class="pips" id="pip-hum"></div><span class="pip-val" id="pip-hum-val">10/10</span></div>
+        </div>
+        <div class="section-card">
+          <div class="section-card-title">Tensão</div>
+          <div class="tensao-pips" id="tensao-pips-ficha"></div>
+          <div style="margin-top:6px;font-size:9px;color:var(--muted)">C=Calma · A=Alerta · P=Perigo · T=Terror</div>
         </div>
       </div>
+      <div class="section-card"><div class="section-card-title">Perícias</div><div id="pericias-list" class="gap-12"></div></div>
       <div class="section-card">
         <div class="section-card-title">Veículo</div>
         <div class="grid-2">
@@ -132,7 +132,6 @@
           </div>
         </div>
       </div>
-      <div class="section-card"><div class="section-card-title">Perícias</div><div id="pericias-list" class="gap-12"></div></div>
       <div class="section-card"><div class="section-card-title">Vínculos — Promessa &amp; Dívida</div><div id="vinculos-list"></div></div>
       <div class="grid-2">
         <div class="section-card"><div class="section-card-title">Inventário</div><textarea id="f-inventario" placeholder="Itens, armas..." rows="4" oninput="autoSave()" class="textarea-bare"></textarea></div>
@@ -262,7 +261,7 @@
     </div>
 
     <!-- IDENTIDADE -->
-    <div style="font-size:9px;font-weight:700;letter-spacing:2px;color:var(--red);text-transform:uppercase;margin-bottom:8px">Identidade</div>
+    <div style="font-size:9px;font-weight:700;letter-spacing:2px;color:var(--gold);text-transform:uppercase;margin-bottom:8px">Identidade</div>
     <div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:12px;flex-wrap:wrap">
       <!-- Avatar -->
       <div style="display:flex;flex-direction:column;align-items:center;gap:5px">
@@ -295,7 +294,7 @@
     </div>
 
     <!-- ATRIBUTOS -->
-    <div style="font-size:9px;font-weight:700;letter-spacing:2px;color:var(--red);text-transform:uppercase;margin-bottom:8px">Atributos — distribua 15 pontos (máx 4)</div>
+    <div style="font-size:9px;font-weight:700;letter-spacing:2px;color:var(--gold);text-transform:uppercase;margin-bottom:8px">Atributos — distribua 15 pontos (máx 4)</div>
     <div class="attr-grid" style="margin-bottom:10px">
       <div class="attr-card">
         <div class="attr-abbr">FOR</div><div class="attr-name">Força</div>
@@ -351,7 +350,7 @@
     <div style="background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:10px;margin-bottom:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
       <div style="flex:1">
         <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase">PV Máximo</div>
-        <div style="font-size:22px;font-weight:800;color:var(--red)" id="npc-pv-calc">4</div>
+        <div style="font-size:22px;font-weight:800;color:var(--gold-text)" id="npc-pv-calc">4</div>
         <div style="font-size:9px;color:var(--muted)" id="npc-pv-formula">RES (1) × 4 = 4</div>
       </div>
       <div style="flex:1">
@@ -363,7 +362,7 @@
     </div>
 
     <!-- HABILIDADES -->
-    <div style="font-size:9px;font-weight:700;letter-spacing:2px;color:var(--red);text-transform:uppercase;margin-bottom:8px">Habilidades & Notas</div>
+    <div style="font-size:9px;font-weight:700;letter-spacing:2px;color:var(--gold);text-transform:uppercase;margin-bottom:8px">Habilidades & Notas</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
       <div class="field"><label>Habilidades (uma por linha)</label><textarea id="npc-f-hab" rows="4" placeholder="Enxame: 3+ atacam o mesmo alvo&#10;Hesitação: para 1 round..." class="textarea-bare"></textarea></div>
       <div class="field"><label>Notas do Mestre (privado)</label><textarea id="npc-f-notas" rows="4" placeholder="Motivações, segredos, táticas..." class="textarea-bare"></textarea></div>
@@ -411,11 +410,11 @@
 <script src="fog.js?v=17"></script>
 <script src="combate.js?v=18"></script>
 <script src="npcs.js?v=17"></script>
-<script src="sala.js?v=21"></script>
+<script src="sala.js?v=22"></script>
 <script src="arquivos.js?v=25"></script>
 <script src="ficha_custom.js?v=28"></script>
 <script src="musica.js?v=26"></script>
-<script src="app.js?v=28"></script>
+<script src="app.js?v=29"></script>
 
 <script>
 // ── Ícones da marca (biblioteca SVG em icons.js) ──────────

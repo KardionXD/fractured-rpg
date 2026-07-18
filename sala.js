@@ -162,15 +162,19 @@ function switchMobileTab(id) {
 // ══════════════════════════════════════════════════
 //  DESKTOP DOM — painéis flutuantes
 // ══════════════════════════════════════════════════
+// Posições padrão espelham o grid fixo de 3 colunas do design (2a):
+// col1 (chat+players) · col2 (tensão+dados+combate) · col3 (mapa, largo).
+// Bestiário/Imagens são painéis extras (não existem no design) — começam ocultos,
+// disponíveis pelo menu "Painéis" a qualquer momento.
 const DESKTOP_PANELS = [
-  { id:'feed',      icon:'chat',    label:'Chat / Sala',                     def:{ x:10,  y:10,  w:300, h:480 }, minW:200, minH:200 },
-  { id:'tensao',    icon:'tensao',  label:'Tensão',                          def:{ x:320, y:10,  w:260, h:200 }, minW:200, minH:150 },
-  { id:'dados',     icon:'d20',     label:'Dados',                           def:{ x:320, y:220, w:260, h:310 }, minW:220, minH:220 },
-  { id:'tracker',   icon:'combate', label:'Combat Tracker',                  def:{ x:590, y:10,  w:300, h:560 }, minW:240, minH:280 },
-  { id:'mapa',      icon:'mapa',    label:'Mapa',                            def:{ x:900, y:10,  w:680, h:680 }, minW:280, minH:280 },
-  { id:'players',   icon:'players', label:'Players', masterOnly:true,        def:{ x:10,  y:500, w:300, h:250 }, minW:200, minH:160 },
-  { id:'bestiario', icon:'📖',      label:'Bestiário', masterOnly:true,      def:{ x:590, y:580, w:300, h:210 }, minW:200, minH:140 },
-  { id:'galeria',   icon:'🖼️',      label:'Imagens',                        def:{ x:900, y:700, w:400, h:280 }, minW:280, minH:200 },
+  { id:'feed',      icon:'chat',    label:'Chat / Sala',                     def:{ x:10,  y:10,  w:300, h:490 }, minW:200, minH:200 },
+  { id:'players',   icon:'players', label:'Players', masterOnly:true,        def:{ x:10,  y:512, w:300, h:250 }, minW:200, minH:160 },
+  { id:'tensao',    icon:'tensao',  label:'Tensão',                          def:{ x:322, y:10,  w:320, h:190 }, minW:220, minH:150 },
+  { id:'dados',     icon:'d20',     label:'Dados',                           def:{ x:322, y:212, w:320, h:300 }, minW:240, minH:220 },
+  { id:'tracker',   icon:'combate', label:'Combat Tracker',                  def:{ x:322, y:524, w:320, h:340 }, minW:240, minH:280 },
+  { id:'mapa',      icon:'mapa',    label:'Mapa',                            def:{ x:654, y:10,  w:760, h:680 }, minW:280, minH:280 },
+  { id:'bestiario', icon:'📖',      label:'Bestiário', masterOnly:true, defaultHidden:true, def:{ x:322, y:212, w:320, h:300 }, minW:200, minH:140 },
+  { id:'galeria',   icon:'🖼️',      label:'Imagens',   defaultHidden:true,   def:{ x:654, y:10,  w:400, h:280 }, minW:280, minH:200 },
 ];
 
 let pStates = {};
@@ -200,7 +204,7 @@ function createFPanel(cfg, root) {
   const d = cfg.def;
   const x = saved.x ?? d.x, y = saved.y ?? d.y;
   const w = saved.w ?? d.w, h = saved.h ?? d.h;
-  const hidden = saved.hidden || false;
+  const hidden = saved.hidden ?? cfg.defaultHidden ?? false;
 
   const el = document.createElement('div');
   el.id = 'dpanel-'+cfg.id;
@@ -294,7 +298,7 @@ function updateDesktopPanelMenu() {
   menu.innerHTML='';
   DESKTOP_PANELS.forEach(p => {
     if(p.masterOnly&&!isMaster) return;
-    const hidden=pStates[p.id]?.hidden||false;
+    const hidden=pStates[p.id]?.hidden ?? p.defaultHidden ?? false;
     const btn=document.createElement('button');
     btn.className='btn-ghost';
     btn.style.cssText=`font-size:11px;padding:6px 12px;text-align:left;width:100%;opacity:${hidden?.6:1};`;
@@ -384,7 +388,7 @@ function buildFeed(c) {
       </div>
       <div style="padding:8px;border-top:1px solid var(--border);display:flex;gap:6px;flex-shrink:0">
         <input type="text" class="feed-input" id="msg-input" placeholder="Mensagem..." onkeydown="if(event.key==='Enter')enviarMsg()" style="flex:1">
-        <button class="btn-ghost" onclick="enviarMsg()" style="font-size:11px;padding:5px 10px">Enviar</button>
+        <button class="btn-gold" onclick="enviarMsg()" style="font-size:11px;padding:5px 10px">Enviar</button>
       </div>
       ${limparBtn}
     </div>`;
@@ -516,7 +520,7 @@ function buildTrackerPanel(c) {
         <span class="ct-turno-info" id="ct-turno-info">Não iniciado</span>
       </div>
       <div class="ct-panel-btns">
-        <button class="btn-ghost" onclick="iniciarCombate()" style="font-size:10px;padding:4px 8px">▶ Iniciar</button>
+        <button class="btn-gold" onclick="iniciarCombate()" style="font-size:10px;padding:4px 8px;font-weight:700">▶ Iniciar</button>
         <button class="btn-ghost" onclick="proximoTurno()" style="font-size:10px;padding:4px 8px">⏭ Próximo</button>
         <button class="btn-ghost" id="btn-toggle-pv" onclick="togglePVInimigos()" style="font-size:10px;padding:4px 8px">👁 PV</button>
         <button class="btn-ghost" onclick="encerrarCombate()" style="font-size:10px;padding:4px 8px;color:var(--red);border-color:var(--red-dim)">✕ Fim</button>
