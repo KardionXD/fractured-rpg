@@ -1,9 +1,12 @@
 // ══════════════════════════════════════════════════
-//  FICHA CUSTOMIZÁVEL v2 — estilo "Ficha Universal"
+//  FICHA CUSTOMIZÁVEL v3 — estilo "Ficha Universal"
 //  A ficha nasce NEUTRA com seções de exemplo e o
 //  mestre alterna o MODO DE EDIÇÃO para modificá-la
 //  em cima dela mesma: renomear, apagar, adicionar
 //  seções e campos vendo o resultado ao vivo.
+//  Também escolhe um TEMA (skin visual) para a mesa:
+//  Escuro, Papiro, Cyberpunk, Medieval, Terror.
+//  O tema só muda CSS/tipografia — nunca os dados.
 //  Modelo: mesas.ficha_template · Valores: fichas.dados_custom
 // ══════════════════════════════════════════════════
 
@@ -22,10 +25,19 @@ const FCB_TIPOS = [
   { id: 'check',        nome: '☑ Caixa de marcar' },
 ];
 
+const FCB_TEMAS = [
+  { id: 'escuro',     nome: 'Escuro'     },
+  { id: 'papiro',     nome: 'Papiro'     },
+  { id: 'cyberpunk',  nome: 'Cyberpunk'  },
+  { id: 'medieval',   nome: 'Medieval'   },
+  { id: 'terror',     nome: 'Terror'     },
+];
+
 // Ficha neutra inicial — o mestre edita em cima dela
 function _fcbTemplateNeutro() {
   return {
     nome_sistema: 'Minha Ficha',
+    tema: 'escuro',
     secoes: [
       { titulo: 'Informações', campos: [
         { id: 'nome',      label: 'Nome',      tipo: 'texto' },
@@ -116,7 +128,8 @@ async function _fcbSalvarDados() {
   const st = document.getElementById('fcb-status');
   if (st) {
     st.textContent = error ? '⚠ erro ao salvar' : '✔ salvo';
-    st.style.color = error ? 'var(--red)' : 'var(--green)';
+    st.style.color = error ? 'var(--red)' : '';
+    st.className = error ? '' : 'fcb-status-ok';
   }
 }
 
@@ -132,8 +145,16 @@ function _fcbAgendarSaveTpl() {
 }
 
 function _fcbIdDoLabel(label) {
-  return (label || 'campo').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  return (label || 'campo').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
     .replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || ('campo_' + Date.now());
+}
+
+// ── TEMA (skin visual da mesa) ──────────────────────
+function fcbSetTema(tema) {
+  if (!isMaster) return;
+  FCB.template.tema = tema;
+  _fcbAgendarSaveTpl();
+  _fcbRender();
 }
 
 // ── RENDER PRINCIPAL ───────────────────────────────
@@ -142,44 +163,45 @@ function _fcbRender() {
   if (!cont || !FCB.template) return;
   const t = FCB.template;
   const ed = FCB.editMode && isMaster;
-  const inp = 'box-sizing:border-box;background:rgba(0,0,0,0.35);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:8px 10px;font-size:13px;width:100%';
-  const inpEd = 'box-sizing:border-box;background:transparent;border:none;border-bottom:1px dashed var(--gold);color:var(--gold);font-size:inherit;font-weight:inherit;padding:2px 4px;outline:none';
-  const btnMini = 'background:var(--red);border:none;border-radius:5px;color:#fff;font-size:10px;width:20px;height:20px;cursor:pointer;flex-shrink:0';
-  const btnMove = 'background:rgba(255,255,255,0.07);border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:10px;width:20px;height:20px;cursor:pointer;flex-shrink:0';
+  const tema = t.tema || 'escuro';
+  cont.className = 'fcb-tema-' + tema + (ed ? ' fcb-edit' : '');
 
   let html = `
-    <div class="page-header">
-      <div>
+    <div class="fcb-header">
+      <div class="fcb-header-left">
         ${ed
-          ? `<input style="${inpEd};font-size:19px;font-weight:800" value="${esc(t.nome_sistema || '')}" placeholder="Nome do sistema" oninput="FCB.template.nome_sistema=this.value;_fcbAgendarSaveTpl()">`
-          : `<div class="page-title">${esc(t.nome_sistema || 'Ficha da Mesa')}</div>`}
-        <div class="page-sub">${ed ? '🛠 Modo de Edição — clique nos textos pra renomear' : `Ficha da mesa · <span id="fcb-status" style="color:var(--green)">✔ salvo</span>`}</div>
+          ? `<input class="fcb-title-input" value="${esc(t.nome_sistema || '')}" placeholder="Nome do sistema" oninput="FCB.template.nome_sistema=this.value;_fcbAgendarSaveTpl()">`
+          : `<div class="fcb-title">${esc(t.nome_sistema || 'Ficha da Mesa')}</div>`}
+        <div class="fcb-sub">${ed ? '🛠 Modo de Edição — clique nos textos pra renomear' : `Ficha da mesa · <span id="fcb-status" class="fcb-status-ok">✔ salvo</span>`}</div>
       </div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap">
-        ${isMaster ? `<button class="btn-ghost" style="font-size:11px;padding:6px 12px;${ed ? 'color:var(--gold);border-color:var(--gold)' : ''}" onclick="fcbToggleEdit()">${ed ? '⇆ Modo de Jogo' : '⇆ Modo de Edição'}</button>` : ''}
-        ${ed ? `<button class="btn-ghost" style="font-size:11px;padding:6px 12px;color:var(--red);border-color:var(--red)" onclick="fcbVoltarPadrao()">↩ Ficha FRACTURED</button>` : ''}
+      <div class="fcb-header-right">
+        ${isMaster ? `<div class="fcb-tema-switch">${FCB_TEMAS.map(tp => `<button class="fcb-tema-btn${tema === tp.id ? ' active' : ''}" onclick="fcbSetTema('${tp.id}')">${tp.nome}</button>`).join('')}</div>` : ''}
+        ${isMaster ? `<button class="fcb-btn" onclick="fcbToggleEdit()">${ed ? '⇆ Modo de Jogo' : '⇆ Modo de Edição'}</button>` : ''}
+        ${ed ? `<button class="fcb-btn fcb-btn-danger" onclick="fcbVoltarPadrao()">↩ Ficha FRACTURED</button>` : ''}
       </div>
     </div>`;
 
   (t.secoes || []).forEach((sec, si) => {
     if (ed) html += _fcbSepNovaSecao(si);
-    html += `<div style="border:1px solid ${ed ? 'var(--gold)' : 'var(--border)'};border-radius:10px;padding:14px;margin-bottom:14px;background:rgba(0,0,0,0.2)">
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px">
+    html += `<div class="fcb-section">
+      <div class="fcb-section-head">
         ${ed
-          ? `<input style="${inpEd};flex:1;font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase" value="${esc(sec.titulo)}" placeholder="Título da seção" oninput="FCB.template.secoes[${si}].titulo=this.value;_fcbAgendarSaveTpl()">
-             <button style="${btnMove}" title="Subir seção" onclick="fcbMoverSecao(${si},-1)">↑</button>
-             <button style="${btnMove}" title="Descer seção" onclick="fcbMoverSecao(${si},1)">↓</button>
-             <button style="${btnMini}" title="Deletar toda a seção" onclick="fcbRemoverSecao(${si})">🗑</button>`
-          : `<div style="font-size:11px;font-weight:700;letter-spacing:2px;color:var(--gold);text-transform:uppercase">${esc(sec.titulo)}</div>`}
+          ? `<input class="fcb-section-title-input" value="${esc(sec.titulo)}" placeholder="Título da seção" oninput="FCB.template.secoes[${si}].titulo=this.value;_fcbAgendarSaveTpl()">
+             <span class="fcb-tool-row">
+               <button class="fcb-tool-btn" title="Subir seção" onclick="fcbMoverSecao(${si},-1)">↑</button>
+               <button class="fcb-tool-btn" title="Descer seção" onclick="fcbMoverSecao(${si},1)">↓</button>
+               <button class="fcb-tool-btn fcb-tool-danger" title="Deletar toda a seção" onclick="fcbRemoverSecao(${si})">🗑</button>
+             </span>`
+          : `<div class="fcb-section-title">${esc(sec.titulo)}</div>`}
       </div>
-      <div style="display:flex;flex-wrap:wrap;gap:10px">`;
+      <div class="fcb-fields">`;
 
     (sec.campos || []).forEach((c, ci) => {
-      html += _fcbRenderCampo(c, si, ci, ed, { inp, inpEd, btnMini, btnMove });
+      html += _fcbRenderCampo(c, si, ci, ed, tema);
     });
 
     html += `</div>
-      ${ed ? `<button class="btn-ghost" style="width:100%;font-size:10px;padding:6px;margin-top:10px" onclick="fcbMenuAddCampo(${si}, this)">＋ Adicionar campo</button>` : ''}
+      ${ed ? `<button class="fcb-add-field-btn" onclick="fcbMenuAddCampo(${si}, this)">＋ Adicionar campo</button>` : ''}
     </div>`;
   });
   if (ed) html += _fcbSepNovaSecao((t.secoes || []).length);
@@ -189,32 +211,31 @@ function _fcbRender() {
 }
 
 function _fcbSepNovaSecao(pos) {
-  return `<div style="display:flex;align-items:center;gap:10px;margin:10px 0">
-    <div style="flex:1;border-top:1px dashed var(--border)"></div>
-    <button class="btn-ghost" style="font-size:10px;padding:4px 12px" onclick="fcbAddSecao(${pos})">＋ NOVA SEÇÃO</button>
-    <div style="flex:1;border-top:1px dashed var(--border)"></div>
+  return `<div class="fcb-sep">
+    <span class="fcb-sep-line"></span>
+    <button class="fcb-sep-btn" onclick="fcbAddSecao(${pos})">＋ NOVA SEÇÃO</button>
+    <span class="fcb-sep-line"></span>
   </div>`;
 }
 
 // ── RENDER DE CADA TIPO DE CAMPO ───────────────────
-function _fcbRenderCampo(c, si, ci, ed, s) {
+function _fcbRenderCampo(c, si, ci, ed, tema) {
   const v = _fcbVal(c);
   const label = ed
-    ? `<input style="${s.inpEd};width:100%;font-size:10px;letter-spacing:1px" value="${esc(c.label)}" placeholder="Nome do campo" oninput="fcbRenomearCampo(${si},${ci},this.value)">`
-    : `<label style="display:block;font-size:10px;color:var(--muted);letter-spacing:1px;margin-bottom:3px">${esc(c.label).toUpperCase()}</label>`;
+    ? `<input class="fcb-label-input" value="${esc(c.label)}" placeholder="Nome do campo" oninput="fcbRenomearCampo(${si},${ci},this.value)">`
+    : `<label class="fcb-label">${esc(c.label).toUpperCase()}</label>`;
   const ferramentas = ed
-    ? `<div style="display:flex;gap:3px;justify-content:flex-end;margin-top:5px">
-        <button style="${s.btnMove}" onclick="fcbMoverCampo(${si},${ci},-1)">←</button>
-        <button style="${s.btnMove}" onclick="fcbMoverCampo(${si},${ci},1)">→</button>
-        <button style="${s.btnMini}" onclick="fcbRemoverCampo(${si},${ci})">🗑</button>
+    ? `<div class="fcb-field-tools">
+        <button class="fcb-tool-btn" onclick="fcbMoverCampo(${si},${ci},-1)">←</button>
+        <button class="fcb-tool-btn" onclick="fcbMoverCampo(${si},${ci},1)">→</button>
+        <button class="fcb-tool-btn fcb-tool-danger" onclick="fcbRemoverCampo(${si},${ci})">🗑</button>
       </div>` : '';
 
   // Card de atributo: valor grande + nome (aceita "d4", "10"...)
   if (c.tipo === 'atributo') {
-    return `<div style="width:106px;border:1px solid var(--border);border-radius:9px;padding:10px 6px;text-align:center;background:rgba(0,0,0,0.28)">
-      <input data-fcb="${c.id}" ${ed ? 'disabled' : ''} value="${esc(String(v ?? ''))}" placeholder="—"
-        style="width:100%;background:transparent;border:none;outline:none;text-align:center;font-size:26px;font-weight:800;color:var(--text)">
-      <div style="font-size:10px;color:var(--muted);letter-spacing:1px;margin-top:2px">${ed ? `<input style="${s.inpEd};width:100%;text-align:center;font-size:10px" value="${esc(c.label)}" oninput="fcbRenomearCampo(${si},${ci},this.value)">` : esc(c.label)}</div>
+    return `<div class="fcb-field fcb-field-attr">
+      <input class="fcb-attr-val" data-fcb="${c.id}" ${ed ? 'disabled' : ''} value="${esc(String(v ?? ''))}" placeholder="—">
+      <div class="fcb-attr-label">${ed ? `<input class="fcb-label-input fcb-label-input-center" value="${esc(c.label)}" oninput="fcbRenomearCampo(${si},${ci},this.value)">` : esc(c.label)}</div>
       ${ferramentas}
     </div>`;
   }
@@ -223,11 +244,10 @@ function _fcbRenderCampo(c, si, ci, ed, s) {
   if (c.tipo === 'atributo_mod') {
     const num = parseInt(v) || 0;
     const mod = Math.floor((num - 10) / 2);
-    return `<div style="width:106px;border:1px solid var(--border);border-radius:9px;padding:8px 6px;text-align:center;background:rgba(0,0,0,0.28)">
-      <input data-fcb="${c.id}" type="number" ${ed ? 'disabled' : ''} value="${esc(String(v ?? 10))}"
-        style="width:60px;background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:5px;outline:none;text-align:center;font-size:12px;color:var(--muted);padding:2px">
-      <div data-fcb-mod="${c.id}" style="font-size:24px;font-weight:800;color:var(--gold);margin:2px 0">${mod >= 0 ? '+' : ''}${mod}</div>
-      <div style="font-size:10px;color:var(--muted);letter-spacing:1px">${ed ? `<input style="${s.inpEd};width:100%;text-align:center;font-size:10px" value="${esc(c.label)}" oninput="fcbRenomearCampo(${si},${ci},this.value)">` : esc(c.label)}</div>
+    return `<div class="fcb-field fcb-field-attrmod">
+      <input class="fcb-attrmod-val" data-fcb="${c.id}" type="number" ${ed ? 'disabled' : ''} value="${esc(String(v ?? 10))}">
+      <div class="fcb-attrmod-mod" data-fcb-mod="${c.id}">${mod >= 0 ? '+' : ''}${mod}</div>
+      <div class="fcb-attr-label">${ed ? `<input class="fcb-label-input fcb-label-input-center" value="${esc(c.label)}" oninput="fcbRenomearCampo(${si},${ci},this.value)">` : esc(c.label)}</div>
       ${ferramentas}
     </div>`;
   }
@@ -238,46 +258,45 @@ function _fcbRenderCampo(c, si, ci, ed, s) {
     const val = isNaN(atual) ? max : atual;
     const cor = c.cor || '#8b5cf6';
     const pct = max > 0 ? Math.max(0, Math.min(100, (val / max) * 100)) : 0;
-    return `<div style="flex:1 1 100%;min-width:220px">
+    return `<div class="fcb-field fcb-field-bar">
       ${label}
-      <div style="display:flex;align-items:center;gap:6px">
-        ${!ed ? `<button style="${s.btnMove};font-size:14px" onclick="fcbBarra('${c.id}',-1,${max})">−</button>` : ''}
-        <div style="flex:1;height:26px;border-radius:13px;background:rgba(255,255,255,0.07);overflow:hidden;position:relative">
-          <div style="height:100%;width:${pct}%;background:${cor};transition:width .25s"></div>
-          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,0.8)">${val}/${max}</div>
+      <div class="fcb-bar-row">
+        ${!ed ? `<button class="fcb-bar-btn" onclick="fcbBarra('${c.id}',-1,${max})">−</button>` : ''}
+        <div class="fcb-bar-track">
+          <div class="fcb-bar-fill" style="width:${pct}%;background:${cor}"></div>
+          <div class="fcb-bar-value">${val}/${max}</div>
         </div>
-        ${!ed ? `<button style="${s.btnMove};font-size:14px" onclick="fcbBarra('${c.id}',1,${max})">+</button>` : ''}
+        ${!ed ? `<button class="fcb-bar-btn" onclick="fcbBarra('${c.id}',1,${max})">+</button>` : ''}
       </div>
-      ${ed ? `<div style="display:flex;align-items:center;gap:6px;margin-top:6px;flex-wrap:wrap">
-        <span style="font-size:9px;color:var(--muted)">COR:</span>
-        ${FCB_CORES.map(cr => `<span onclick="fcbCorCampo(${si},${ci},'${cr}')" style="width:16px;height:16px;border-radius:50%;background:${cr};cursor:pointer;display:inline-block;border:2px solid ${cr === cor ? '#fff' : 'transparent'}"></span>`).join('')}
-        <span style="font-size:9px;color:var(--muted);margin-left:6px">MÁX:</span>
-        <input type="number" value="${max}" style="width:56px;${s.inp.replace('width:100%','')};padding:3px 6px;font-size:11px" oninput="fcbMaxCampo(${si},${ci},this.value)">
+      ${ed ? `<div class="fcb-field-config">
+        <span class="fcb-config-label">COR:</span>
+        ${FCB_CORES.map(cr => `<span class="fcb-swatch${cr === cor ? ' active' : ''}" style="background:${cr}" onclick="fcbCorCampo(${si},${ci},'${cr}')"></span>`).join('')}
+        <span class="fcb-config-label fcb-config-label-gap">MÁX:</span>
+        <input type="number" class="fcb-input-mini" value="${max}" oninput="fcbMaxCampo(${si},${ci},this.value)">
       </div>` : ''}
       ${ferramentas}
     </div>`;
   }
 
-  // Marcadores (bolinhas clicáveis)
+  // Marcadores (bolinhas clicáveis — viram estrela/escudo/caveira conforme o tema)
   if (c.tipo === 'marcador') {
     const max = c.max ?? 5, atual = Math.max(0, Math.min(parseInt(v) || 0, max));
     const cor = c.cor || '#8b5cf6';
     let pips = '';
     for (let i = 0; i < max; i++) {
-      pips += `<span ${!ed ? `onclick="fcbPip('${c.id}',${i},${max})"` : ''}
-        style="width:17px;height:17px;border-radius:50%;display:inline-block;cursor:${ed ? 'default' : 'pointer'};margin-right:4px;
-        background:${i < atual ? cor : 'transparent'};border:2px solid ${cor};transition:background .15s"></span>`;
+      const on = i < atual;
+      pips += `<span class="fcb-pip${on ? ' on' : ''}" ${!ed ? `onclick="fcbPip('${c.id}',${i},${max})"` : ''} style="--pip-cor:${cor}"></span>`;
     }
-    return `<div style="flex:1 1 100%;min-width:200px">
-      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">
-        <div style="min-width:110px">${label}</div>
-        <div>${pips}</div>
+    return `<div class="fcb-field fcb-field-marker">
+      <div class="fcb-marker-row">
+        <div class="fcb-marker-label">${label}</div>
+        <div class="fcb-pip-row">${pips}</div>
       </div>
-      ${ed ? `<div style="display:flex;align-items:center;gap:6px;margin-top:6px;flex-wrap:wrap">
-        <span style="font-size:9px;color:var(--muted)">COR:</span>
-        ${FCB_CORES.map(cr => `<span onclick="fcbCorCampo(${si},${ci},'${cr}')" style="width:16px;height:16px;border-radius:50%;background:${cr};cursor:pointer;display:inline-block;border:2px solid ${cr === cor ? '#fff' : 'transparent'}"></span>`).join('')}
-        <span style="font-size:9px;color:var(--muted);margin-left:6px">MÁX:</span>
-        <input type="number" min="1" max="20" value="${max}" style="width:56px;${s.inp.replace('width:100%','')};padding:3px 6px;font-size:11px" oninput="fcbMaxCampo(${si},${ci},this.value)">
+      ${ed ? `<div class="fcb-field-config">
+        <span class="fcb-config-label">COR:</span>
+        ${FCB_CORES.map(cr => `<span class="fcb-swatch${cr === cor ? ' active' : ''}" style="background:${cr}" onclick="fcbCorCampo(${si},${ci},'${cr}')"></span>`).join('')}
+        <span class="fcb-config-label fcb-config-label-gap">MÁX:</span>
+        <input type="number" min="1" max="20" class="fcb-input-mini" value="${max}" oninput="fcbMaxCampo(${si},${ci},this.value)">
       </div>` : ''}
       ${ferramentas}
     </div>`;
@@ -285,10 +304,10 @@ function _fcbRenderCampo(c, si, ci, ed, s) {
 
   // Checkbox
   if (c.tipo === 'check') {
-    return `<div style="flex:1 1 45%;min-width:190px;border:1px solid var(--border);border-radius:8px;padding:9px 11px;background:rgba(0,0,0,0.22)">
-      <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text);cursor:${ed ? 'default' : 'pointer'}">
-        <input type="checkbox" data-fcb="${c.id}" ${v ? 'checked' : ''} ${ed ? 'disabled' : ''} style="accent-color:var(--gold);width:16px;height:16px">
-        ${ed ? `<input style="${s.inpEd};flex:1;font-size:12px" value="${esc(c.label)}" oninput="fcbRenomearCampo(${si},${ci},this.value)">` : esc(c.label)}
+    return `<div class="fcb-field fcb-field-check">
+      <label class="fcb-check-label">
+        <input type="checkbox" data-fcb="${c.id}" ${v ? 'checked' : ''} ${ed ? 'disabled' : ''} class="fcb-checkbox">
+        ${ed ? `<input class="fcb-label-input" value="${esc(c.label)}" oninput="fcbRenomearCampo(${si},${ci},this.value)">` : esc(c.label)}
       </label>
       ${ferramentas}
     </div>`;
@@ -296,17 +315,17 @@ function _fcbRenderCampo(c, si, ci, ed, s) {
 
   // Texto longo
   if (c.tipo === 'area') {
-    return `<div style="flex:1 1 100%">
+    return `<div class="fcb-field fcb-field-area">
       ${label}
-      <textarea data-fcb="${c.id}" rows="4" ${ed ? 'disabled' : ''} style="${s.inp};resize:vertical">${esc(String(v ?? ''))}</textarea>
+      <textarea class="fcb-input fcb-textarea" data-fcb="${c.id}" rows="4" ${ed ? 'disabled' : ''}>${esc(String(v ?? ''))}</textarea>
       ${ferramentas}
     </div>`;
   }
 
   // Texto curto / número (padrão)
-  return `<div style="flex:1 1 30%;min-width:190px">
+  return `<div class="fcb-field fcb-field-text">
     ${label}
-    <input type="${c.tipo === 'numero' ? 'number' : 'text'}" data-fcb="${c.id}" ${ed ? 'disabled' : ''} value="${esc(String(v ?? ''))}" style="${s.inp}">
+    <input type="${c.tipo === 'numero' ? 'number' : 'text'}" class="fcb-input" data-fcb="${c.id}" ${ed ? 'disabled' : ''} value="${esc(String(v ?? ''))}">
     ${ferramentas}
   </div>`;
 }
