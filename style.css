@@ -1500,7 +1500,7 @@ h1,h2,h3 { letter-spacing: .04em; }
 }
 
 /* ══════════════════════════════════════════════════
-   SALA DE JOGO — grid fixo de 3 colunas (mockup 2a)
+   FLOATING PANELS
 ══════════════════════════════════════════════════ */
 .sala-topbar {
   display: flex;
@@ -1513,40 +1513,42 @@ h1,h2,h3 { letter-spacing: .04em; }
   flex-shrink: 0;
 }
 
-.sala-grid {
-  display: grid;
-  grid-template-columns: minmax(260px, 300px) minmax(280px, 320px) 1fr;
-  gap: 14px;
-  padding: 14px;
-  height: 100%;
-  min-height: 0;
-  overflow: auto;
-  background: radial-gradient(800px 500px at 70% 20%, rgba(143,122,232,.06), transparent 70%), #08080c;
-}
-.sala-col { display: flex; flex-direction: column; gap: 14px; min-height: 0; min-width: 0; }
-
-.sala-card {
+.floating-panel {
+  position: absolute;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 10px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  min-height: 220px;
+  box-shadow: 0 4px 24px rgba(0,0,0,.5);
+  min-width: 160px;
+  min-height: 80px;
 }
-.sala-card-fill { flex: 1; }
-.sala-card-header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 9px 12px; background: var(--surface2); border-bottom: 1px solid var(--border);
+
+.fp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 10px;
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+  cursor: grab;
+  user-select: none;
   flex-shrink: 0;
 }
-.sala-card-title {
-  display: flex; align-items: center; gap: 8px;
-  font-size: 10.5px; font-weight: 600; letter-spacing: .14em; color: var(--gold); text-transform: uppercase;
-}
-.sala-card-body { flex: 1; overflow: hidden; min-height: 0; position: relative; }
+.fp-header:active { cursor: grabbing; }
 
-/* Botões reaproveitados no modal de Bestiário/Imagens */
+.fp-title {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: var(--text);
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+.fp-header-btns { display: flex; gap: 4px; }
 .fp-btn {
   background: transparent;
   border: 1px solid var(--border);
@@ -1561,10 +1563,53 @@ h1,h2,h3 { letter-spacing: .04em; }
 .fp-btn:hover { border-color: var(--accent-border); color: var(--accent-text); }
 .fp-close:hover { background: var(--red); color: #fff; border-color: var(--red); }
 
-/* Telas menores que a largura ideal das 3 colunas: empilha e deixa rolar */
-@media (max-width: 1150px) and (min-width: 769px) {
-  .sala-grid { grid-template-columns: 1fr; }
-  .sala-card, .sala-card-fill { min-height: 320px; }
+.fp-body {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Handles de resize */
+.fp-resize-br {
+  position: absolute;
+  bottom: 0; right: 0;
+  width: 14px; height: 14px;
+  cursor: se-resize;
+  background: linear-gradient(135deg, transparent 50%, var(--border2) 50%);
+  border-radius: 0 0 9px 0;
+}
+.fp-resize-r {
+  position: absolute;
+  top: 36px; right: 0; bottom: 14px;
+  width: 5px;
+  cursor: e-resize;
+}
+.fp-resize-r:hover { background: rgba(192,57,43,.3); }
+.fp-resize-b {
+  position: absolute;
+  bottom: 0; left: 14px; right: 14px;
+  height: 5px;
+  cursor: s-resize;
+}
+.fp-resize-b:hover { background: rgba(192,57,43,.3); }
+
+/* Panel menu */
+#panel-menu { display: none; }
+#panel-menu.open { display: flex !important; flex-direction: column; }
+
+/* Mobile: painéis ocupam tela toda em pilha */
+@media (max-width: 768px) {
+  .floating-panel {
+    position: relative !important;
+    left: 0 !important; top: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 300px;
+    margin-bottom: 8px;
+    border-radius: 8px;
+  }
+  .fp-resize-br, .fp-resize-r, .fp-resize-b { display: none; }
+  .fp-header { cursor: default; }
 }
 
 /* ══════════════════════════════════════════════════
@@ -1714,9 +1759,7 @@ h1,h2,h3 { letter-spacing: .04em; }
   .mobile-tab-bar { display: none !important; }
 }
 
-/* Mobile: régua de ferramentas do mapa quebra linha, canvas tem altura mínima
-   (o resto do layout de painéis flutuantes foi substituído pelo .sala-grid
-   fixo — ver bloco "SALA DE JOGO — grid fixo de 3 colunas" mais acima) */
+/* Mobile: régua de ferramentas do mapa quebra linha, canvas tem altura mínima */
 @media (max-width: 768px) {
   .mapa-toolbar { flex-wrap:wrap; }
   #mapa-canvas { min-height: 260px; }
@@ -2492,11 +2535,13 @@ h1,h2,h3 { letter-spacing: .04em; }
   #page-ficha.tema-ouro .attr-grid, #page-ficha.tema-verde .attr-grid { grid-template-columns: repeat(3, 1fr); }
 }
 @media (max-width: 560px) {
-  #page-ficha.tema-ouro .attr-grid, #page-ficha.tema-verde .attr-grid { grid-template-columns: repeat(2, 1fr); gap: 6px; }
-  #page-ficha.tema-ouro .attr-inputs, #page-ficha.tema-verde .attr-inputs { width: 92px; height: 92px; }
-  #page-ficha.tema-ouro .attr-inputs::before { top: 13px; left: 13px; width: 65px; height: 65px; }
-  #page-ficha.tema-verde .attr-inputs::after { box-shadow: 54px 0 0 rgba(159,214,122,.5), 0 54px 0 rgba(159,214,122,.5), 54px 54px 0 rgba(159,214,122,.5); }
-  #page-ficha.tema-ouro .attr-val, #page-ficha.tema-verde .attr-val { font-size: 23px; }
+  /* mockup mobile (9a/10a): grid 3×2, medalhões menores — não 2 colunas */
+  #page-ficha.tema-ouro .attr-grid, #page-ficha.tema-verde .attr-grid { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  #page-ficha.tema-ouro .attr-inputs, #page-ficha.tema-verde .attr-inputs { width: 74px; height: 74px; }
+  #page-ficha.tema-ouro .attr-inputs::before { top: 11px; left: 11px; width: 52px; height: 52px; }
+  #page-ficha.tema-verde .attr-inputs::before { top: 6px; left: 6px; right: 6px; bottom: 6px; }
+  #page-ficha.tema-verde .attr-inputs::after { box-shadow: 44px 0 0 rgba(159,214,122,.5), 0 44px 0 rgba(159,214,122,.5), 44px 44px 0 rgba(159,214,122,.5); }
+  #page-ficha.tema-ouro .attr-val, #page-ficha.tema-verde .attr-val { font-size: 19px; }
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -2674,6 +2719,27 @@ h1,h2,h3 { letter-spacing: .04em; }
   #page-ficha.tema-ouro .recursos-wrap, #page-ficha.tema-verde .recursos-wrap,
   #page-ficha.tema-ouro .grid-pericias-vinculos, #page-ficha.tema-verde .grid-pericias-vinculos {
     grid-template-columns: 1fr;
+  }
+  /* Cabeçalho vira coluna centralizada (avatar em cima, nome embaixo) — mockup mobile 9a/10a */
+  #page-ficha.tema-ouro .ficha-id-row, #page-ficha.tema-verde .ficha-id-row {
+    flex-direction: column; align-items: center; text-align: center;
+  }
+  #page-ficha.tema-ouro .ficha-avatar-frame, #page-ficha.tema-verde .ficha-avatar-frame {
+    width: 74px; height: 74px;
+  }
+  #page-ficha.tema-ouro .ficha-id-fields, #page-ficha.tema-verde .ficha-id-fields {
+    align-items: center; width: 100%;
+  }
+  #page-ficha.tema-ouro .grid-3, #page-ficha.tema-verde .grid-3 { justify-items: center; }
+  #page-ficha.tema-ouro .ficha-nome-field input { font-size: 24px; text-align: center; }
+  #page-ficha.tema-verde .ficha-nome-field input { font-size: 21px; text-align: center; }
+  #page-ficha.tema-ouro .ficha-prof-field, #page-ficha.tema-ouro .ficha-jogador-field,
+  #page-ficha.tema-verde .ficha-prof-field, #page-ficha.tema-verde .ficha-jogador-field {
+    justify-content: center;
+  }
+  /* O mockup mobile não mostra a citação/trauma no cabeçalho compacto — ainda editável no tema Padrão */
+  #page-ficha.tema-ouro .ficha-trauma-field, #page-ficha.tema-verde .ficha-trauma-field {
+    display: none;
   }
 }
 

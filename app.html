@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=IM+Fell+English&family=Share+Tech+Mono&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=14">
+<link rel="stylesheet" href="style.css?v=15">
 </head>
 <body>
 
@@ -193,8 +193,13 @@
       <!-- Desktop topbar da sala -->
       <div class="sala-topbar">
         <div style="font-size:14px;font-weight:800;letter-spacing:1px;display:flex;align-items:center;gap:8px"><span data-fic="mapa" data-fic-size="16"></span>Sala de Jogo</div>
-        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap" id="sala-topbar-extra-btns">
-          <button class="btn-ghost" onclick="abrirGaleriaModal()" style="font-size:10px;padding:5px 10px">🖼️ Fotos</button>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;position:relative">
+          <button class="btn-ghost" onclick="togglePanelMenu()" style="font-size:10px;padding:5px 10px">🪟 Painéis</button>
+          <div id="panel-menu" style="display:none;position:absolute;top:calc(100% + 4px);right:0;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px;z-index:9999;min-width:210px;flex-direction:column;gap:4px;box-shadow:0 4px 20px rgba(0,0,0,.6)">
+            <div id="panel-menu-list"></div>
+            <hr style="border-color:var(--border);margin:4px 0">
+            <button class="btn-ghost" onclick="resetPanels()" style="font-size:10px;padding:4px 8px;color:var(--muted)">↺ Resetar posições</button>
+          </div>
         </div>
       </div>
       <!-- Conteúdo da sala (mobile abas / desktop painéis) -->
@@ -454,7 +459,7 @@
 <script src="fog.js?v=17"></script>
 <script src="combate.js?v=18"></script>
 <script src="npcs.js?v=17"></script>
-<script src="sala.js?v=23"></script>
+<script src="sala.js?v=24"></script>
 <script src="arquivos.js?v=25"></script>
 <script src="ficha_custom.js?v=28"></script>
 <script src="musica.js?v=26"></script>

@@ -55,17 +55,6 @@ function buildSalaDOM() {
   if (!root) return;
   root.innerHTML = '';
 
-  const extraBtns = document.getElementById('sala-topbar-extra-btns');
-  if (extraBtns && isMaster && !document.getElementById('btn-abrir-bestiario')) {
-    const btn = document.createElement('button');
-    btn.id = 'btn-abrir-bestiario';
-    btn.className = 'btn-ghost';
-    btn.style.cssText = 'font-size:10px;padding:5px 10px';
-    btn.textContent = '📖 Bestiário';
-    btn.onclick = abrirBestiarioModal;
-    extraBtns.insertBefore(btn, extraBtns.firstChild);
-  }
-
   if (window.innerWidth <= 768) {
     buildMobileDOM(root);
   } else {
@@ -171,86 +160,206 @@ function switchMobileTab(id) {
 }
 
 // ══════════════════════════════════════════════════
-//  DESKTOP DOM — grid fixo de 3 colunas (mockup 2a)
-//  col1 (chat+players) · col2 (tensão+dados+combate) · col3 (mapa, largo)
-//  Sem arrastar/redimensionar/minimizar — layout fixo, igual ao design.
-//  Bestiário/Imagens são recursos extras (não existem no design) — viram
-//  modais abertos pelos botões da topbar, em vez de ocupar uma 4ª coluna.
+//  DESKTOP DOM — painéis flutuantes (arrastar/redimensionar/minimizar)
 // ══════════════════════════════════════════════════
-const DESKTOP_CARDS = {
-  col1: [
-    { id: 'feed',    icon: 'chat',    label: 'Chat / Sala', fill: true },
-    { id: 'players', icon: 'players', label: 'Players', masterOnly: true },
-  ],
-  col2: [
-    { id: 'tensao',  icon: 'tensao',  label: 'Tensão' },
-    { id: 'dados',   icon: 'd20',     label: 'Dados' },
-    { id: 'tracker', icon: 'combate', label: 'Combat Tracker', fill: true },
-  ],
-  col3: [
-    { id: 'mapa',    icon: 'mapa',    label: 'Mapa', fill: true },
-  ],
-};
+// Posições padrão espelham as proporções do grid 3 colunas do design (2a):
+// col1 (chat+players) · col2 (tensão+dados+combate) · col3 (mapa, largo).
+// Bestiário/Imagens são painéis extras (não existem no design) — começam ocultos,
+// disponíveis pelo menu "Painéis" a qualquer momento.
+const DESKTOP_PANELS = [
+  { id:'feed',      icon:'chat',    label:'Chat / Sala',                     def:{ x:10,  y:10,  w:300, h:490 }, minW:200, minH:200 },
+  { id:'players',   icon:'players', label:'Players', masterOnly:true,        def:{ x:10,  y:512, w:300, h:250 }, minW:200, minH:160 },
+  { id:'tensao',    icon:'tensao',  label:'Tensão',                          def:{ x:322, y:10,  w:320, h:190 }, minW:220, minH:150 },
+  { id:'dados',     icon:'d20',     label:'Dados',                           def:{ x:322, y:212, w:320, h:300 }, minW:240, minH:220 },
+  { id:'tracker',   icon:'combate', label:'Combat Tracker',                  def:{ x:322, y:524, w:320, h:340 }, minW:240, minH:280 },
+  { id:'mapa',      icon:'mapa',    label:'Mapa',                            def:{ x:654, y:10,  w:760, h:680 }, minW:280, minH:280 },
+  { id:'bestiario', icon:'📖',      label:'Bestiário', masterOnly:true, defaultHidden:true, def:{ x:322, y:212, w:320, h:300 }, minW:200, minH:140 },
+  { id:'galeria',   icon:'🖼️',      label:'Imagens',   defaultHidden:true,   def:{ x:654, y:10,  w:400, h:280 }, minW:280, minH:200 },
+];
+
+let pStates = {};
+let zIdx = 30;
+let dragging = null, resizing = null;
 
 function buildDesktopDOM(root) {
-  root.className = 'sala-grid';
-  root.style.cssText = '';
+  root.style.cssText = 'position:relative;width:100%;height:calc(100vh - 56px - 52px);overflow:hidden;background:#03030a;';
+
+  // Remove existing panels to avoid duplicates
   root.innerHTML = '';
 
-  Object.values(DESKTOP_CARDS).forEach((cards, i) => {
-    const col = document.createElement('div');
-    col.className = 'sala-col sala-col-' + (i + 1);
-    cards.forEach(cfg => {
-      if (cfg.masterOnly && !isMaster) return;
-      col.appendChild(createSalaCard(cfg));
-    });
-    root.appendChild(col);
+  loadPStates();
+
+  DESKTOP_PANELS.forEach(p => {
+    if (p.masterOnly && !isMaster) return;
+    // Skip if already exists
+    if (document.getElementById('dpanel-'+p.id)) return;
+    createFPanel(p, root);
   });
 
-  _rmcListener ??= (window.addEventListener('resize', () => { if (typeof resizeMapCanvas === 'function') resizeMapCanvas(); }), true);
+  updateDesktopPanelMenu();
 }
 
-function createSalaCard(cfg) {
+function createFPanel(cfg, root) {
+  const saved = pStates[cfg.id] || {};
+  const d = cfg.def;
+  const x = saved.x ?? d.x, y = saved.y ?? d.y;
+  const w = saved.w ?? d.w, h = saved.h ?? d.h;
+  const hidden = saved.hidden ?? cfg.defaultHidden ?? false;
+
   const el = document.createElement('div');
-  el.id = 'dpanel-' + cfg.id;
-  el.className = 'sala-card' + (cfg.fill ? ' sala-card-fill' : '');
+  el.id = 'dpanel-'+cfg.id;
+  el.style.cssText = `
+    position:absolute;left:${x}px;top:${y}px;width:${w}px;height:${h}px;
+    z-index:${zIdx++};display:${hidden?'none':'flex'};flex-direction:column;
+    background:var(--surface);border:1px solid var(--border);border-radius:10px;
+    overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.6);min-width:${cfg.minW}px;min-height:${cfg.minH}px;
+  `;
 
   const hdr = document.createElement('div');
-  hdr.className = 'sala-card-header';
-  hdr.innerHTML = `<span class="sala-card-title">${fracIconOr(cfg.icon, cfg.icon, { size: 13 })}${cfg.label}</span>`;
+  hdr.style.cssText = `
+    display:flex;align-items:center;justify-content:space-between;
+    padding:7px 10px;background:var(--surface2);border-bottom:1px solid var(--border);
+    cursor:grab;user-select:none;flex-shrink:0;
+  `;
+  hdr.innerHTML = `
+    <span style="display:flex;align-items:center;gap:6px;font-size:10px;font-weight:700;letter-spacing:1.5px;color:var(--text);text-transform:uppercase;pointer-events:none">${fracIconOr(cfg.icon, cfg.icon, { size: 13 })}${cfg.label}</span>
+    <div style="display:flex;gap:4px">
+      <button onclick="minPanel('${cfg.id}')" style="background:transparent;border:1px solid var(--border);border-radius:4px;color:var(--muted);cursor:pointer;font-size:11px;width:22px;height:22px;display:flex;align-items:center;justify-content:center" title="Minimizar">─</button>
+      <button onclick="hidePanel('${cfg.id}')" style="background:transparent;border:1px solid var(--border);border-radius:4px;color:var(--muted);cursor:pointer;font-size:11px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;transition:all .12s" title="Fechar" onmouseover="this.style.background='var(--red)';this.style.color='#fff'" onmouseout="this.style.background='transparent';this.style.color='var(--muted)'">✕</button>
+    </div>
+  `;
+  hdr.addEventListener('mousedown', e => { if(!e.target.closest('button')) startDrag(e, cfg.id, el); });
 
   const body = document.createElement('div');
-  body.id = 'fp-body-' + cfg.id;
-  body.className = 'sala-card-body';
+  body.id = 'fp-body-'+cfg.id;
+  body.style.cssText = 'flex:1;overflow:hidden;min-height:0;position:relative;';
+
+  // Resize handles
+  const rbr = document.createElement('div');
+  rbr.style.cssText = 'position:absolute;bottom:0;right:0;width:14px;height:14px;cursor:se-resize;background:linear-gradient(135deg,transparent 50%,var(--border2) 50%);border-radius:0 0 9px 0;z-index:1;';
+  rbr.addEventListener('mousedown', e => startResize(e, cfg.id, el, 'br'));
+
+  const rr = document.createElement('div');
+  rr.style.cssText = 'position:absolute;top:36px;right:0;bottom:14px;width:5px;cursor:e-resize;z-index:1;';
+  rr.addEventListener('mousedown', e => startResize(e, cfg.id, el, 'r'));
+  rr.addEventListener('mouseenter', () => rr.style.background='rgba(192,57,43,.3)');
+  rr.addEventListener('mouseleave', () => rr.style.background='transparent');
+
+  const rb = document.createElement('div');
+  rb.style.cssText = 'position:absolute;bottom:0;left:14px;right:14px;height:5px;cursor:s-resize;z-index:1;';
+  rb.addEventListener('mousedown', e => startResize(e, cfg.id, el, 'b'));
+  rb.addEventListener('mouseenter', () => rb.style.background='rgba(192,57,43,.3)');
+  rb.addEventListener('mouseleave', () => rb.style.background='transparent');
 
   el.appendChild(hdr);
   el.appendChild(body);
-  buildPanelContent(cfg.id, body);
-  return el;
-}
-let _rmcListener;
+  el.appendChild(rbr); el.appendChild(rr); el.appendChild(rb);
+  el.addEventListener('mousedown', () => { zIdx++; el.style.zIndex=zIdx; });
 
-// ── Bestiário / Imagens — modais (recursos extras, fora do grid fixo) ──
-function abrirModalExtra(id, label, buildFn) {
-  document.getElementById('modal-extra-' + id)?.remove();
-  const overlay = document.createElement('div');
-  overlay.id = 'modal-extra-' + id;
-  overlay.className = 'modal-overlay';
-  overlay.style.cssText = 'display:flex;align-items:center;justify-content:center;';
-  overlay.innerHTML = `
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;width:100%;max-width:640px;height:min(640px,80vh);margin:16px;display:flex;flex-direction:column;overflow:hidden">
-      <div class="sala-card-header">
-        <span class="sala-card-title">${label}</span>
-        <button class="fp-btn fp-close" onclick="this.closest('.modal-overlay').remove()" title="Fechar">✕</button>
-      </div>
-      <div class="sala-card-body" style="flex:1"></div>
-    </div>`;
-  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
-  document.body.appendChild(overlay);
-  buildFn(overlay.querySelector('.sala-card-body'));
+  root.appendChild(el);
+  if (!pStates[cfg.id]) pStates[cfg.id] = {x,y,w,h};
+  buildPanelContent(cfg.id, body);
 }
-function abrirBestiarioModal() { if (isMaster) abrirModalExtra('bestiario', 'Bestiário', buildBestiarioPanel); }
-function abrirGaleriaModal() { abrirModalExtra('galeria', 'Imagens da Sessão', buildGaleriaPanel); }
+
+function minPanel(id) {
+  const el=document.getElementById('dpanel-'+id);
+  const body=document.getElementById('fp-body-'+id);
+  if(!el||!body) return;
+  const min=body.style.display==='none';
+  body.style.display=min?'':'none';
+  if(!min){pStates[id]=pStates[id]||{};pStates[id].savedH=el.offsetHeight;el.style.height='36px';}
+  else{el.style.height=(pStates[id]?.savedH||300)+'px';}
+  if(id==='mapa'&&min) setTimeout(()=>{resizeMapCanvas();desenharMapa();},50);
+}
+
+function hidePanel(id) {
+  const el=document.getElementById('dpanel-'+id); if(!el) return;
+  el.style.display='none';
+  if(!pStates[id]) pStates[id]={};
+  pStates[id].hidden=true;
+  savePStates(); updateDesktopPanelMenu();
+}
+
+function showPanel(id) {
+  const el=document.getElementById('dpanel-'+id); if(!el) return;
+  el.style.display='flex';
+  if(!pStates[id]) pStates[id]={};
+  pStates[id].hidden=false;
+  savePStates(); updateDesktopPanelMenu();
+  zIdx++; el.style.zIndex=zIdx;
+  if(id==='mapa') setTimeout(()=>{resizeMapCanvas();desenharMapa();},60);
+  if(id==='tracker') renderCT();
+  if(id==='bestiario') renderBestiarioCT();
+  if(id==='players') renderPlayersParaCT();
+}
+
+function updateDesktopPanelMenu() {
+  const menu=document.getElementById('panel-menu-list'); if(!menu) return;
+  menu.innerHTML='';
+  DESKTOP_PANELS.forEach(p => {
+    if(p.masterOnly&&!isMaster) return;
+    const hidden=pStates[p.id]?.hidden ?? p.defaultHidden ?? false;
+    const btn=document.createElement('button');
+    btn.className='btn-ghost';
+    btn.style.cssText=`font-size:11px;padding:6px 12px;text-align:left;width:100%;opacity:${hidden?.6:1};`;
+    btn.textContent=(hidden?'+ ':'✓ ')+p.label;
+    btn.onclick=()=>{ hidden?showPanel(p.id):hidePanel(p.id); updateDesktopPanelMenu(); };
+    menu.appendChild(btn);
+  });
+}
+
+// Drag
+function startDrag(e,id,el){
+  e.preventDefault();
+  const rect=el.getBoundingClientRect();
+  const cr=el.parentElement.getBoundingClientRect();
+  dragging={id,el,ox:e.clientX-rect.left,oy:e.clientY-rect.top,cr};
+  document.addEventListener('mousemove',onDrag);
+  document.addEventListener('mouseup',stopDrag);
+}
+function onDrag(e){
+  if(!dragging) return;
+  const {el,ox,oy,cr,id}=dragging;
+  const x=Math.max(0,e.clientX-cr.left-ox);
+  const y=Math.max(0,e.clientY-cr.top-oy);
+  el.style.left=x+'px';el.style.top=y+'px';
+  if(!pStates[id])pStates[id]={};
+  pStates[id].x=x;pStates[id].y=y;
+}
+function stopDrag(){dragging=null;document.removeEventListener('mousemove',onDrag);document.removeEventListener('mouseup',stopDrag);savePStates();}
+
+// Resize
+function startResize(e,id,el,dir){
+  e.preventDefault();e.stopPropagation();
+  const rect=el.getBoundingClientRect();
+  resizing={id,el,dir,sx:e.clientX,sy:e.clientY,sw:rect.width,sh:rect.height};
+  document.addEventListener('mousemove',onResize);document.addEventListener('mouseup',stopResize);
+}
+function onResize(e){
+  if(!resizing) return;
+  const{id,el,dir,sx,sy,sw,sh}=resizing;
+  const cfg=DESKTOP_PANELS.find(p=>p.id===id);
+  if(dir==='br'||dir==='r'){const w=Math.max(cfg?.minW||200,sw+(e.clientX-sx));el.style.width=w+'px';if(!pStates[id])pStates[id]={};pStates[id].w=w;}
+  if(dir==='br'||dir==='b'){const h=Math.max(cfg?.minH||150,sh+(e.clientY-sy));el.style.height=h+'px';if(!pStates[id])pStates[id]={};pStates[id].h=h;}
+  if(id==='mapa')resizeMapCanvas();
+}
+function stopResize(){resizing=null;document.removeEventListener('mousemove',onResize);document.removeEventListener('mouseup',stopResize);savePStates();resizeMapCanvas();}
+
+function resetPanels(){
+  if(!confirm('Resetar posições?')) return;
+  localStorage.removeItem('fractured_panels');
+  pStates={};
+  salaIniciada=false;
+  _salaSubAtiva=false;  // allow re-subscribe
+  document.querySelectorAll('.floating-panel').forEach(el=>el.remove());
+  buildDesktopDOM(document.getElementById('sala-root'));
+  toast('Layout resetado!','ok');
+}
+
+function savePStates(){try{localStorage.setItem('fractured_panels',JSON.stringify(pStates));}catch(e){}}
+function loadPStates(){try{const s=localStorage.getItem('fractured_panels');if(s)pStates=JSON.parse(s);}catch(e){}}
+
+// resizeMapCanvas is defined in mapa.js
 
 // ══════════════════════════════════════════════════
 //  PANEL CONTENT — compartilhado mobile/desktop
@@ -528,6 +637,21 @@ function buildBestiarioPanel(c) {
     </div>`;
   setTimeout(()=>renderBestiarioCT(),50);
 }
+
+// ── PANEL MENU (desktop) ──────────────────────────
+let panelMenuOpen = false;
+function togglePanelMenu() {
+  panelMenuOpen = !panelMenuOpen;
+  const m = document.getElementById('panel-menu');
+  if (m) { m.style.display = panelMenuOpen ? 'flex' : 'none'; updateDesktopPanelMenu(); }
+}
+document.addEventListener('click', e => {
+  if (panelMenuOpen && !e.target.closest('#panel-menu') && !e.target.closest('[onclick*="togglePanelMenu"]')) {
+    panelMenuOpen = false;
+    const m = document.getElementById('panel-menu');
+    if (m) m.style.display = 'none';
+  }
+});
 
 // ══════════════════════════════════════════════════
 //  GALERIA DE IMAGENS
