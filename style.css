@@ -2623,6 +2623,216 @@ h1,h2,h3 { letter-spacing: .04em; }
 }
 
 /* ══════════════════════════════════════════════════════════
+   TEMA DOURADA — ficha ornamentada ("o ápice", mockup 9a)
+   ══════════════════════════════════════════════════════════ */
+#page-ficha.tema-ouro .section-card-title::after {
+  content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, #8a7433, transparent);
+}
+#page-ficha.tema-ouro .ficha-avatar-frame { width: 104px; height: 104px; }
+#page-ficha.tema-ouro .ficha-avatar-shape {
+  display: block; position: absolute; inset: 0; transform: rotate(45deg);
+  border: 2px solid #d9b45b; border-radius: 14px;
+  background: linear-gradient(135deg,#1d1930,#0d0d13);
+  box-shadow: 0 0 30px rgba(217,180,91,.22), inset 0 0 20px rgba(143,122,232,.15);
+}
+#page-ficha.tema-ouro .ficha-avatar-inner { background: transparent; border: none; position: absolute; inset: 12px; color: #a78bfa; font-size: 40px; }
+#page-ficha.tema-ouro .ficha-avatar-hint { display: none; }
+#page-ficha.tema-ouro .ficha-id-fields { gap: 6px; }
+#page-ficha.tema-ouro .grid-3 { grid-template-columns: 1fr; gap: 4px; }
+#page-ficha.tema-ouro .ficha-nome-field label,
+#page-ficha.tema-ouro .ficha-prof-field label,
+#page-ficha.tema-ouro .ficha-jogador-field label,
+#page-ficha.tema-ouro .ficha-trauma-field label { display: none; }
+#page-ficha.tema-ouro .ficha-nome-field input {
+  background: transparent; border: none; padding: 0; outline: none;
+  font: 700 32px Cinzel, Georgia, serif; letter-spacing: .04em;
+  background-image: linear-gradient(180deg,#f2dfa8,#d9b45b 55%,#a8823a);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+#page-ficha.tema-ouro .ficha-prof-field,
+#page-ficha.tema-ouro .ficha-jogador-field { display: inline-flex; width: auto; }
+#page-ficha.tema-ouro .ficha-prof-field input,
+#page-ficha.tema-ouro .ficha-jogador-field select,
+#page-ficha.tema-ouro .ficha-jogador-field input {
+  background: transparent; border: none; padding: 0; outline: none;
+  font-size: 11px; letter-spacing: .2em; text-transform: uppercase; width: auto;
+}
+#page-ficha.tema-ouro .ficha-prof-field select { color: #a78bfa; background: transparent; border: none; padding: 0; font-size: 11px; letter-spacing: .2em; text-transform: uppercase; }
+#page-ficha.tema-ouro .ficha-jogador-field input { color: #8b8a99; }
+#page-ficha.tema-ouro .ficha-trauma-field label { display: none; }
+#page-ficha.tema-ouro .ficha-trauma-field { position: relative; }
+#page-ficha.tema-ouro .ficha-trauma-field::before { content: '"'; position: absolute; left: -2px; top: -6px; font: 700 20px Georgia, serif; color: #4a3d85; }
+#page-ficha.tema-ouro .ficha-trauma-field input {
+  background: transparent; border: none; padding: 0 0 0 16px; outline: none;
+  font-size: 12.5px; font-style: italic; color: #8b8a99;
+}
+#page-ficha.tema-ouro .recurso-pip-block { display: none; }
+#page-ficha.tema-ouro .recurso-gauge { display: flex; flex-direction: column; gap: 10px; border: 1px solid #26262e; border-radius: 12px; padding: 16px 18px; background: linear-gradient(180deg,#101016,#0b0b10); }
+#page-ficha.tema-ouro .recurso-gauge-label { font: 600 10.5px Inter, sans-serif; letter-spacing: .18em; color: #c9bdfa; }
+#page-ficha.tema-ouro .recurso-gauge-val { font: 700 17px Cinzel, Georgia, serif; color: #e9e8ee; }
+#page-ficha.tema-ouro .recurso-gauge-caption { font-size: 9.5px; color: #6d6c7a; letter-spacing: .08em; }
+#page-ficha.tema-ouro .recursos-wrap { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+#page-ficha.tema-ouro #gauge-pv-fill { background: linear-gradient(90deg,#7c66d6,#a78bfa); box-shadow: 0 0 12px rgba(167,139,250,.5); }
+#page-ficha.tema-ouro #gauge-sup-fill { background: linear-gradient(90deg,#c3993f,#e0bd63); box-shadow: 0 0 12px rgba(217,180,91,.4); }
+#page-ficha.tema-ouro #gauge-hum-fill { background: linear-gradient(90deg,#5d4fa0,#8f7ae8); box-shadow: 0 0 12px rgba(143,122,232,.5); }
+#page-ficha.tema-ouro .grid-recursos-tensao { grid-template-columns: 1fr; gap: 18px; }
+#page-ficha.tema-ouro .tensao-legend { display: none; }
+#page-ficha.tema-ouro .tensao-endlabel { display: block; font: 700 12px Cinzel, Georgia, serif; }
+#page-ficha.tema-ouro .tensao-endlabel-start { color: #c9bdfa; }
+#page-ficha.tema-ouro .tensao-endlabel-end { color: #b8404a; }
+#page-ficha.tema-ouro .grid-pericias-vinculos { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+#page-ficha.tema-ouro #section-veiculo,
+#page-ficha.tema-ouro #section-notas { display: none; }
+#page-ficha.tema-ouro #section-inventario { order: 4; }
+#page-ficha.tema-ouro .inv-item-card { border-color: #26262e; background: #0d0d13; }
+#page-ficha.tema-ouro .inv-item-icon { border-color: #4a3d85; background: rgba(143,122,232,.06); color: #a78bfa; }
+#page-ficha.tema-ouro .inv-add-btn { border-color: #4a3d85; color: #c9bdfa; }
+#page-ficha.tema-ouro .ficha-footer-seal { display: flex; align-items: center; gap: 14px; padding-top: 4px; color: #8a7433; }
+#page-ficha.tema-ouro .ficha-footer-line { flex: 1; height: 1px; background: linear-gradient(90deg, transparent, #26262e); }
+#page-ficha.tema-ouro .ficha-footer-line + .ficha-footer-icon + .ficha-footer-line { background: linear-gradient(90deg, #26262e, transparent); }
+
+/* ══════════════════════════════════════════════════════════
+   TEMA VERDE — ficha pós-apocalíptica The Last of Us (mockup 10a)
+   ══════════════════════════════════════════════════════════ */
+#page-ficha.tema-verde .section-card-title::after {
+  content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, #3a4a2c, transparent);
+}
+#page-ficha.tema-verde .ficha-avatar-frame { width: 104px; height: 104px; }
+#page-ficha.tema-verde .ficha-avatar-shape {
+  display: block; position: absolute; inset: 0; transform: rotate(-2deg);
+  border: 2px solid #7a9e5a; border-radius: 10px;
+  background: linear-gradient(135deg,#1a2214,#0e120a);
+  box-shadow: 0 0 26px rgba(122,158,90,.2), inset 0 0 18px rgba(122,158,90,.1);
+}
+#page-ficha.tema-verde .ficha-avatar-shape::after {
+  content: 'SOBREVIVENTE'; position: absolute; bottom: -9px; right: -14px;
+  background: #c9703d; color: #160d06; font: 700 8px 'Share Tech Mono', monospace;
+  letter-spacing: .1em; padding: 3px 7px; border-radius: 3px; transform: rotate(-4deg);
+  box-shadow: 0 3px 8px rgba(0,0,0,.5);
+}
+#page-ficha.tema-verde .ficha-avatar-inner { background: transparent; border: none; position: absolute; inset: 12px; color: #a8c97a; font-size: 36px; }
+#page-ficha.tema-verde .ficha-avatar-hint { display: none; }
+#page-ficha.tema-verde .ficha-id-fields { gap: 6px; }
+#page-ficha.tema-verde .grid-3 { grid-template-columns: 1fr; gap: 4px; }
+#page-ficha.tema-verde .ficha-nome-field label,
+#page-ficha.tema-verde .ficha-prof-field label,
+#page-ficha.tema-verde .ficha-jogador-field label,
+#page-ficha.tema-verde .ficha-trauma-field label { display: none; }
+#page-ficha.tema-verde .ficha-nome-field input {
+  background: transparent; border: none; padding: 0; outline: none;
+  font: 700 30px 'Share Tech Mono', monospace; letter-spacing: .08em;
+  color: #e8eeda; text-shadow: 0 0 20px rgba(168,201,122,.25);
+}
+#page-ficha.tema-verde .ficha-prof-field,
+#page-ficha.tema-verde .ficha-jogador-field { display: inline-flex; width: auto; }
+#page-ficha.tema-verde .ficha-prof-field select,
+#page-ficha.tema-verde .ficha-jogador-field input {
+  background: transparent; border: none; padding: 0; outline: none;
+  font: 11px 'Share Tech Mono', monospace; letter-spacing: .16em; text-transform: uppercase; width: auto;
+}
+#page-ficha.tema-verde .ficha-prof-field select { color: #a8c97a; }
+#page-ficha.tema-verde .ficha-jogador-field input { color: #8a9478; }
+#page-ficha.tema-verde .ficha-trauma-field { position: relative; }
+#page-ficha.tema-verde .ficha-trauma-field::before { content: '"'; position: absolute; left: -2px; top: -6px; font: 700 18px Georgia, serif; color: #3a4a2c; }
+#page-ficha.tema-verde .ficha-trauma-field input {
+  background: transparent; border: none; padding: 0 0 0 16px; outline: none;
+  font: italic 12.5px 'Share Tech Mono', monospace; color: #8a9478;
+}
+#page-ficha.tema-verde .recurso-pip-block { display: none; }
+#page-ficha.tema-verde .recurso-gauge { display: flex; flex-direction: column; gap: 10px; border: 1px solid #232b1c; border-radius: 10px; padding: 16px 18px; background: linear-gradient(180deg,#121710,#0c0f09); }
+#page-ficha.tema-verde .recurso-gauge-label { font: 600 10.5px 'Share Tech Mono', monospace; letter-spacing: .18em; color: #a8c97a; }
+#page-ficha.tema-verde .recurso-gauge-val { font: 700 17px 'Share Tech Mono', monospace; color: #e8eeda; }
+#page-ficha.tema-verde .recurso-gauge-caption { font: 9.5px 'Share Tech Mono', monospace; color: #5d6650; letter-spacing: .08em; }
+#page-ficha.tema-verde .recursos-wrap { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+#page-ficha.tema-verde #gauge-pv-fill { background: linear-gradient(90deg,#5d7a42,#a8c97a); box-shadow: 0 0 12px rgba(168,201,122,.4); }
+#page-ficha.tema-verde #gauge-sup-fill { background: linear-gradient(90deg,#8a4a28,#c9703d); box-shadow: 0 0 12px rgba(201,112,61,.4); }
+#page-ficha.tema-verde #gauge-hum-fill { background: linear-gradient(90deg,#42604a,#7ab88a); box-shadow: 0 0 12px rgba(122,184,138,.4); }
+#page-ficha.tema-verde .grid-recursos-tensao { grid-template-columns: 1fr; gap: 18px; }
+#page-ficha.tema-verde .tensao-legend { display: none; }
+#page-ficha.tema-verde .tensao-endlabel { display: block; font: 700 12px 'Share Tech Mono', monospace; }
+#page-ficha.tema-verde .tensao-endlabel-start { color: #a8c97a; }
+#page-ficha.tema-verde .tensao-endlabel-end { color: #c9703d; }
+#page-ficha.tema-verde .tpip.on {
+  background: radial-gradient(circle at 35% 35%, #c9e89a, #7a9e5a);
+  box-shadow: 0 0 10px rgba(168,201,122,.6); border-color: #c9e89a;
+}
+#page-ficha.tema-verde .grid-pericias-vinculos { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+#page-ficha.tema-verde #section-veiculo,
+#page-ficha.tema-verde #section-notas { display: none; }
+#page-ficha.tema-verde #section-inventario { order: 4; }
+#page-ficha.tema-verde .inv-item-card { border-color: #232b1c; background: #0e120a; }
+#page-ficha.tema-verde .inv-item-icon { border-color: #3a4a2c; background: rgba(122,158,90,.06); color: #a8c97a; }
+#page-ficha.tema-verde .inv-add-btn { border-color: #3a4a2c; color: #a8c97a; }
+#page-ficha.tema-verde .ficha-footer-seal { display: flex; align-items: center; gap: 14px; padding-top: 4px; color: #5d7a42; }
+#page-ficha.tema-verde .ficha-footer-line { flex: 1; height: 1px; background: linear-gradient(90deg, transparent, #232b1c); }
+#page-ficha.tema-verde .ficha-footer-line + .ficha-footer-icon + .ficha-footer-line { background: linear-gradient(90deg, #232b1c, transparent); }
+
+@media (max-width: 700px) {
+  #page-ficha.tema-ouro .recursos-wrap, #page-ficha.tema-verde .recursos-wrap,
+  #page-ficha.tema-ouro .grid-pericias-vinculos, #page-ficha.tema-verde .grid-pericias-vinculos {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════
+   FICHA PADRÃO — estrutura compartilhada entre temas
+   (avatar, recursos em 2 formatos, tensão com rótulos,
+   perícias+vínculos lado a lado, rodapé selo)
+   ══════════════════════════════════════════════════════════ */
+#page-ficha { display: flex; flex-direction: column; }
+
+/* Ordem-base (igual à ordem no DOM) — existe pra que os temas dourada/verde
+   possam reordenar só o Inventário via `order` sem depender de mover nós no DOM.
+   Não usar `style="order"` inline nesses elementos: inline sempre vence a
+   cascata e quebraria o override de tema abaixo. */
+#section-identidade        { order: 1; }
+#section-atributos         { order: 2; }
+#section-recursos-tensao   { order: 3; }
+#section-pericias-vinculos { order: 5; }
+#section-veiculo           { order: 6; }
+#section-inventario        { order: 7; }
+#section-notas             { order: 8; }
+
+.ficha-id-row { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+.ficha-avatar-frame { display: flex; flex-direction: column; align-items: center; gap: 6px; flex-shrink: 0; position: relative; }
+.ficha-avatar-shape { display: none; }
+.ficha-avatar-inner {
+  width: 76px; height: 76px; border-radius: 50%;
+  background: var(--surface2); border: 2px solid var(--border);
+  overflow: hidden; display: flex; align-items: center; justify-content: center;
+  font-size: 28px; cursor: pointer; flex-shrink: 0; position: relative; z-index: 1;
+}
+.ficha-avatar-hint { font-size: 8px; color: var(--muted); text-align: center; }
+.ficha-id-fields { flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 180px; }
+
+.recursos-wrap { display: flex; flex-direction: column; }
+.recurso-gauge { display: none; }
+.recurso-gauge-head { display: flex; justify-content: space-between; align-items: center; }
+.recurso-gauge-head > span:first-child { display: flex; gap: 8px; align-items: center; }
+.recurso-gauge-track { height: 11px; border-radius: 6px; background: var(--surface2); border: 1px solid var(--border); position: relative; overflow: hidden; }
+.recurso-gauge-fill { position: absolute; left: 0; top: 0; bottom: 0; transition: width .25s; }
+
+.tensao-endlabel { display: none; }
+.tensao-row { display: flex; align-items: center; gap: 10px; }
+.tensao-row .tensao-pips { flex: 1; }
+
+.grid-pericias-vinculos { display: flex; flex-direction: column; }
+
+.ficha-footer-seal { display: none; }
+
+/* ── inventário: lista dinâmica de itens (clique pra adicionar) ── */
+.inv-item-card { display: flex; gap: 10px; align-items: center; border: 1px solid var(--border); border-radius: 9px; padding: 10px 12px; background: var(--surface2); }
+.inv-item-icon { width: 32px; height: 32px; flex: none; border: 1px solid var(--border2); border-radius: 7px; display: grid; place-items: center; }
+.inv-item-name { font-size: 12px; font-weight: 500; background: transparent; border: none; color: var(--text); width: 100%; outline: none; }
+.inv-item-sub { font-size: 9.5px; color: var(--muted); background: transparent; border: none; width: 100%; outline: none; }
+.inv-item-fields { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.inv-remove-btn { background: transparent; border: none; color: var(--muted); cursor: pointer; font-size: 12px; padding: 4px 6px; flex-shrink: 0; }
+.inv-remove-btn:hover { color: var(--red); }
+.inv-add-btn { border: 1px dashed var(--border2); border-radius: 9px; padding: 10px; text-align: center; font-size: 10px; letter-spacing: .12em; color: var(--muted); cursor: pointer; margin-top: 8px; transition: all .12s; }
+.inv-add-btn:hover { color: var(--gold-text); border-color: var(--gold-dim); }
+.inv-items-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+
+/* ══════════════════════════════════════════════════════════
    FICHA CUSTOMIZÁVEL — motor de temas (fcb-*)
    Escopado em #fcb-container. Cores de barra/marcador são
    escolhidas pelo mestre (campo.cor) e não mudam com o tema —

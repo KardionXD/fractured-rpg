@@ -69,6 +69,7 @@ async function init() {
   buildTensaoPips('tensao-pips-ficha', tensaoFicha, true);
   buildPericias();
   buildVinculos();
+  buildInventario();
 
   await carregarFicha();
   await carregarNotas();
@@ -172,12 +173,27 @@ function onAttrInput(id) {
   if (id === 'res') {
     pvMax = Math.max((parseInt(val) || 0) * 4, 4);
     document.getElementById('pv-formula').textContent = `RES (${val || 0}) × 4 = máx ${pvMax}`;
-    buildPips('pip-pv', pvMax, pvAtual, 'red', onPVClick, 'pip-pv-val');
+    buildPips('pip-pv', pvMax, pvAtual, 'roxo', onPVClick, 'pip-pv-val');
   }
   autoSave();
 }
 
 // ── PIPS ─────────────────────────────────────────
+// Cada recurso tem 2 representações no DOM (pips e gauge-barra) — os temas
+// dourada/verde mostram a barra (mockup 9a/10a), o padrão mostra os pips.
+// As duas ficam sempre sincronizadas aqui, então não importa qual tema
+// está ativo no momento em que o valor muda.
+function _syncGauge(tipo, atual, total) {
+  const valEl = document.getElementById(`gauge-${tipo}-val`);
+  const fillEl = document.getElementById(`gauge-${tipo}-fill`);
+  if (valEl) valEl.textContent = `${atual}/${total}`;
+  if (fillEl) fillEl.style.width = total > 0 ? `${Math.max(0, Math.min(100, (atual / total) * 100))}%` : '0%';
+  if (tipo === 'sup') {
+    const capEl = document.getElementById('gauge-sup-caption');
+    if (capEl) capEl.textContent = total > 0 && atual <= total * 0.3 ? '⚠ Escasso' : 'Suprimentos';
+  }
+}
+
 function buildPips(containerId, total, active, color, onClick, valId) {
   const c = document.getElementById(containerId);
   if (!c) return;
@@ -189,6 +205,7 @@ function buildPips(containerId, total, active, color, onClick, valId) {
     c.appendChild(pip);
   }
   if (valId) document.getElementById(valId).textContent = `${active}/${total}`;
+  _syncGauge(containerId.replace('pip-', ''), active, total);
 }
 
 function onPVClick(i, cid, total, valId) {
@@ -197,6 +214,7 @@ function onPVClick(i, cid, total, valId) {
   pvAtual = (i + 1 === cur) ? i : i + 1;
   pips.forEach((p, j) => p.classList.toggle('on', j < pvAtual));
   document.getElementById(valId).textContent = `${pvAtual}/${total}`;
+  _syncGauge('pv', pvAtual, total);
   autoSave();
 }
 
@@ -206,6 +224,7 @@ function onSupClick(i, cid, total, valId) {
   supAtual = (i + 1 === cur) ? i : i + 1;
   pips.forEach((p, j) => p.classList.toggle('on', j < supAtual));
   document.getElementById(valId).textContent = `${supAtual}/${total}`;
+  _syncGauge('sup', supAtual, total);
   autoSave();
 }
 
@@ -215,6 +234,7 @@ function onHumClick(i, cid, total, valId) {
   humAtual = (i + 1 === cur) ? i : i + 1;
   pips.forEach((p, j) => p.classList.toggle('on', j < humAtual));
   document.getElementById(valId).textContent = `${humAtual}/${total}`;
+  _syncGauge('hum', humAtual, total);
   autoSave();
 }
 
@@ -369,6 +389,63 @@ function removerVinculo(i) {
   autoSave();
 }
 
+// ── INVENTÁRIO (lista dinâmica — clique pra adicionar/remover) ──
+let itensCount = 1;
+
+function _coletarItensDoDOM() {
+  const arr = [];
+  for (let i = 0; i < itensCount; i++) {
+    arr.push({
+      nome:    document.getElementById(`inv-nome-${i}`)?.value || '',
+      detalhe: document.getElementById(`inv-detalhe-${i}`)?.value || ''
+    });
+  }
+  return arr;
+}
+
+function buildInventario(dados) {
+  const existentes = dados && dados.length ? dados : _coletarItensDoDOM();
+  itensCount = Math.max(1, existentes.length);
+
+  const list = document.getElementById('inventario-list');
+  if (!list) return;
+  list.innerHTML = '<div class="inv-items-grid" id="inv-items-grid"></div>';
+  const grid = document.getElementById('inv-items-grid');
+  for (let i = 0; i < itensCount; i++) {
+    const it = existentes[i] || {};
+    const card = document.createElement('div');
+    card.className = 'inv-item-card';
+    card.innerHTML = `
+      <span class="inv-item-icon">${fracIcon('item', { size: 16 })}</span>
+      <div class="inv-item-fields">
+        <input type="text" class="inv-item-name" id="inv-nome-${i}" placeholder="Nome do item..." value="${esc(it.nome || '')}" oninput="autoSave()">
+        <input type="text" class="inv-item-sub" id="inv-detalhe-${i}" placeholder="detalhe (opcional)" value="${esc(it.detalhe || '')}" oninput="autoSave()">
+      </div>
+      ${itensCount > 1 ? `<button type="button" class="inv-remove-btn" onclick="removerItem(${i})" title="Remover item">🗑</button>` : ''}
+    `;
+    grid.appendChild(card);
+  }
+  const addBtn = document.createElement('div');
+  addBtn.className = 'inv-add-btn';
+  addBtn.textContent = '+ Adicionar Item';
+  addBtn.onclick = adicionarItem;
+  list.appendChild(addBtn);
+}
+
+function adicionarItem() {
+  const arr = _coletarItensDoDOM();
+  arr.push({});
+  buildInventario(arr);
+  autoSave();
+}
+
+function removerItem(i) {
+  const arr = _coletarItensDoDOM();
+  arr.splice(i, 1);
+  buildInventario(arr.length ? arr : [{}]);
+  autoSave();
+}
+
 // ── SAVE / LOAD FICHA ─────────────────────────────
 function coletarFicha() {
   const pericias = PERICIAS_DEFAULT.map((_, i) => ({
@@ -376,6 +453,7 @@ function coletarFicha() {
     atrib: document.getElementById(`p-atrib-${i}`)?.value || ''
   }));
   const vinculos = _coletarVinculosDoDOM();
+  const itens = _coletarItensDoDOM();
 
   return {
     user_id: currentUser.id,
@@ -400,7 +478,7 @@ function coletarFicha() {
     veiculo_comb_max:   parseInt(document.getElementById('f-vcomb-m')?.value) || 0,
     pericias,
     vinculos,
-    inventario: document.getElementById('f-inventario')?.value || '',
+    itens,
     notas:      document.getElementById('f-notas')?.value || '',
     updated_at: new Date().toISOString()
   };
@@ -412,7 +490,6 @@ function aplicarFicha(d) {
   document.getElementById('f-jogador').value    = d.jogador || '';
   document.getElementById('f-profissao').value  = d.profissao || '';
   document.getElementById('f-trauma').value     = d.trauma || '';
-  document.getElementById('f-inventario').value = d.inventario || '';
   document.getElementById('f-notas').value      = d.notas || '';
   if (d.foto_url) aplicarFotoPersonagem(d.foto_url);
   document.getElementById('f-veiculo-tipo').value = d.veiculo_tipo || '';
@@ -449,6 +526,15 @@ function aplicarFicha(d) {
     });
   }
   buildVinculos(Array.isArray(d.vinculos) && d.vinculos.length ? d.vinculos : [{}]);
+
+  // itens: migra fichas antigas que só tinham o campo "inventario" (texto livre)
+  if (Array.isArray(d.itens) && d.itens.length) {
+    buildInventario(d.itens);
+  } else if (d.inventario && String(d.inventario).trim()) {
+    buildInventario(String(d.inventario).split(' · ').map(nome => ({ nome: nome.trim() })));
+  } else {
+    buildInventario([{}]);
+  }
 }
 
 async function carregarFicha() {
@@ -504,11 +590,13 @@ async function apagarFicha() {
   document.getElementById('f-profissao').value = '';
   document.getElementById('f-veiculo-tipo').value = '';
 
-  buildPips('pip-pv', 20, 0, 'red', onPVClick, 'pip-pv-val');
-  buildPips('pip-sup', 10, 0, 'blue', onSupClick, 'pip-sup-val');
-  buildPips('pip-hum', 10, 10, 'green', onHumClick, 'pip-hum-val');
+  buildPips('pip-pv', 20, 0, 'roxo', onPVClick, 'pip-pv-val');
+  buildPips('pip-sup', 10, 0, 'dourado', onSupClick, 'pip-sup-val');
+  buildPips('pip-hum', 10, 10, 'roxo2', onHumClick, 'pip-hum-val');
   buildTensaoPips('tensao-pips-ficha', 0, true);
   document.getElementById('pv-formula').textContent = 'RES × 4 = máx 20';
+  buildInventario([{}]);
+  buildVinculos([{}]);
 
   toast('Ficha apagada.', 'ok');
 }
@@ -1117,6 +1205,9 @@ async function verFichaCompleta(userId) {
     `<li><strong>${v.personagem}</strong> — ${v.tipo || '?'}<br>
      <span style="color:var(--muted);font-size:11px">Promessa: ${v.promessa || '—'} · Dívida: ${v.divida || '—'}</span></li>`
   ).join('');
+  const itens = Array.isArray(ficha.itens) && ficha.itens.length
+    ? ficha.itens.filter(it => it.nome).map(it => esc(it.nome) + (it.detalhe ? ` <span style="color:var(--muted)">(${esc(it.detalhe)})</span>` : '')).join(' · ')
+    : esc(ficha.inventario || '');
 
   const modal = document.createElement('div');
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:999;display:flex;align-items:center;justify-content:center;padding:20px';
@@ -1130,47 +1221,47 @@ async function verFichaCompleta(userId) {
         <button onclick="this.closest('[style*=fixed]').remove()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer">✕</button>
       </div>
 
-      <div style="font-size:11px;color:var(--red);font-weight:700;letter-spacing:2px;margin-bottom:8px">TRAUMA</div>
+      <div style="font-size:11px;color:var(--gold);font-weight:700;letter-spacing:2px;margin-bottom:8px">TRAUMA</div>
       <div style="margin-bottom:14px;font-style:italic;color:var(--muted)">${ficha.trauma || '—'}</div>
 
-      <div style="font-size:11px;color:var(--red);font-weight:700;letter-spacing:2px;margin-bottom:8px">ATRIBUTOS</div>
+      <div style="font-size:11px;color:var(--gold);font-weight:700;letter-spacing:2px;margin-bottom:8px">ATRIBUTOS</div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:14px">
         ${['FOR','RES','COM','SOC','CON','AGI'].map((a,i) => {
           const keys = ['attr_for','attr_res','attr_com','attr_soc','attr_con','attr_agi'];
           const val = ficha[keys[i]] || 0;
           const mod = val - 3;
           return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:8px;text-align:center">
-            <div style="font-size:9px;color:var(--red);font-weight:700">${a}</div>
+            <div style="font-size:9px;color:var(--gold);font-weight:700">${a}</div>
             <div style="font-size:20px;font-weight:700">${val}</div>
             <div style="font-size:11px;color:var(--purple)">${mod >= 0 ? '+' : ''}${mod}</div>
           </div>`;
         }).join('')}
       </div>
 
-      <div style="font-size:11px;color:var(--red);font-weight:700;letter-spacing:2px;margin-bottom:8px">RECURSOS</div>
+      <div style="font-size:11px;color:var(--gold);font-weight:700;letter-spacing:2px;margin-bottom:8px">RECURSOS</div>
       <div style="display:flex;gap:10px;margin-bottom:14px">
         <div style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:10px;text-align:center">
           <div style="font-size:9px;color:var(--muted)">PV</div>
-          <div style="font-size:18px;font-weight:700;color:var(--red)">${ficha.pv_atual}/${pvMax}</div>
+          <div style="font-size:18px;font-weight:700;color:var(--accent-text)">${ficha.pv_atual}/${pvMax}</div>
         </div>
         <div style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:10px;text-align:center">
           <div style="font-size:9px;color:var(--muted)">HUMANIDADE</div>
-          <div style="font-size:18px;font-weight:700;color:var(--green)">${ficha.humanidade}/10</div>
+          <div style="font-size:18px;font-weight:700;color:var(--accent-text)">${ficha.humanidade}/10</div>
         </div>
         <div style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:10px;text-align:center">
           <div style="font-size:9px;color:var(--muted)">SUPRIMENTOS</div>
-          <div style="font-size:18px;font-weight:700;color:var(--blue)">${ficha.suprimentos}/10</div>
+          <div style="font-size:18px;font-weight:700;color:var(--gold-text)">${ficha.suprimentos}/10</div>
         </div>
       </div>
 
-      ${pericias ? `<div style="font-size:11px;color:var(--red);font-weight:700;letter-spacing:2px;margin-bottom:8px">PERÍCIAS</div>
+      ${pericias ? `<div style="font-size:11px;color:var(--gold);font-weight:700;letter-spacing:2px;margin-bottom:8px">PERÍCIAS</div>
       <ul style="list-style:none;display:flex;flex-direction:column;gap:4px;margin-bottom:14px;font-size:13px">${pericias}</ul>` : ''}
 
-      ${vinculos ? `<div style="font-size:11px;color:var(--red);font-weight:700;letter-spacing:2px;margin-bottom:8px">VÍNCULOS</div>
+      ${vinculos ? `<div style="font-size:11px;color:var(--gold);font-weight:700;letter-spacing:2px;margin-bottom:8px">VÍNCULOS</div>
       <ul style="list-style:none;display:flex;flex-direction:column;gap:8px;margin-bottom:14px;font-size:13px">${vinculos}</ul>` : ''}
 
-      ${ficha.inventario ? `<div style="font-size:11px;color:var(--red);font-weight:700;letter-spacing:2px;margin-bottom:8px">INVENTÁRIO</div>
-      <div style="font-size:12px;color:var(--muted);white-space:pre-wrap;margin-bottom:14px">${ficha.inventario}</div>` : ''}
+      ${itens ? `<div style="font-size:11px;color:var(--gold);font-weight:700;letter-spacing:2px;margin-bottom:8px">INVENTÁRIO</div>
+      <div style="font-size:12px;color:var(--muted);white-space:pre-wrap;margin-bottom:14px">${itens}</div>` : ''}
     </div>
   `;
   modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });

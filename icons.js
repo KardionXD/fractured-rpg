@@ -15,6 +15,7 @@ const FRACTURED_ICON_PATHS = {
   chat: '<path d="M3.5 5 L20.5 5 L20.5 16.5 L10 16.5 L5.5 20.5 L5.5 16.5 L3.5 16.5 Z"></path><path d="M8 9.5 L16 9.5 M8 12.5 L13 12.5" stroke-width="1.4"></path>',
   notas: '<path d="M4.5 5.5 L12.5 5.5 M4.5 9.5 L10.5 9.5 M4.5 13.5 L8.5 13.5 M4.5 19.5 L19.5 19.5" stroke-width="1.6"></path><path d="M17.3 3.5 L20.5 6.7 L12.8 14.4 L9.2 15.2 L10 11.6 Z" stroke="#d9b45b" stroke-width="1.8"></path>',
   arquivos: '<path d="M3 6.5 L3 19.5 L21 19.5 L21 8.5 L11.5 8.5 L9.5 5.5 L4 5.5 C3.4 5.5 3 6 3 6.5 Z"></path>',
+  item: '<path d="M5 8.5 L19 8.5 L19 20.5 L5 20.5 Z"></path><path d="M5 8.5 L7 3.5 L17 3.5 L19 8.5"></path><path d="M12 3.5 L12 8.5 M9.5 13 L14.5 13" stroke-width="1.6"></path>',
   musica: '<path d="M9 18.5 L9 5.5 L19 3.5 L19 16.5"></path><circle cx="6.5" cy="18.5" r="2.5"></circle><circle cx="16.5" cy="16.5" r="2.5"></circle>',
   iniciativa: '<path d="M13 2 L5 13.5 L11 13.5 L9.5 22 L19 9.5 L12.5 9.5 Z"></path>',
   tensao: '<path d="M12 3 L22 20 L2 20 Z"></path><path d="M12 9 L12 14.5" stroke-width="2.2"></path><circle cx="12" cy="17.3" r="1.2" fill="#d9b45b" stroke="none"></circle>',
