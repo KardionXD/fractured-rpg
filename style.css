@@ -2331,3 +2331,176 @@ h1,h2,h3 { letter-spacing: .04em; }
   border-left: 2px solid var(--gold, #c9a84c);
   opacity: 0.8;
 }
+
+/* ══════════════════════════════════════════════════════════
+   TEMAS DA FICHA — padrão · dourada(ornamentada) · verde(TLOU)
+   Escopados em #page-ficha. Não alteram nenhuma outra tela.
+   ══════════════════════════════════════════════════════════ */
+
+/* Seletor de tema */
+.ficha-header-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.tema-switch {
+  display: flex; gap: 3px; padding: 3px;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+}
+.tema-btn {
+  background: transparent; border: 1px solid transparent; border-radius: 6px;
+  color: var(--muted); cursor: pointer; font-size: 10px; font-weight: 700;
+  letter-spacing: 1.2px; padding: 6px 11px; text-transform: uppercase;
+  transition: all .15s;
+}
+.tema-btn:hover { color: var(--text); }
+.tema-btn.active { background: var(--accent-soft); border-color: var(--accent-border); color: var(--accent-text); }
+
+/* ─────────── TEMA PADRÃO (o sóbrio) ─────────── */
+#page-ficha.tema-padrao .section-card-title { color: var(--gold); }
+#page-ficha.tema-padrao .attr-card { border-radius: 8px; }
+
+/* ─────────── TEMA DOURADA · ornamentada ─────────── */
+#page-ficha.tema-ouro {
+  --f-accent: #d9b45b;
+  --f-accent2: #8f7ae8;
+  position: relative;
+  padding: 22px;
+  border: 1px solid rgba(217,180,91,.34);
+  border-radius: 14px;
+  background:
+    radial-gradient(700px 420px at 50% -6%, rgba(143,122,232,.07), transparent 70%),
+    #0b0b12;
+  box-shadow: inset 0 0 60px rgba(0,0,0,.5);
+}
+/* cantos ornamentados */
+#page-ficha.tema-ouro::before,
+#page-ficha.tema-ouro::after {
+  content: ""; position: absolute; width: 22px; height: 22px; pointer-events: none;
+  border: 2px solid var(--f-accent); opacity: .75;
+}
+#page-ficha.tema-ouro::before { top: 8px; left: 8px; border-right: 0; border-bottom: 0; }
+#page-ficha.tema-ouro::after  { bottom: 8px; right: 8px; border-left: 0; border-top: 0; }
+
+#page-ficha.tema-ouro .page-title {
+  font-family: Georgia, 'Times New Roman', serif;
+  color: #f3ecd8; letter-spacing: .5px;
+}
+#page-ficha.tema-ouro .section-card {
+  background: rgba(16,16,26,.72);
+  border: 1px solid rgba(217,180,91,.20);
+  border-radius: 10px;
+}
+#page-ficha.tema-ouro .section-card-title {
+  color: var(--f-accent);
+  justify-content: center;
+  letter-spacing: 3.5px;
+}
+#page-ficha.tema-ouro .section-card-title::before,
+#page-ficha.tema-ouro .section-card-title::after {
+  content: "◆"; color: var(--f-accent); opacity: .8;
+  font-size: 8px; margin: 0 10px; letter-spacing: 0;
+}
+/* atributos em losango */
+#page-ficha.tema-ouro .attr-card {
+  position: relative; background: transparent; border: none;
+  padding: 20px 6px 10px; overflow: visible;
+}
+#page-ficha.tema-ouro .attr-card::before {
+  content: ""; position: absolute; top: 12px; left: 50%;
+  width: 74px; height: 74px; margin-left: -37px;
+  border: 1.5px solid rgba(143,122,232,.55);
+  background: rgba(143,122,232,.07);
+  border-radius: 10px; transform: rotate(45deg);
+  transition: border-color .15s, box-shadow .15s;
+}
+#page-ficha.tema-ouro .attr-card:hover::before {
+  border-color: var(--f-accent);
+  box-shadow: 0 0 18px rgba(217,180,91,.30);
+}
+#page-ficha.tema-ouro .attr-card > * { position: relative; z-index: 1; }
+#page-ficha.tema-ouro .attr-abbr { color: var(--f-accent); }
+#page-ficha.tema-ouro .attr-val,
+#page-ficha.tema-ouro .attr-mod { background: transparent; border-color: transparent; }
+#page-ficha.tema-ouro .attr-val { font-size: 20px; color: #f3ecd8; }
+/* recursos em barra segmentada roxa */
+#page-ficha.tema-ouro .pip {
+  width: 15px; height: 9px; border-radius: 2px;
+  background: rgba(143,122,232,.10); border: 1px solid rgba(143,122,232,.25);
+}
+#page-ficha.tema-ouro .pip.on {
+  background: #8f7ae8; border-color: #a78bfa; box-shadow: 0 0 6px rgba(143,122,232,.5);
+}
+#page-ficha.tema-ouro .pip-label { color: #bdb59c; }
+/* tensão em losangos */
+#page-ficha.tema-ouro .tpip { border-radius: 3px; transform: rotate(45deg); }
+
+/* ─────────── TEMA VERDE · pós-apocalíptico (TLOU) ─────────── */
+#page-ficha.tema-verde {
+  --f-accent: #9fd67a;
+  --f-warn: #e07b3c;
+  padding: 20px;
+  border: 1px solid rgba(159,214,122,.26);
+  border-radius: 12px;
+  background:
+    radial-gradient(760px 430px at 20% 0%, rgba(159,214,122,.05), transparent 70%),
+    #080c08;
+}
+#page-ficha.tema-verde .page-title {
+  color: #dff0cd; letter-spacing: 3px; text-transform: uppercase;
+  font-family: 'Courier New', ui-monospace, monospace; font-weight: 700;
+}
+#page-ficha.tema-verde .page-sub { color: #6f8a5e; letter-spacing: 2px; }
+#page-ficha.tema-verde .section-card {
+  background: rgba(12,18,12,.8);
+  border: 1px solid rgba(159,214,122,.18);
+  border-radius: 8px;
+}
+#page-ficha.tema-verde .section-card-title {
+  color: var(--f-accent); letter-spacing: 3px; justify-content: center;
+  font-family: 'Courier New', ui-monospace, monospace;
+}
+#page-ficha.tema-verde .section-card-title::before,
+#page-ficha.tema-verde .section-card-title::after {
+  content: "○"; color: var(--f-accent); opacity: .6; font-size: 8px; margin: 0 9px;
+}
+/* atributos: cards quadrados com pontos de canto */
+#page-ficha.tema-verde .attr-card {
+  background: rgba(16,24,16,.9);
+  border: 1px solid rgba(159,214,122,.22);
+  border-radius: 8px; position: relative;
+}
+#page-ficha.tema-verde .attr-card::before,
+#page-ficha.tema-verde .attr-card::after {
+  content: ""; position: absolute; width: 3px; height: 3px; border-radius: 50%;
+  background: rgba(159,214,122,.45);
+}
+#page-ficha.tema-verde .attr-card::before { top: 6px; left: 6px; }
+#page-ficha.tema-verde .attr-card::after  { top: 6px; right: 6px; }
+#page-ficha.tema-verde .attr-card:hover { border-color: var(--f-warn); }
+#page-ficha.tema-verde .attr-abbr { color: var(--f-accent); }
+#page-ficha.tema-verde .attr-val { color: #dff0cd; font-size: 20px; }
+#page-ficha.tema-verde .attr-val:focus { border-color: var(--f-accent); }
+/* recursos: barras segmentadas verdes */
+#page-ficha.tema-verde .pip {
+  width: 15px; height: 9px; border-radius: 2px;
+  background: rgba(159,214,122,.08); border: 1px solid rgba(159,214,122,.22);
+}
+#page-ficha.tema-verde .pip.on {
+  background: var(--f-accent); border-color: #b6e394; box-shadow: 0 0 6px rgba(159,214,122,.45);
+}
+#page-ficha.tema-verde .pip.yellow.on,
+#page-ficha.tema-verde .pip.orange.on {
+  background: var(--f-warn); border-color: #f09456; box-shadow: 0 0 6px rgba(224,123,60,.45);
+}
+#page-ficha.tema-verde .pip-label { color: #8fa87d; letter-spacing: 1.5px; }
+#page-ficha.tema-verde .pip-val { color: #dff0cd; }
+#page-ficha.tema-verde .tpip { border-radius: 50%; }
+#page-ficha.tema-verde .btn-ghost:hover { border-color: var(--f-accent); color: var(--f-accent); }
+
+@media (max-width: 640px) {
+  #page-ficha.tema-ouro, #page-ficha.tema-verde { padding: 12px; }
+  #page-ficha.tema-ouro .attr-card::before { width: 62px; height: 62px; margin-left: -31px; }
+  .tema-btn { padding: 5px 8px; font-size: 9px; }
+}
+
+/* Padrão: recursos em roxo (fiel ao turno 2b) */
+#page-ficha.tema-padrao .pip.red.on {
+  background: var(--accent); border-color: #a78bfa; box-shadow: 0 0 6px var(--accent-glow);
+}

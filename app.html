@@ -41,10 +41,17 @@
   <main class="main-content">
 
     <!-- FICHA -->
-    <div id="page-ficha">
+    <div id="page-ficha" class="tema-padrao">
       <div class="page-header">
         <div><div class="page-title">Ficha do Personagem</div><div class="page-sub">FRACTURED · d20</div></div>
-        <button class="btn-ghost" onclick="salvarFicha()">💾 Salvar</button>
+        <div class="ficha-header-right">
+          <div class="tema-switch" id="tema-switch">
+            <button class="tema-btn active" data-tema="padrao"  onclick="setTemaFicha('padrao')">Padrão</button>
+            <button class="tema-btn"        data-tema="ouro"    onclick="setTemaFicha('ouro')">Dourada</button>
+            <button class="tema-btn"        data-tema="verde"   onclick="setTemaFicha('verde')">Verde</button>
+          </div>
+          <button class="btn-ghost" onclick="salvarFicha()">💾 Salvar</button>
+        </div>
       </div>
       <div class="section-card">
         <div class="section-card-title">Identidade</div>
@@ -405,5 +412,24 @@
 <script src="ficha_custom.js?v=27"></script>
 <script src="musica.js?v=25"></script>
 <script src="app.js?v=27"></script>
+
+<script>
+// ── Temas da Ficha (padrão · dourada · verde) ─────────────
+function setTemaFicha(tema) {
+  const el = document.getElementById('page-ficha');
+  if (!el) return;
+  el.classList.remove('tema-padrao','tema-ouro','tema-verde');
+  el.classList.add('tema-' + tema);
+  document.querySelectorAll('#tema-switch .tema-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.tema === tema));
+  try { localStorage.setItem('fractured_tema_ficha', tema); } catch(e) {}
+}
+(function restaurarTemaFicha(){
+  let t = 'padrao';
+  try { t = localStorage.getItem('fractured_tema_ficha') || 'padrao'; } catch(e) {}
+  document.addEventListener('DOMContentLoaded', () => setTemaFicha(t));
+  if (document.readyState !== 'loading') setTemaFicha(t);
+})();
+</script>
 </body>
 </html>
