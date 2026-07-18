@@ -232,9 +232,9 @@ function _musWidget() {
   w.style.cssText = 'position:fixed;bottom:14px;left:14px;z-index:8000;font-family:inherit';
   w.innerHTML = `
     <button id="mus-toggle" title="Música da mesa"
-      style="width:42px;height:42px;border-radius:50%;border:1px solid var(--gold,#c9a84c);background:rgba(13,11,8,0.92);color:var(--gold,#c9a84c);font-size:18px;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,0.5)">🎵</button>
+      style="width:42px;height:42px;border-radius:50%;border:1px solid var(--gold,#c9a84c);background:rgba(13,11,8,0.92);color:var(--gold,#c9a84c);cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center">${fracIcon('musica', { size: 19 })}</button>
     <div id="mus-painel" style="display:none;position:absolute;bottom:50px;left:0;width:270px;background:rgba(13,11,8,0.97);border:1px solid var(--border,#333);border-radius:10px;padding:12px;box-shadow:0 4px 18px rgba(0,0,0,0.6)">
-      <div style="font-size:11px;font-weight:700;color:var(--gold,#c9a84c);letter-spacing:1px;margin-bottom:8px">🎵 MÚSICA DA MESA</div>
+      <div style="font-size:11px;font-weight:700;color:var(--gold,#c9a84c);letter-spacing:1px;margin-bottom:8px;display:flex;align-items:center;gap:6px">${fracIcon('musica', { size: 13 })}MÚSICA DA MESA</div>
       <div id="mus-agora" style="font-size:11px;color:var(--muted,#888);margin-bottom:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Nada tocando.</div>
       <button id="mus-liberar" onclick="musicaLiberarSom()" style="display:none;width:100%;margin-bottom:8px;padding:7px;border-radius:6px;border:1px solid var(--gold,#c9a84c);background:rgba(201,168,76,0.12);color:var(--gold,#c9a84c);font-size:11px;cursor:pointer">🔊 Ativar som da mesa</button>
       <div id="mus-master" style="display:none">

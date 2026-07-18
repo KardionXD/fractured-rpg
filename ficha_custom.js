@@ -27,10 +27,10 @@ const FCB_TIPOS = [
 
 const FCB_TEMAS = [
   { id: 'escuro',     nome: 'Escuro'     },
-  { id: 'papiro',     nome: 'Papiro'     },
-  { id: 'cyberpunk',  nome: 'Cyberpunk'  },
-  { id: 'medieval',   nome: 'Medieval'   },
-  { id: 'terror',     nome: 'Terror'     },
+  { id: 'papiro',     nome: 'Papiro',    icon: 'temaPapiro'    },
+  { id: 'cyberpunk',  nome: 'Cyberpunk', icon: 'temaCyberpunk' },
+  { id: 'medieval',   nome: 'Medieval',  icon: 'temaMedieval'  },
+  { id: 'terror',     nome: 'Terror',    icon: 'temaTerror'    },
 ];
 
 // Ficha neutra inicial — o mestre edita em cima dela
@@ -175,7 +175,7 @@ function _fcbRender() {
         <div class="fcb-sub">${ed ? '🛠 Modo de Edição — clique nos textos pra renomear' : `Ficha da mesa · <span id="fcb-status" class="fcb-status-ok">✔ salvo</span>`}</div>
       </div>
       <div class="fcb-header-right">
-        ${isMaster ? `<div class="fcb-tema-switch">${FCB_TEMAS.map(tp => `<button class="fcb-tema-btn${tema === tp.id ? ' active' : ''}" onclick="fcbSetTema('${tp.id}')">${tp.nome}</button>`).join('')}</div>` : ''}
+        ${isMaster ? `<div class="fcb-tema-switch">${FCB_TEMAS.map(tp => `<button class="fcb-tema-btn${tema === tp.id ? ' active' : ''}" onclick="fcbSetTema('${tp.id}')">${tp.icon ? fracIcon(tp.icon, { size: 12, color: 'currentColor' }) : ''}${tp.nome}</button>`).join('')}</div>` : ''}
         ${isMaster ? `<button class="fcb-btn" onclick="fcbToggleEdit()">${ed ? '⇆ Modo de Jogo' : '⇆ Modo de Edição'}</button>` : ''}
         ${ed ? `<button class="fcb-btn fcb-btn-danger" onclick="fcbVoltarPadrao()">↩ Ficha FRACTURED</button>` : ''}
       </div>

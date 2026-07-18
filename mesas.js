@@ -318,7 +318,7 @@ async function _mesaCarregarLista() {
     const div = document.createElement('div');
     div.style.cssText = 'display:flex;align-items:center;gap:8px;padding:8px;border:1px solid var(--border,#333);border-radius:7px;margin-bottom:6px;cursor:pointer;background:rgba(0,0,0,0.25)';
     div.innerHTML = `
-      <span style="font-size:16px">${sou ? '👑' : '🎲'}</span>
+      <span>${sou ? fracIcon('mestre', { size: 16 }) : fracIcon('d20', { size: 16 })}</span>
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:600;color:var(--text,#eee);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(m.nome)}</div>
         <div style="font-size:10px;color:var(--muted,#888)">${sou ? 'Mestre · código ' + m.codigo : 'Player'}</div>
@@ -344,7 +344,7 @@ function _mesaBotaoTopbar() {
   btn.className = 'btn-ghost';
   btn.style.cssText = 'font-size:10px;padding:3px 8px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
   btn.title = 'Clique para copiar o código de convite · segure para trocar de mesa';
-  btn.innerHTML = `🎲 <span id="mesa-topbar-nome">${esc(MESA.nome)}</span>`;
+  btn.innerHTML = `${fracIcon('d20', { size: 12 })} <span id="mesa-topbar-nome">${esc(MESA.nome)}</span>`;
   btn.onclick = () => {
     if (isMaster) { mesaCopiarCodigo(); return; }
     if (confirm(`Trocar de mesa?\n(OK = só trocar · para SAIR de vez da mesa, use o botão 🚪 na tela de mesas)`)) trocarMesa();

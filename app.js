@@ -125,7 +125,7 @@ function buildAttrGrid() {
     const card = document.createElement('div');
     card.className = 'attr-card';
     card.innerHTML = `
-      <button class="attr-roll-btn" onclick="rolarAtributoFicha('${a.id}')" title="Rolar 1d20 + ${a.abbr}">🎲</button>
+      <button class="attr-roll-btn" onclick="rolarAtributoFicha('${a.id}')" title="Rolar 1d20 + ${a.abbr}">${fracIcon('d20', { size: 14 })}</button>
       <div class="attr-abbr">${a.abbr}</div>
       <div class="attr-name">${a.name}</div>
       <div class="attr-inputs">
@@ -285,7 +285,7 @@ function buildPericias() {
         <input type="text" class="pericia-atrib-input" id="p-atrib-${i}" placeholder="FOR" maxlength="3"
           oninput="this.value=this.value.toUpperCase();autoSave()">
       </div>
-      <button class="pericia-roll-btn" onclick="rolarPericiaFicha(${i})" title="Rolar 1d20 + atributo + 3 (perícia)">🎲</button>
+      <button class="pericia-roll-btn" onclick="rolarPericiaFicha(${i})" title="Rolar 1d20 + atributo + 3 (perícia)">${fracIcon('d20', { size: 14 })}</button>
     `;
     list.appendChild(div);
   });
@@ -564,7 +564,7 @@ async function carregarFeed() {
   if (!feed) return;
   feed.innerHTML = '';
   if (!data || data.length === 0) {
-    feed.innerHTML = '<div class="empty-state"><div class="empty-icon">🎲</div><p>Role um dado para começar.</p></div>';
+    feed.innerHTML = `<div class="empty-state"><div class="empty-icon">${fracIcon('d20', { size: 36 })}</div><p>Role um dado para começar.</p></div>`;
     return;
   }
   data.forEach(msg => appendFeedMsg(msg));
@@ -648,7 +648,7 @@ async function limparHistorico() {
   tensaoSala = 0;
   buildTensaoPips('tensao-pips-sala', 0, false);
   const fmsg = document.getElementById('feed-messages');
-  if (fmsg) fmsg.innerHTML = '<div class="empty-state"><div class="empty-icon">🎲</div><p>Histórico limpo.</p></div>';
+  if (fmsg) fmsg.innerHTML = `<div class="empty-state"><div class="empty-icon">${fracIcon('d20', { size: 36 })}</div><p>Histórico limpo.</p></div>`;
   toast('Histórico limpo!', 'ok');
 }
 
@@ -944,7 +944,7 @@ async function carregarPlayers(mostrarTodos = false) {
     .map(m => ({ id: m.user_id, username: m.profiles?.username || 'Player' }));
 
   if (!profiles || profiles.length === 0) {
-    grid.innerHTML = '<div class="empty-state"><div class="empty-icon">👥</div><p>Nenhum player entrou na mesa ainda.<br><span style="font-size:11px;color:var(--muted)">Mande o código de convite pra eles!</span></p></div>';
+    grid.innerHTML = `<div class="empty-state"><div class="empty-icon">${fracIcon('players', { size: 36 })}</div><p>Nenhum player entrou na mesa ainda.<br><span style="font-size:11px;color:var(--muted)">Mande o código de convite pra eles!</span></p></div>`;
     return;
   }
 
@@ -978,7 +978,7 @@ async function carregarPlayers(mostrarTodos = false) {
   if (visiveis.length === 0) {
     const empty = document.createElement('div');
     empty.style.cssText = 'grid-column:1/-1';
-    empty.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><p>Nenhum player criou ficha ainda.</p></div>';
+    empty.innerHTML = `<div class="empty-state"><div class="empty-icon">${fracIcon('ficha', { size: 36 })}</div><p>Nenhum player criou ficha ainda.</p></div>`;
     grid.appendChild(empty);
     return;
   }
@@ -1041,7 +1041,7 @@ async function carregarPlayers(mostrarTodos = false) {
           <strong style="color:var(--text)">Trauma:</strong> ${ficha.trauma || '—'}
         </div>
         <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn-ghost" style="font-size:10px;padding:5px 10px" onclick="verFichaCompleta('${player.id}')">📋 Ver ficha completa</button>
+          <button class="btn-ghost" style="font-size:10px;padding:5px 10px;display:inline-flex;align-items:center;gap:5px" onclick="verFichaCompleta('${player.id}')">${fracIcon('ficha', { size: 13 })}Ver ficha completa</button>
           <button class="btn-ghost" style="font-size:10px;padding:5px 10px;color:var(--red);border-color:var(--red-dim)" onclick="apagarFichaPlayer('${player.id}', '${(ficha.nome || player.username).replace(/'/g,"\\'")}')">🗑 Apagar ficha</button>
         </div>
       `;
@@ -1082,7 +1082,7 @@ async function verFichaCompleta(userId) {
     const m = document.createElement('div');
     m.style.cssText = 'position:fixed;inset:0;z-index:8600;background:rgba(0,0,0,0.72);display:flex;align-items:center;justify-content:center;padding:16px';
     m.innerHTML = `<div style="width:100%;max-width:520px;max-height:90vh;overflow-y:auto;background:var(--bg,#0d0b08);border:1px solid var(--border);border-radius:10px;padding:16px">
-      <div style="font-size:15px;font-weight:700;color:var(--gold);margin-bottom:6px">📋 ${esc(ficha.nome || 'Ficha')}</div>${html}
+      <div style="font-size:15px;font-weight:700;color:var(--gold);margin-bottom:6px;display:flex;align-items:center;gap:7px">${fracIcon('ficha', { size: 15 })}${esc(ficha.nome || 'Ficha')}</div>${html}
       <button class="btn-ghost" style="width:100%;margin-top:12px;font-size:11px;padding:8px" onclick="this.closest('div').parentElement.remove()">Fechar</button></div>`;
     m.addEventListener('click', e => { if (e.target === m) m.remove(); });
     document.body.appendChild(m);

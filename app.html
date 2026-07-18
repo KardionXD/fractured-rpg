@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>FRACTURED RPG</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="icons.js?v=1"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=IM+Fell+English&family=Share+Tech+Mono&display=swap" rel="stylesheet">
@@ -15,7 +16,7 @@
 <div class="app-layout">
   <header class="topbar">
     <div class="topbar-brand">
-      <span class="topbar-symbol">⬡</span>
+      <span class="topbar-symbol" data-fic="logo" data-fic-size="22"></span>
       <span class="topbar-title">FRACTURED</span>
       <span class="topbar-badge" id="master-badge" style="display:none">MESTRE</span>
     </div>
@@ -29,15 +30,15 @@
   <nav class="sidebar">
     <div class="nav-section">
       <div class="nav-label">Menu</div>
-      <button class="nav-item active" onclick="navigate('ficha')" id="nav-ficha"><span class="icon">📋</span> Ficha</button>
-      <button class="nav-item" onclick="navigate('sala')" id="nav-sala"><span class="icon">🎲</span> Sala</button>
-      <button class="nav-item" onclick="navigate('notas')" id="nav-notas"><span class="icon">📓</span> Notas</button>
-      <button class="nav-item" onclick="navigate('arquivos')" id="nav-arquivos"><span class="icon">📂</span> Arquivos</button>
+      <button class="nav-item active" onclick="navigate('ficha')" id="nav-ficha"><span class="icon" data-fic="ficha"></span> Ficha</button>
+      <button class="nav-item" onclick="navigate('sala')" id="nav-sala"><span class="icon" data-fic="mapa"></span> Sala</button>
+      <button class="nav-item" onclick="navigate('notas')" id="nav-notas"><span class="icon" data-fic="notas"></span> Notas</button>
+      <button class="nav-item" onclick="navigate('arquivos')" id="nav-arquivos"><span class="icon" data-fic="arquivos"></span> Arquivos</button>
     </div>
     <div class="nav-section" id="nav-master-section" style="display:none">
       <div class="nav-label">Mestre</div>
-      <button class="nav-item" onclick="navigate('master')" id="nav-master"><span class="icon">👁</span> Players</button>
-      <button class="nav-item" onclick="navigate('npcs')" id="nav-npcs"><span class="icon">👥</span> NPCs</button>
+      <button class="nav-item" onclick="navigate('master')" id="nav-master"><span class="icon" data-fic="players"></span> Players</button>
+      <button class="nav-item" onclick="navigate('npcs')" id="nav-npcs"><span class="icon" data-fic="combate"></span> NPCs</button>
     </div>
   </nav>
 
@@ -222,7 +223,7 @@
           <button class="btn-ghost" onclick="carregarPlayers(false)">↻ Atualizar</button>
         </div>
       </div>
-      <div class="players-grid" id="players-grid"><div class="empty-state"><div class="empty-icon">👥</div><p>Carregando...</p></div></div>
+      <div class="players-grid" id="players-grid"><div class="empty-state"><div class="empty-icon" data-fic="players" data-fic-size="36"></div><p>Carregando...</p></div></div>
     </div>
 
   </main>
@@ -231,22 +232,22 @@
 <!-- Mobile nav bar (fixa na base) -->
 <nav class="mobile-bottom-nav" id="mobile-bottom-nav">
   <button class="mobile-nav-btn active" id="mnav-ficha" onclick="navigate('ficha')">
-    <span style="font-size:20px">📋</span><span>Ficha</span>
+    <span data-fic="ficha" data-fic-size="20"></span><span>Ficha</span>
   </button>
   <button class="mobile-nav-btn" id="mnav-sala" onclick="navigate('sala')">
-    <span style="font-size:20px">🎲</span><span>Sala</span>
+    <span data-fic="mapa" data-fic-size="20"></span><span>Sala</span>
   </button>
   <button class="mobile-nav-btn" id="mnav-notas" onclick="navigate('notas')">
-    <span style="font-size:20px">📓</span><span>Notas</span>
+    <span data-fic="notas" data-fic-size="20"></span><span>Notas</span>
   </button>
   <button class="mobile-nav-btn" id="mnav-arquivos" onclick="navigate('arquivos')">
-    <span style="font-size:20px">📂</span><span>Arquivos</span>
+    <span data-fic="arquivos" data-fic-size="20"></span><span>Arquivos</span>
   </button>
   <button class="mobile-nav-btn" id="mnav-npcs" onclick="navigate('npcs')" style="display:none">
-    <span style="font-size:20px">👥</span><span>NPCs</span>
+    <span data-fic="combate" data-fic-size="20"></span><span>NPCs</span>
   </button>
   <button class="mobile-nav-btn" id="mnav-master" onclick="navigate('master')" style="display:none">
-    <span style="font-size:20px">👁</span><span>Mestre</span>
+    <span data-fic="players" data-fic-size="20"></span><span>Mestre</span>
   </button>
 </nav>
 
@@ -405,18 +406,25 @@
 </div>
 
 <script src="supabase.js?v=9"></script>
-<script src="mesas.js?v=16"></script>
+<script src="mesas.js?v=17"></script>
 <script src="mapa.js?v=17"></script>
 <script src="fog.js?v=17"></script>
 <script src="combate.js?v=18"></script>
 <script src="npcs.js?v=17"></script>
-<script src="sala.js?v=20"></script>
-<script src="arquivos.js?v=24"></script>
+<script src="sala.js?v=21"></script>
+<script src="arquivos.js?v=25"></script>
 <script src="ficha_custom.js?v=28"></script>
-<script src="musica.js?v=25"></script>
-<script src="app.js?v=27"></script>
+<script src="musica.js?v=26"></script>
+<script src="app.js?v=28"></script>
 
 <script>
+// ── Ícones da marca (biblioteca SVG em icons.js) ──────────
+// Elementos estáticos com data-fic="nome" viram o SVG correspondente.
+// Conteúdo gerado dinamicamente (sala.js, arquivos.js...) chama fracIcon() direto.
+document.querySelectorAll('[data-fic]').forEach(el => {
+  el.innerHTML = fracIcon(el.dataset.fic, { size: parseInt(el.dataset.ficSize) || 18 });
+});
+
 // ── Temas da Ficha (padrão · dourada · verde) ─────────────
 function setTemaFicha(tema) {
   const el = document.getElementById('page-ficha');

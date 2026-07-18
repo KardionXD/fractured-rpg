@@ -2601,7 +2601,7 @@ h1,h2,h3 { letter-spacing: .04em; }
 .fcb-status-ok { color: var(--green); }
 
 .fcb-tema-switch { display: flex; gap: 3px; padding: 3px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; }
-.fcb-tema-btn { background: transparent; border: 1px solid transparent; border-radius: 6px; color: var(--muted); cursor: pointer; font-size: 10px; font-weight: 700; letter-spacing: 1px; padding: 6px 10px; text-transform: uppercase; transition: all .15s; }
+.fcb-tema-btn { display: inline-flex; align-items: center; gap: 5px; background: transparent; border: 1px solid transparent; border-radius: 6px; color: var(--muted); cursor: pointer; font-size: 10px; font-weight: 700; letter-spacing: 1px; padding: 6px 10px; text-transform: uppercase; transition: all .15s; }
 .fcb-tema-btn:hover { color: var(--text); }
 .fcb-tema-btn.active { background: var(--accent-soft); border-color: var(--accent-border); color: var(--accent-text); }
 

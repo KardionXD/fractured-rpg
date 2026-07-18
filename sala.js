@@ -66,13 +66,13 @@ function buildSalaDOM() {
 //  MOBILE DOM
 // ══════════════════════════════════════════════════
 const MOBILE_TABS = [
-  { id:'feed',      icon:'💬', label:'Chat',    visible: () => true },
-  { id:'dados',     icon:'🎲', label:'Dados',   visible: () => true },
-  { id:'tracker',   icon:'⚔️', label:'Combate', visible: () => true },
-  { id:'mapa',      icon:'🗺️', label:'Mapa',    visible: () => true },
-  { id:'players',   icon:'👥', label:'Players', visible: () => isMaster },
-  { id:'bestiario', icon:'📖', label:'Bestia',  visible: () => isMaster },
-  { id:'galeria',   icon:'🖼️', label:'Fotos',   visible: () => true },
+  { id:'feed',      icon:'chat',     label:'Chat',    visible: () => true },
+  { id:'dados',     icon:'d20',      label:'Dados',   visible: () => true },
+  { id:'tracker',   icon:'combate',  label:'Combate', visible: () => true },
+  { id:'mapa',      icon:'mapa',     label:'Mapa',    visible: () => true },
+  { id:'players',   icon:'players',  label:'Players', visible: () => isMaster },
+  { id:'bestiario', icon:'📖',       label:'Bestia',  visible: () => isMaster },
+  { id:'galeria',   icon:'🖼️',       label:'Fotos',   visible: () => true },
 ];
 
 function buildMobileDOM(root) {
@@ -96,7 +96,7 @@ function buildMobileDOM(root) {
       display:flex;flex-direction:column;align-items:center;gap:2px;transition:all .15s;
       -webkit-tap-highlight-color:transparent;
     `;
-    btn.innerHTML = `<span style="font-size:18px">${t.icon}</span>${t.label}`;
+    btn.innerHTML = `<span style="font-size:18px">${fracIconOr(t.icon, t.icon, { size: 18 })}</span>${t.label}`;
     btn.onclick = () => switchMobileTab(t.id);
     tabBar.appendChild(btn);
   });
@@ -163,14 +163,14 @@ function switchMobileTab(id) {
 //  DESKTOP DOM — painéis flutuantes
 // ══════════════════════════════════════════════════
 const DESKTOP_PANELS = [
-  { id:'feed',      title:'💬 Chat / Sala',           def:{ x:10,  y:10,  w:300, h:480 }, minW:200, minH:200 },
-  { id:'tensao',    title:'⚠️ Tensão',                def:{ x:320, y:10,  w:260, h:200 }, minW:200, minH:150 },
-  { id:'dados',     title:'🎲 Dados',                 def:{ x:320, y:220, w:260, h:310 }, minW:220, minH:220 },
-  { id:'tracker',   title:'⚔️ Combat Tracker',        def:{ x:590, y:10,  w:300, h:560 }, minW:240, minH:280 },
-  { id:'mapa',      title:'🗺️ Mapa',                  def:{ x:900, y:10,  w:680, h:680 }, minW:280, minH:280 },
-  { id:'players',   title:'👥 Players',  masterOnly:true, def:{ x:10,  y:500, w:300, h:250 }, minW:200, minH:160 },
-  { id:'bestiario', title:'📖 Bestiário',masterOnly:true, def:{ x:590, y:580, w:300, h:210 }, minW:200, minH:140 },
-  { id:'galeria',   title:'🖼️ Imagens',              def:{ x:900, y:700, w:400, h:280 }, minW:280, minH:200 },
+  { id:'feed',      icon:'chat',    label:'Chat / Sala',                     def:{ x:10,  y:10,  w:300, h:480 }, minW:200, minH:200 },
+  { id:'tensao',    icon:'tensao',  label:'Tensão',                          def:{ x:320, y:10,  w:260, h:200 }, minW:200, minH:150 },
+  { id:'dados',     icon:'d20',     label:'Dados',                           def:{ x:320, y:220, w:260, h:310 }, minW:220, minH:220 },
+  { id:'tracker',   icon:'combate', label:'Combat Tracker',                  def:{ x:590, y:10,  w:300, h:560 }, minW:240, minH:280 },
+  { id:'mapa',      icon:'mapa',    label:'Mapa',                            def:{ x:900, y:10,  w:680, h:680 }, minW:280, minH:280 },
+  { id:'players',   icon:'players', label:'Players', masterOnly:true,        def:{ x:10,  y:500, w:300, h:250 }, minW:200, minH:160 },
+  { id:'bestiario', icon:'📖',      label:'Bestiário', masterOnly:true,      def:{ x:590, y:580, w:300, h:210 }, minW:200, minH:140 },
+  { id:'galeria',   icon:'🖼️',      label:'Imagens',                        def:{ x:900, y:700, w:400, h:280 }, minW:280, minH:200 },
 ];
 
 let pStates = {};
@@ -218,7 +218,7 @@ function createFPanel(cfg, root) {
     cursor:grab;user-select:none;flex-shrink:0;
   `;
   hdr.innerHTML = `
-    <span style="font-size:10px;font-weight:700;letter-spacing:1.5px;color:var(--text);text-transform:uppercase;pointer-events:none">${cfg.title}</span>
+    <span style="display:flex;align-items:center;gap:6px;font-size:10px;font-weight:700;letter-spacing:1.5px;color:var(--text);text-transform:uppercase;pointer-events:none">${fracIconOr(cfg.icon, cfg.icon, { size: 13 })}${cfg.label}</span>
     <div style="display:flex;gap:4px">
       <button onclick="minPanel('${cfg.id}')" style="background:transparent;border:1px solid var(--border);border-radius:4px;color:var(--muted);cursor:pointer;font-size:11px;width:22px;height:22px;display:flex;align-items:center;justify-content:center" title="Minimizar">─</button>
       <button onclick="hidePanel('${cfg.id}')" style="background:transparent;border:1px solid var(--border);border-radius:4px;color:var(--muted);cursor:pointer;font-size:11px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;transition:all .12s" title="Fechar" onmouseover="this.style.background='var(--red)';this.style.color='#fff'" onmouseout="this.style.background='transparent';this.style.color='var(--muted)'">✕</button>
@@ -298,7 +298,7 @@ function updateDesktopPanelMenu() {
     const btn=document.createElement('button');
     btn.className='btn-ghost';
     btn.style.cssText=`font-size:11px;padding:6px 12px;text-align:left;width:100%;opacity:${hidden?.6:1};`;
-    btn.textContent=(hidden?'+ ':'✓ ')+p.title;
+    btn.textContent=(hidden?'+ ':'✓ ')+p.label;
     btn.onclick=()=>{ hidden?showPanel(p.id):hidePanel(p.id); updateDesktopPanelMenu(); };
     menu.appendChild(btn);
   });
@@ -380,7 +380,7 @@ function buildFeed(c) {
   c.innerHTML = `
     <div style="display:flex;flex-direction:column;height:100%">
       <div id="feed-messages" style="flex:1;overflow-y:auto;padding:10px;min-height:0">
-        <div class="empty-state"><div class="empty-icon">🎲</div><p>Role um dado para começar.</p></div>
+        <div class="empty-state"><div class="empty-icon">${fracIcon('d20', { size: 36 })}</div><p>Role um dado para começar.</p></div>
       </div>
       <div style="padding:8px;border-top:1px solid var(--border);display:flex;gap:6px;flex-shrink:0">
         <input type="text" class="feed-input" id="msg-input" placeholder="Mensagem..." onkeydown="if(event.key==='Enter')enviarMsg()" style="flex:1">
@@ -494,7 +494,7 @@ function buildDadosPanel(c) {
             <span style="font-size:10px;color:var(--muted)">livre</span>
           </div>
         </div>
-        <button class="btn-primary" onclick="rolarFormula()" style="margin-top:8px">🎲 Rolar Teste</button>
+        <button class="btn-primary" onclick="rolarFormula()" style="margin-top:8px;display:flex;align-items:center;justify-content:center;gap:7px">${fracIcon('d20', { size: 15 })}Rolar Teste</button>
       </div>
     </div>`;
 }
@@ -559,7 +559,7 @@ function buildMapaPanel(c) {
       </div>
       ${isMaster ? `
       <div class="mapa-toolbar" style="flex-shrink:0;padding:3px 8px;border-top:none;gap:5px;flex-wrap:wrap">
-        <button class="btn-ghost" id="btn-fog-toggle" onclick="fogToggle()" style="font-size:10px;padding:3px 7px" title="Ativar/desativar Fog of War">🌫 Fog</button>
+        <button class="btn-ghost" id="btn-fog-toggle" onclick="fogToggle()" style="font-size:10px;padding:3px 7px;display:inline-flex;align-items:center;gap:5px" title="Ativar/desativar Fog of War">${fracIcon('nevoa', { size: 13 })}Fog</button>
         <div id="fog-tools" style="display:none;gap:4px;align-items:center;flex-wrap:wrap">
           <select id="fog-modo-sel" onchange="fogSetModo(this.value)" style="background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:2px 4px;font-size:10px">
             <option value="visao">👁 Visão automática</option>

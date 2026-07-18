@@ -61,7 +61,7 @@ function _arqMontarPagina() {
   page.innerHTML = `
     <div class="page-header">
       <div><div class="page-title">Arquivos da Mesa</div><div class="page-sub">${isMaster ? 'Pastas e documentos — 👁 controla o que os players veem' : 'Documentos revelados pelo mestre'}</div></div>
-      ${isMaster ? '<button class="btn-ghost" onclick="arqNovaPasta()" style="font-size:11px;padding:6px 12px">📁 Nova Pasta</button>' : ''}
+      ${isMaster ? `<button class="btn-ghost" onclick="arqNovaPasta()" style="font-size:11px;padding:6px 12px;display:inline-flex;align-items:center;gap:6px">${fracIcon('arquivos', { size: 13 })}Nova Pasta</button>` : ''}
     </div>
     <div id="arq-corpo" style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap">
       <div id="arq-pastas" style="flex:0 0 230px;min-width:200px;max-width:100%"></div>
@@ -121,7 +121,7 @@ function _arqRender() {
   // ── Pastas ──
   elP.innerHTML = '';
   if (!ARQ.pastas.length) {
-    elP.innerHTML = `<div class="empty-state" style="padding:20px"><div class="empty-icon">📁</div><p>${isMaster ? 'Nenhuma pasta ainda.<br>Crie a primeira!' : 'O mestre ainda não revelou nenhum arquivo.'}</p></div>`;
+    elP.innerHTML = `<div class="empty-state" style="padding:20px"><div class="empty-icon">${fracIcon('arquivos', { size: 36 })}</div><p>${isMaster ? 'Nenhuma pasta ainda.<br>Crie a primeira!' : 'O mestre ainda não revelou nenhum arquivo.'}</p></div>`;
   }
   ARQ.pastas.forEach(p => {
     const div = document.createElement('div');
