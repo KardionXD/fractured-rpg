@@ -297,12 +297,12 @@ function buildPericias() {
     const div = document.createElement('div');
     div.className = 'pericia-card';
     div.innerHTML = `
-      <div style="flex:1">
+      <div class="pericia-main">
         <div class="pericia-tag">${tag}</div>
         <input type="text" class="pericia-nome-input" id="p-nome-${i}" placeholder="Nome da perícia..." oninput="autoSave()">
       </div>
-      <div style="display:flex;flex-direction:column;gap:3px;align-items:center">
-        <span style="font-size:7px;color:var(--muted);letter-spacing:1px">ATRIB</span>
+      <div class="pericia-atrib-wrap">
+        <span class="pericia-atrib-label">ATRIB</span>
         <input type="text" class="pericia-atrib-input" id="p-atrib-${i}" placeholder="FOR" maxlength="3"
           oninput="this.value=this.value.toUpperCase();autoSave()">
       </div>

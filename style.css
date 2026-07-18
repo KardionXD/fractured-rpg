@@ -109,7 +109,7 @@ h1,h2,h3 { letter-spacing: .04em; }
   text-transform: uppercase;
   transition: all .15s;
 }
-.btn-ghost:hover { border-color: var(--red); color: var(--red); }
+.btn-ghost:hover { border-color: var(--accent-border); color: var(--accent-text); }
 
 /* Ação secundária "importante" (Enviar, Iniciar combate...) — contorno dourado, sem preenchimento */
 .btn-gold {
@@ -599,7 +599,7 @@ h1,h2,h3 { letter-spacing: .04em; }
   width: 100%; padding: 6px 2px;
   outline: none; transition: border-color .15s;
 }
-.attr-mod { font-size: 12px; color: var(--purple); cursor: default; }
+.attr-mod { font-size: 12px; color: var(--accent2); cursor: default; }
 .attr-val:focus { border-color: var(--accent); }
 .attr-sub { display: flex; gap: 5px; width: 100%; }
 .attr-sub span { font-size: 7px; color: var(--muted); flex: 1; text-align: center; letter-spacing: 1px; }
@@ -612,20 +612,23 @@ h1,h2,h3 { letter-spacing: .04em; }
   padding: 10px;
   display: flex; align-items: center; gap: 10px;
 }
-.pericia-tag { font-size: 8px; font-weight: 700; color: var(--red); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 3px; }
+.pericia-main { flex: 1; }
+.pericia-atrib-wrap { display: flex; flex-direction: column; gap: 3px; align-items: center; }
+.pericia-atrib-label { font-size: 7px; color: var(--muted); letter-spacing: 1px; }
+.pericia-tag { font-size: 8px; font-weight: 700; color: var(--accent-text); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 3px; }
 .pericia-nome-input {
   background: var(--bg); border: 1px solid var(--border); border-radius: 4px;
   color: var(--text); font-size: 13px; padding: 5px 8px; outline: none;
   transition: border-color .15s; width: 100%;
 }
-.pericia-nome-input:focus { border-color: var(--red); }
+.pericia-nome-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 .pericia-atrib-input {
   background: var(--bg); border: 1px solid var(--border); border-radius: 4px;
-  color: var(--purple); font-size: 11px; font-weight: 700; text-align: center;
+  color: var(--accent2); font-size: 11px; font-weight: 700; text-align: center;
   width: 50px; padding: 5px 4px; outline: none; text-transform: uppercase;
   transition: border-color .15s;
 }
-.pericia-atrib-input:focus { border-color: var(--red); }
+.pericia-atrib-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 
 /* ── VÍNCULO CARD ───────────────────────────────── */
 .vinculo-card {
@@ -684,7 +687,7 @@ h1,h2,h3 { letter-spacing: .04em; }
 .feed-header {
   padding: 12px 16px;
   border-bottom: 1px solid var(--border);
-  font-size: 9px; font-weight: 700; letter-spacing: 2px; color: var(--red);
+  font-size: 9px; font-weight: 700; letter-spacing: 2px; color: var(--gold);
   text-transform: uppercase; display: flex; align-items: center; gap: 8px;
 }
 .feed-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 5px var(--green); animation: pulse 2s infinite; }
@@ -709,7 +712,7 @@ h1,h2,h3 { letter-spacing: .04em; }
 .feed-msg-time { font-size: 9px; color: var(--muted); }
 .feed-msg-content { font-size: 13px; }
 .feed-msg.roll .feed-msg-content { font-size: 15px; font-weight: 700; }
-.feed-msg.roll .roll-total { color: var(--red); font-size: 22px; }
+.feed-msg.roll .roll-total { color: var(--accent-text); font-size: 22px; }
 .feed-msg.roll .roll-detail { font-size: 10px; color: var(--muted); margin-top: 2px; }
 .feed-msg.tensao-msg .feed-msg-content { color: var(--gold); }
 .feed-msg.critico { border-color: var(--gold); background: rgba(201,168,76,.08); }
@@ -725,7 +728,7 @@ h1,h2,h3 { letter-spacing: .04em; }
   color: var(--text); font-size: 13px; padding: 8px 10px; outline: none;
   flex: 1; transition: border-color .15s;
 }
-.feed-input:focus { border-color: var(--red); }
+.feed-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 
 /* ── DADOS PANEL ────────────────────────────────── */
 .dados-panel {
@@ -749,7 +752,7 @@ h1,h2,h3 { letter-spacing: .04em; }
   transition: all .12s;
   -webkit-tap-highlight-color: transparent;
 }
-.dado-btn:hover { border-color: var(--red); color: var(--red); background: rgba(192,57,43,.08); }
+.dado-btn:hover { border-color: var(--accent-border); color: var(--accent-text); background: var(--accent-soft); }
 .dado-btn:active { transform: scale(.94); }
 
 .roll-formula {
@@ -790,14 +793,14 @@ h1,h2,h3 { letter-spacing: .04em; }
 .tensao-status.calma  { color: #e67e22; }
 .tensao-status.alerta { color: var(--red); }
 .tensao-status.perigo { color: #c0392b; }
-.tensao-status.terror { color: var(--purple); }
+.tensao-status.terror { color: var(--accent2); }
 .tensao-btns { display: flex; gap: 6px; }
 .tensao-btns button {
   background: var(--bg); border: 1px solid var(--border); border-radius: 5px;
   color: var(--text); cursor: pointer; font-size: 16px; padding: 6px 12px;
   transition: all .12s;
 }
-.tensao-btns button:hover { border-color: var(--red); }
+.tensao-btns button:hover { border-color: var(--accent-border); color: var(--accent-text); }
 
 /* ── MASTER PANEL ───────────────────────────────── */
 .players-grid {
@@ -856,7 +859,7 @@ h1,h2,h3 { letter-spacing: .04em; }
   transition: background .12s;
 }
 .nota-item:hover { background: var(--surface2); }
-.nota-item.active { background: rgba(192,57,43,.1); border-left: 2px solid var(--red); }
+.nota-item.active { background: var(--accent-soft); border-left: 2px solid var(--accent-border); }
 .nota-item-title { font-size: 12px; font-weight: 600; }
 .nota-item-sessao { font-size: 9px; color: var(--muted); margin-top: 2px; }
 
@@ -917,7 +920,7 @@ h1,h2,h3 { letter-spacing: .04em; }
   outline: none;
   transition: border-color .15s;
 }
-.textarea-bare:focus { border-color: var(--red); }
+.textarea-bare:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 
 /* ── SALA RESPONSIVA ────────────────────────────── */
 .sala-layout {
@@ -972,7 +975,7 @@ h1,h2,h3 { letter-spacing: .04em; }
   outline: none;
   width: 100%;
 }
-.formula-select:focus { border-color: var(--red); }
+.formula-select:focus { border-color: var(--accent); }
 
 /* ══════════════════════════════════════════════════
    COMBAT TRACKER
@@ -1014,7 +1017,7 @@ h1,h2,h3 { letter-spacing: .04em; }
   padding: 14px 16px;
   border-bottom: 1px solid var(--border);
   font-size: 9px; font-weight: 700;
-  letter-spacing: 2px; color: var(--red);
+  letter-spacing: 2px; color: var(--gold);
   text-transform: uppercase;
   display: flex; align-items: center; justify-content: space-between;
 }
@@ -1049,8 +1052,8 @@ h1,h2,h3 { letter-spacing: .04em; }
   transition: all .12s;
   white-space: nowrap;
 }
-.ct-add-btn:hover { border-color: var(--red); color: var(--red); }
-.ct-add-mapa:hover { border-color: var(--blue); color: var(--blue); }
+.ct-add-btn:hover { border-color: var(--gold-dim); color: var(--gold-text); }
+.ct-add-mapa:hover { border-color: var(--accent-border); color: var(--accent-text); }
 
 /* Painel direito — tracker */
 .ct-main {
@@ -1063,10 +1066,10 @@ h1,h2,h3 { letter-spacing: .04em; }
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
 }
 .ct-rodada-badge {
-  background: rgba(192,57,43,.15);
-  border: 1px solid var(--red-dim);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-border);
   border-radius: 20px;
-  color: var(--red);
+  color: var(--accent-text);
   font-size: 11px; font-weight: 700;
   padding: 3px 10px;
 }
@@ -1119,7 +1122,7 @@ h1,h2,h3 { letter-spacing: .04em; }
   display: flex; align-items: center; justify-content: center;
   transition: all .12s;
 }
-.ct-pv-btn:hover { border-color: var(--red); color: var(--red); }
+.ct-pv-btn:hover { border-color: var(--accent-border); color: var(--accent-text); }
 .ct-pv-dmg { color: var(--red) !important; font-size: 11px !important; width: 28px !important; }
 .ct-pv-input {
   width: 44px; text-align: center;
@@ -1213,7 +1216,7 @@ h1,h2,h3 { letter-spacing: .04em; }
 }
 .mapa-section-title {
   font-size: 9px; font-weight: 700;
-  letter-spacing: 2px; color: var(--red);
+  letter-spacing: 2px; color: var(--gold);
   text-transform: uppercase; margin-bottom: 6px;
 }
 #token-info {
@@ -1266,7 +1269,7 @@ h1,h2,h3 { letter-spacing: .04em; }
   font-size: 12px; padding: 6px 10px;
   outline: none; width: 100%; margin-bottom: 6px;
 }
-.ct-filtro:focus { border-color: var(--red); }
+.ct-filtro:focus { border-color: var(--accent); }
 
 /* ══════════════════════════════════════════════════
    SALA UNIFICADA
@@ -1565,7 +1568,7 @@ h1,h2,h3 { letter-spacing: .04em; }
   display: flex; align-items: center; justify-content: center;
   transition: all .12s;
 }
-.fp-btn:hover { border-color: var(--red); color: var(--red); }
+.fp-btn:hover { border-color: var(--accent-border); color: var(--accent-text); }
 .fp-close:hover { background: var(--red); color: #fff; border-color: var(--red); }
 
 .fp-body {
@@ -1657,7 +1660,7 @@ h1,h2,h3 { letter-spacing: .04em; }
   -webkit-tap-highlight-color: transparent;
 }
 .mobile-tab-bar .mtab .mtab-icon { font-size: 22px; line-height: 1; }
-.mobile-tab-bar .mtab.active { color: var(--red); }
+.mobile-tab-bar .mtab.active { color: var(--accent-text); }
 
 /* Vista mobile da sala */
 .mobile-sala-view {
@@ -1819,7 +1822,7 @@ h1,h2,h3 { letter-spacing: .04em; }
 .fp-title { font-size:10px;font-weight:700;letter-spacing:1.5px;color:var(--text);text-transform:uppercase;pointer-events:none; }
 .fp-header-btns { display:flex;gap:4px; }
 .fp-btn { background:transparent;border:1px solid var(--border);border-radius:4px;color:var(--muted);cursor:pointer;font-size:11px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;transition:all .12s; }
-.fp-btn:hover { border-color:var(--red);color:var(--red); }
+.fp-btn:hover { border-color:var(--accent-border);color:var(--accent-text); }
 .fp-close:hover { background:var(--red);color:#fff;border-color:var(--red); }
 .fp-body { flex:1;overflow:hidden;position:relative;min-height:0; }
 
@@ -2117,7 +2120,7 @@ h1,h2,h3 { letter-spacing: .04em; }
   width: 100%;
 }
 .npc-pasta-btn:hover { background: var(--surface2); color: var(--text); }
-.npc-pasta-btn.ativa  { background: rgba(192,57,43,.12); color: var(--red); border-color: rgba(192,57,43,.3); }
+.npc-pasta-btn.ativa  { background: var(--accent-soft); color: var(--accent-text); border-color: var(--accent-border); }
 
 .npc-grupo-header {
   font-size: 9px; font-weight: 700; letter-spacing: 2px;
@@ -2182,7 +2185,7 @@ h1,h2,h3 { letter-spacing: .04em; }
   font-size: 10px; font-weight: 700; padding: 4px 10px;
   transition: all .12s;
 }
-.npc-add-btn:hover { border-color: var(--red); color: var(--red); }
+.npc-add-btn:hover { border-color: var(--accent-border); color: var(--accent-text); }
 .npc-add-both:hover { border-color: var(--gold); color: var(--gold); }
 
 .npc-empty {
@@ -2346,23 +2349,25 @@ h1,h2,h3 { letter-spacing: .04em; }
 .attr-card { position: relative; }
 .attr-roll-btn {
   position: absolute; top: 4px; right: 4px;
+  width: 22px; height: 22px; display: flex; align-items: center; justify-content: center;
   background: none; border: 1px solid transparent; border-radius: 5px;
-  font-size: 13px; padding: 1px 4px; cursor: pointer;
-  opacity: 0.35; transition: all 0.15s;
+  color: var(--gold-text); padding: 0; cursor: pointer;
+  opacity: 0.55; transition: all 0.15s;
 }
 .attr-roll-btn:hover {
-  opacity: 1; border-color: var(--gold, #c9a84c);
-  background: rgba(201, 168, 76, 0.1);
-  transform: scale(1.15);
+  opacity: 1; border-color: var(--gold);
+  background: rgba(217,180,91,.1);
+  transform: scale(1.1);
 }
 .pericia-roll-btn {
-  background: none; border: 1px solid var(--border, #2a2620); border-radius: 6px;
-  font-size: 15px; padding: 6px 8px; cursor: pointer; align-self: center;
-  opacity: 0.55; transition: all 0.15s; flex-shrink: 0;
+  width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;
+  background: rgba(217,180,91,.05); border: 1px solid var(--gold-dim); border-radius: 7px;
+  color: var(--gold-text); padding: 0; cursor: pointer; flex-shrink: 0;
+  opacity: 0.85; transition: all 0.15s;
 }
 .pericia-roll-btn:hover {
-  opacity: 1; border-color: var(--gold, #c9a84c);
-  background: rgba(201, 168, 76, 0.1);
+  opacity: 1; border-color: var(--gold);
+  background: rgba(217,180,91,.12);
 }
 
 /* ── Rolagem oculta no feed ── */
@@ -2681,6 +2686,14 @@ h1,h2,h3 { letter-spacing: .04em; }
 #page-ficha.tema-ouro .tensao-endlabel-start { color: #c9bdfa; }
 #page-ficha.tema-ouro .tensao-endlabel-end { color: #b8404a; }
 #page-ficha.tema-ouro .grid-pericias-vinculos { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+#page-ficha.tema-ouro .pericia-card { border-radius: 9px; background: #0d0d13; }
+#page-ficha.tema-ouro .pericia-tag,
+#page-ficha.tema-ouro .pericia-atrib-label { display: none; }
+#page-ficha.tema-ouro .pericia-nome-input { background: transparent; border: none; padding: 0; font-size: 13px; }
+#page-ficha.tema-ouro .pericia-atrib-input {
+  background: transparent; border: 1px solid #4a3d85; border-radius: 5px;
+  padding: 2px 8px; font-size: 9.5px; letter-spacing: .08em; color: #c9bdfa; width: auto;
+}
 #page-ficha.tema-ouro #section-veiculo,
 #page-ficha.tema-ouro #section-notas { display: none; }
 #page-ficha.tema-ouro #section-inventario { order: 4; }
@@ -2757,6 +2770,20 @@ h1,h2,h3 { letter-spacing: .04em; }
   box-shadow: 0 0 10px rgba(168,201,122,.6); border-color: #c9e89a;
 }
 #page-ficha.tema-verde .grid-pericias-vinculos { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+#page-ficha.tema-verde .pericia-card { border-radius: 7px; background: #0e120a; }
+#page-ficha.tema-verde .pericia-tag,
+#page-ficha.tema-verde .pericia-atrib-label { display: none; }
+#page-ficha.tema-verde .pericia-nome-input { background: transparent; border: none; padding: 0; font: 13px 'Share Tech Mono', monospace; }
+#page-ficha.tema-verde .pericia-atrib-input {
+  background: transparent; border: 1px solid #3a4a2c; border-radius: 4px;
+  padding: 2px 8px; font: 9.5px 'Share Tech Mono', monospace; letter-spacing: .08em; color: #a8c97a; width: auto;
+}
+#page-ficha.tema-verde .pericia-roll-btn,
+#page-ficha.tema-verde .attr-roll-btn {
+  border-color: #8a4a28; color: #e8965a; background: rgba(201,112,61,.05);
+}
+#page-ficha.tema-verde .pericia-roll-btn:hover,
+#page-ficha.tema-verde .attr-roll-btn:hover { border-color: #c9703d; background: rgba(201,112,61,.12); }
 #page-ficha.tema-verde #section-veiculo,
 #page-ficha.tema-verde #section-notas { display: none; }
 #page-ficha.tema-verde #section-inventario { order: 4; }
