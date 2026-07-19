@@ -2470,31 +2470,14 @@ h1,h2,h3 { letter-spacing: .04em; }
 #page-ficha.tema-ouro .section-card-title::after {
   content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, #8a7433, transparent);
 }
-/* Layout original: avatar à esquerda, campos ao lado. A margem só evita que
-   os cantos do losango rotacionado (45°) invadam o título/borda do card. */
-#page-ficha.tema-ouro .ficha-avatar-frame { width: 104px; height: 104px; margin: 14px 16px; }
+#page-ficha.tema-ouro .ficha-avatar-frame { width: 104px; height: 104px; }
 #page-ficha.tema-ouro .ficha-avatar-shape {
   display: block; position: absolute; inset: 0; transform: rotate(45deg);
   border: 2px solid #d9b45b; border-radius: 14px;
   background: linear-gradient(135deg,#1d1930,#0d0d13);
   box-shadow: 0 0 30px rgba(217,180,91,.22), inset 0 0 20px rgba(143,122,232,.15);
 }
-/* A foto preenche o losango: inner vira um losango com overflow hidden
-   e a imagem contra-rotaciona com scale ≥ √2 pra cobrir os cantos. */
-#page-ficha.tema-ouro .ficha-avatar-inner {
-  background: transparent; border: none; position: absolute; inset: 9px;
-  transform: rotate(45deg); border-radius: 9px; overflow: hidden;
-  color: #a78bfa; font-size: 40px; z-index: 1;
-}
-#page-ficha.tema-ouro .ficha-avatar-inner img {
-  transform: rotate(-45deg) scale(1.45); transform-origin: center;
-  object-position: 50% 30%; /* puxa o enquadramento pro rosto (parte de cima do retrato) */
-  border-radius: 0;
-}
-#page-ficha.tema-ouro .ficha-avatar-inner #char-foto-placeholder {
-  display: flex; align-items: center; justify-content: center;
-  width: 100%; height: 100%; transform: rotate(-45deg); line-height: 1;
-}
+#page-ficha.tema-ouro .ficha-avatar-inner { background: transparent; border: none; position: absolute; inset: 12px; color: #a78bfa; font-size: 40px; }
 #page-ficha.tema-ouro .ficha-avatar-hint { display: none; }
 #page-ficha.tema-ouro .ficha-id-fields { gap: 6px; }
 #page-ficha.tema-ouro .grid-3 { grid-template-columns: 1fr; gap: 4px; }
@@ -2579,19 +2562,7 @@ h1,h2,h3 { letter-spacing: .04em; }
   letter-spacing: .1em; padding: 3px 7px; border-radius: 3px; transform: rotate(-4deg);
   box-shadow: 0 3px 8px rgba(0,0,0,.5);
 }
-#page-ficha.tema-verde .ficha-avatar-frame { margin: 8px 14px 12px 4px; }
-/* Foto preenche a moldura inclinada (mesma rotação da shape, -2°) */
-#page-ficha.tema-verde .ficha-avatar-inner {
-  background: transparent; border: none; position: absolute; inset: 6px;
-  transform: rotate(-2deg); border-radius: 7px; overflow: hidden;
-  color: #a8c97a; font-size: 36px; z-index: 1;
-  display: flex; align-items: center; justify-content: center;
-}
-#page-ficha.tema-verde .ficha-avatar-inner img {
-  transform: scale(1.08); transform-origin: center;
-  object-position: 50% 30%; border-radius: 0;
-}
-#page-ficha.tema-verde .ficha-avatar-inner #char-foto-placeholder { line-height: 1; }
+#page-ficha.tema-verde .ficha-avatar-inner { background: transparent; border: none; position: absolute; inset: 12px; color: #a8c97a; font-size: 36px; }
 #page-ficha.tema-verde .ficha-avatar-hint { display: none; }
 #page-ficha.tema-verde .ficha-id-fields { gap: 6px; }
 #page-ficha.tema-verde .grid-3 { grid-template-columns: 1fr; gap: 4px; }
@@ -2669,19 +2640,21 @@ h1,h2,h3 { letter-spacing: .04em; }
   #page-ficha.tema-ouro .grid-pericias-vinculos, #page-ficha.tema-verde .grid-pericias-vinculos {
     grid-template-columns: 1fr;
   }
-  /* Cabeçalho vira coluna centralizada (avatar em cima, nome embaixo) — mockup mobile 9a/10a */
-  #page-ficha.tema-ouro .ficha-id-row, #page-ficha.tema-verde .ficha-id-row {
+  /* Cabeçalho vira coluna centralizada (avatar em cima, nome embaixo) — mockup mobile 9a/10a.
+     Aplicado a todos os temas (inclui Padrão) pra a foto sempre ficar centralizada no celular. */
+  #page-ficha .ficha-id-row {
     flex-direction: column; align-items: center; text-align: center;
   }
-  #page-ficha.tema-ouro .ficha-avatar-frame, #page-ficha.tema-verde .ficha-avatar-frame {
-    width: 74px; height: 74px; margin: 16px auto 14px;
+  #page-ficha .ficha-avatar-frame {
+    width: 74px; height: 74px;
   }
-  #page-ficha.tema-ouro .ficha-avatar-inner { font-size: 28px; }
-  #page-ficha.tema-verde .ficha-avatar-inner { font-size: 26px; }
-  #page-ficha.tema-ouro .ficha-id-fields, #page-ficha.tema-verde .ficha-id-fields {
+  #page-ficha:not(.tema-ouro):not(.tema-verde) .ficha-avatar-inner {
+    width: 74px; height: 74px;
+  }
+  #page-ficha .ficha-id-fields {
     align-items: center; width: 100%;
   }
-  #page-ficha.tema-ouro .grid-3, #page-ficha.tema-verde .grid-3 { justify-items: center; }
+  #page-ficha .grid-3 { justify-items: center; }
   #page-ficha.tema-ouro .ficha-nome-field input { font-size: 24px; text-align: center; }
   #page-ficha.tema-verde .ficha-nome-field input { font-size: 21px; text-align: center; }
   #page-ficha.tema-ouro .ficha-prof-field, #page-ficha.tema-ouro .ficha-jogador-field,

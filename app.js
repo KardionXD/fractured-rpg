@@ -584,11 +584,9 @@ async function salvarFicha(silencioso = false) {
     if (data) fichaId = data.id;
   }
 
-  if (error) {
-    console.error('Erro ao salvar ficha:', error.message || error);
-    toast('Erro ao salvar: ' + (error.message || 'desconhecido'), 'err');
-  } else if (!silencioso) {
-    toast('Ficha salva!', 'ok');
+  if (!silencioso) {
+    if (error) toast('Erro ao salvar!', 'err');
+    else toast('Ficha salva!', 'ok');
   }
 }
 
