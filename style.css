@@ -2470,10 +2470,11 @@ h1,h2,h3 { letter-spacing: .04em; }
 #page-ficha.tema-ouro .section-card-title::after {
   content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, #8a7433, transparent);
 }
-/* O losango é um quadrado rotacionado 45° — os cantos passam ~22px do box,
-   então o frame precisa de margem pra não invadir título/borda do card. */
-#page-ficha.tema-ouro .ficha-id-row { align-items: center; }
-#page-ficha.tema-ouro .ficha-avatar-frame { width: 104px; height: 104px; margin: 18px 22px 18px 12px; }
+/* Identidade centralizada (desktop E mobile): avatar no meio, nome/campos embaixo */
+#page-ficha.tema-ouro .ficha-id-row {
+  flex-direction: column; align-items: center; text-align: center;
+}
+#page-ficha.tema-ouro .ficha-avatar-frame { width: 104px; height: 104px; margin: 20px auto 10px; }
 #page-ficha.tema-ouro .ficha-avatar-shape {
   display: block; position: absolute; inset: 0; transform: rotate(45deg);
   border: 2px solid #d9b45b; border-radius: 14px;
@@ -2493,8 +2494,14 @@ h1,h2,h3 { letter-spacing: .04em; }
   width: 100%; height: 100%; transform: rotate(-45deg);
 }
 #page-ficha.tema-ouro .ficha-avatar-hint { display: none; }
-#page-ficha.tema-ouro .ficha-id-fields { gap: 6px; }
-#page-ficha.tema-ouro .grid-3 { grid-template-columns: 1fr; gap: 4px; }
+#page-ficha.tema-ouro .ficha-id-fields { gap: 6px; align-items: center; width: 100%; min-width: 0; }
+#page-ficha.tema-ouro .grid-3 { grid-template-columns: 1fr; gap: 4px; width: 100%; justify-items: center; }
+#page-ficha.tema-ouro .ficha-nome-field { width: 100%; }
+#page-ficha.tema-ouro .ficha-nome-field input { text-align: center; width: 100%; }
+#page-ficha.tema-ouro .ficha-prof-field select,
+#page-ficha.tema-ouro .ficha-jogador-field input { text-align: center; }
+#page-ficha.tema-ouro .ficha-trauma-field { display: inline-flex; align-self: center; }
+#page-ficha.tema-ouro .ficha-trauma-field input { text-align: center; }
 #page-ficha.tema-ouro .ficha-nome-field label,
 #page-ficha.tema-ouro .ficha-prof-field label,
 #page-ficha.tema-ouro .ficha-jogador-field label,
@@ -2576,8 +2583,11 @@ h1,h2,h3 { letter-spacing: .04em; }
   letter-spacing: .1em; padding: 3px 7px; border-radius: 3px; transform: rotate(-4deg);
   box-shadow: 0 3px 8px rgba(0,0,0,.5);
 }
-#page-ficha.tema-verde .ficha-id-row { align-items: center; }
-#page-ficha.tema-verde .ficha-avatar-frame { margin: 8px 16px 12px 6px; }
+/* Identidade centralizada (desktop E mobile) */
+#page-ficha.tema-verde .ficha-id-row {
+  flex-direction: column; align-items: center; text-align: center;
+}
+#page-ficha.tema-verde .ficha-avatar-frame { margin: 12px auto 14px; }
 /* Foto preenche a moldura inclinada (mesma rotação da shape, -2°) */
 #page-ficha.tema-verde .ficha-avatar-inner {
   background: transparent; border: none; position: absolute; inset: 6px;
@@ -2587,8 +2597,14 @@ h1,h2,h3 { letter-spacing: .04em; }
 }
 #page-ficha.tema-verde .ficha-avatar-inner img { transform: scale(1.08); border-radius: 0; }
 #page-ficha.tema-verde .ficha-avatar-hint { display: none; }
-#page-ficha.tema-verde .ficha-id-fields { gap: 6px; }
-#page-ficha.tema-verde .grid-3 { grid-template-columns: 1fr; gap: 4px; }
+#page-ficha.tema-verde .ficha-id-fields { gap: 6px; align-items: center; width: 100%; min-width: 0; }
+#page-ficha.tema-verde .grid-3 { grid-template-columns: 1fr; gap: 4px; width: 100%; justify-items: center; }
+#page-ficha.tema-verde .ficha-nome-field { width: 100%; }
+#page-ficha.tema-verde .ficha-nome-field input { text-align: center; width: 100%; }
+#page-ficha.tema-verde .ficha-prof-field select,
+#page-ficha.tema-verde .ficha-jogador-field input { text-align: center; }
+#page-ficha.tema-verde .ficha-trauma-field { display: inline-flex; align-self: center; }
+#page-ficha.tema-verde .ficha-trauma-field input { text-align: center; }
 #page-ficha.tema-verde .ficha-nome-field label,
 #page-ficha.tema-verde .ficha-prof-field label,
 #page-ficha.tema-verde .ficha-jogador-field label,
