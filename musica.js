@@ -122,8 +122,11 @@ function _musAplicarEstado(st) {
 
   // ── VÍDEO ÚNICO ──
   MUSICA.playlistAtual = null;
-  const atual = MUSICA.player.getVideoData?.()?.video_id;
-  if (atual !== st.videoId) {
+  // Rastreia o videoId aplicado por nós mesmos em vez de perguntar pro player
+  // (getVideoData() do IFrame API pode ficar com valor desatualizado logo após
+  // trocar de vídeo, fazendo a troca de faixa parecer travada na primeira música).
+  if (MUSICA.videoIdAtual !== st.videoId) {
+    MUSICA.videoIdAtual = st.videoId;
     MUSICA.player.loadVideoById({ videoId: st.videoId, startSeconds: offset });
   } else {
     const delta = Math.abs((MUSICA.player.getCurrentTime?.() || 0) - offset);
@@ -212,6 +215,7 @@ async function musicaRetomar() {
 async function musicaParar() {
   if (!isMaster) return;
   const st = { videoId: null, playing: false };
+  MUSICA.videoIdAtual = null;
   try { MUSICA.player.stopVideo(); } catch(e) {}
   await _musPublicar(st);
   _musAtualizarWidget();

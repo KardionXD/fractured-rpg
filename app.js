@@ -574,19 +574,22 @@ function autoSave() {
 async function salvarFicha(silencioso = false) {
   const dados = coletarFicha();
   dados.mesa_id = mesaId();
-  let error;
 
-  if (fichaId) {
-    ({ error } = await db.from('fichas').update(dados).eq('id', fichaId));
-  } else {
-    const { data, error: e } = await db.from('fichas').insert(dados).select().single();
-    error = e;
-    if (data) fichaId = data.id;
-  }
+  // upsert (em vez de decidir insert/update pelo fichaId em memória) evita criar
+  // fichas duplicadas quando a mesma ficha é editada em duas abas/dispositivos
+  // ao mesmo tempo. Exige um UNIQUE(user_id, mesa_id) no banco — ver aviso no chat.
+  const { data, error } = await db.from('fichas')
+    .upsert(dados, { onConflict: 'user_id,mesa_id' })
+    .select()
+    .single();
 
-  if (!silencioso) {
-    if (error) toast('Erro ao salvar!', 'err');
-    else toast('Ficha salva!', 'ok');
+  if (data) fichaId = data.id;
+
+  if (error) {
+    console.error('[salvarFicha] falha ao salvar a ficha:', error);
+    toast('Erro ao salvar: ' + (error.message || 'ver console (F12)'), 'err');
+  } else if (!silencioso) {
+    toast('Ficha salva!', 'ok');
   }
 }
 

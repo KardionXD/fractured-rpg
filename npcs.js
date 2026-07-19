@@ -124,6 +124,7 @@ function renderNPCs() {
             </div>
           </div>
           <div class="npc-acoes">
+            <button class="npc-btn" onclick="verNPCCompleto('${npc.id}')" title="Ver ficha completa">👁</button>
             <button class="npc-btn" onclick="editarNPC('${npc.id}')" title="Editar">✏️</button>
             <button class="npc-btn" onclick="deletarNPC('${npc.id}')" title="Deletar" style="color:var(--red)">🗑</button>
           </div>
@@ -274,6 +275,51 @@ async function salvarNPC() {
 function editarNPC(id) {
   const npc = npcList.find(n => n.id === id);
   if (npc) abrirFormNPC(npc);
+}
+
+// Ficha de leitura rápida (stat block) — sem entrar no modo de edição
+function verNPCCompleto(id) {
+  const npc = npcList.find(n => n.id === id);
+  if (!npc) return;
+
+  const attrs = [
+    ['FOR', npc.for_], ['RES', npc.res], ['COM', npc.com],
+    ['SOC', npc.soc], ['CON', npc.con], ['AGI', npc.agi],
+  ];
+  const attrsHtml = attrs.map(([label, v]) => `
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 4px;text-align:center">
+      <div style="font-size:9px;color:var(--muted);letter-spacing:1px">${label}</div>
+      <div style="font-size:18px;font-weight:700;color:var(--text)">${v ?? 0}</div>
+      <div style="font-size:10px;color:var(--muted)">${(v ?? 0) - 3 >= 0 ? '+' : ''}${(v ?? 0) - 3}</div>
+    </div>`).join('');
+
+  const m = document.createElement('div');
+  m.style.cssText = 'position:fixed;inset:0;z-index:8600;background:rgba(0,0,0,0.72);display:flex;align-items:center;justify-content:center;padding:16px';
+  m.innerHTML = `
+    <div style="width:100%;max-width:440px;max-height:90vh;overflow-y:auto;background:var(--bg,#0d0b08);border:1px solid var(--border);border-radius:10px;padding:16px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+        <div class="npc-avatar" style="width:48px;height:48px;flex-shrink:0">
+          ${npc.img_url
+            ? `<img src="${esc(npc.img_url)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
+            : `<span style="font-size:26px">${npc.emoji || tipoEmoji(npc.tipo)}</span>`}
+        </div>
+        <div>
+          <div style="font-size:16px;font-weight:700;color:var(--gold)">${esc(npc.nome)}</div>
+          <span class="npc-tipo-badge npc-tipo-${npc.tipo}">${tipoLabel(npc.tipo)}</span>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-bottom:12px">${attrsHtml}</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:14px">Vida (PV): <strong style="color:var(--text)">${npc.pv_max ?? 0}</strong></div>
+      <div style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:var(--gold);text-transform:uppercase;margin-bottom:5px">Habilidades</div>
+      <div style="font-size:12px;color:var(--text);white-space:pre-wrap;margin-bottom:12px">${npc.habilidades ? esc(npc.habilidades) : '—'}</div>
+      <div style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:var(--gold);text-transform:uppercase;margin-bottom:5px">Fraqueza</div>
+      <div style="font-size:12px;color:var(--text);white-space:pre-wrap;margin-bottom:12px">${npc.fraqueza ? esc(npc.fraqueza) : '—'}</div>
+      <div style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:var(--gold);text-transform:uppercase;margin-bottom:5px">Notas</div>
+      <div style="font-size:12px;color:var(--text);white-space:pre-wrap;margin-bottom:14px">${npc.notas ? esc(npc.notas) : '—'}</div>
+      <button class="btn-ghost" style="width:100%;font-size:11px;padding:8px" onclick="this.closest('div').parentElement.remove()">Fechar</button>
+    </div>`;
+  m.addEventListener('click', e => { if (e.target === m) m.remove(); });
+  document.body.appendChild(m);
 }
 
 async function deletarNPC(id) {
