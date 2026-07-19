@@ -63,100 +63,127 @@ function buildSalaDOM() {
 }
 
 // ══════════════════════════════════════════════════
-//  MOBILE DOM
+//  MOBILE DOM — mapa em tela cheia + bottom sheet (mockup 2a mobile)
+//  O mapa fica sempre montado como pano de fundo; a folha na base mostra,
+//  por padrão, a última rolagem + dados rápidos (d6/d10/ROLAR TESTE).
+//  Chat/Dados completo/Combate/Players/Bestiário/Fotos abrem expandindo
+//  a mesma folha — nenhum conteúdo dos painéis foi reescrito, só a moldura.
 // ══════════════════════════════════════════════════
 const MOBILE_TABS = [
+  { id:'mapa',      icon:'mapa',     label:'Mapa',    visible: () => true },
   { id:'feed',      icon:'chat',     label:'Chat',    visible: () => true },
   { id:'dados',     icon:'d20',      label:'Dados',   visible: () => true },
   { id:'tracker',   icon:'combate',  label:'Combate', visible: () => true },
-  { id:'mapa',      icon:'mapa',     label:'Mapa',    visible: () => true },
   { id:'players',   icon:'players',  label:'Players', visible: () => isMaster },
   { id:'bestiario', icon:'📖',       label:'Bestia',  visible: () => isMaster },
   { id:'galeria',   icon:'🖼️',       label:'Fotos',   visible: () => true },
 ];
 
 function buildMobileDOM(root) {
-  root.style.cssText = 'display:flex;flex-direction:column;height:100%;';
+  root.style.cssText = 'display:flex;flex-direction:column;height:100%;overflow:hidden;';
 
-  // Tab bar no topo
-  const tabBar = document.createElement('div');
-  tabBar.id = 'sala-tabbar';
-  tabBar.style.cssText = `
-    display:flex;background:var(--surface);border-bottom:1px solid var(--border);
-    overflow-x:auto;flex-shrink:0;scrollbar-width:none;
+  const topbar = document.createElement('div');
+  topbar.className = 'mobile-sala-topbar';
+  topbar.innerHTML = `
+    <div class="mobile-sala-topbar-brand">
+      <span class="mobile-sala-diamond"></span>
+      <span class="mobile-sala-title">${esc((MESA?.nome || 'Mesa').toUpperCase())}</span>
+    </div>
+    <span class="mobile-sala-badge">${isMaster ? 'MESTRE' : 'JOGADOR'}</span>
   `;
 
-  const tabs = MOBILE_TABS.filter(t => t.visible());
-  tabs.forEach(t => {
+  const stage = document.createElement('div');
+  stage.className = 'mobile-sala-stage';
+  const mapaPanel = document.createElement('div');
+  mapaPanel.id = 'mpanel-mapa';
+  mapaPanel.style.cssText = 'position:absolute;inset:0;display:flex;flex-direction:column;';
+  buildPanelContent('mapa', mapaPanel);
+  stage.appendChild(mapaPanel);
+
+  const sheet = document.createElement('div');
+  sheet.className = 'mobile-sheet';
+  sheet.id = 'mobile-sheet';
+  sheet.innerHTML = `
+    <span class="mobile-sheet-handle"></span>
+    <div class="mobile-sheet-roll" id="mobile-sheet-roll">
+      <span class="mobile-sheet-roll-label">${fracIcon('d20', { size: 13 })}Nenhuma rolagem ainda</span>
+    </div>
+    <div class="mobile-dice-row">
+      <button class="mobile-dice-btn" onclick="rolarDado(6)">d6</button>
+      <button class="mobile-dice-btn" onclick="rolarDado(10)">d10</button>
+      <button class="mobile-dice-btn active">d20</button>
+      <button class="mobile-roll-teste-btn" onclick="rolarFormula()">ROLAR TESTE</button>
+    </div>
+    <div class="mobile-sheet-tabs" id="mobile-sheet-tabs"></div>
+    <div class="mobile-sheet-expanded" id="mobile-sheet-expanded"></div>
+  `;
+
+  root.appendChild(topbar);
+  root.appendChild(stage);
+  root.appendChild(sheet);
+
+  const tabsWrap = sheet.querySelector('#mobile-sheet-tabs');
+  const expanded = sheet.querySelector('#mobile-sheet-expanded');
+  MOBILE_TABS.filter(t => t.id !== 'mapa' && t.visible()).forEach(t => {
     const btn = document.createElement('button');
-    btn.id = 'tab-'+t.id;
-    btn.style.cssText = `
-      flex:1;min-width:50px;background:transparent;border:none;border-bottom:2px solid transparent;
-      color:var(--muted);cursor:pointer;font-size:11px;font-weight:600;padding:10px 6px 8px;
-      display:flex;flex-direction:column;align-items:center;gap:2px;transition:all .15s;
-      -webkit-tap-highlight-color:transparent;
-    `;
-    btn.innerHTML = `<span style="font-size:18px">${fracIconOr(t.icon, t.icon, { size: 18 })}</span>${t.label}`;
+    btn.className = 'mobile-sheet-tab';
+    btn.id = 'tab-' + t.id;
+    btn.innerHTML = `${fracIconOr(t.icon, t.icon, { size: 16 })}<span>${t.label}</span>`;
     btn.onclick = () => switchMobileTab(t.id);
-    tabBar.appendChild(btn);
-  });
+    tabsWrap.appendChild(btn);
 
-  // Content area
-  const content = document.createElement('div');
-  content.id = 'sala-tab-content';
-  content.style.cssText = 'flex:1;overflow:hidden;position:relative;min-height:0;';
-
-  tabs.forEach(t => {
     const panel = document.createElement('div');
-    panel.id = 'mpanel-'+t.id;
-    panel.style.cssText = 'display:none;flex-direction:column;overflow:hidden;width:100%;height:100%;position:absolute;top:0;left:0;right:0;bottom:0;background:var(--bg);';
+    panel.id = 'mpanel-' + t.id;
+    panel.style.cssText = 'display:none;flex-direction:column;overflow:hidden;width:100%;height:100%;';
     buildPanelContent(t.id, panel);
-    content.appendChild(panel);
+    expanded.appendChild(panel);
   });
 
-  root.appendChild(tabBar);
-  root.appendChild(content);
-
-  // Force content area height after mount (fix for mobile browsers that give 0 height)
   requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      const rootRect = root.getBoundingClientRect();
-      const tabRect  = tabBar.getBoundingClientRect();
-      const h = Math.max(300, rootRect.height - tabRect.height);
-      content.style.height = h + 'px';
-      switchMobileTab('feed');
-    });
+    canvas = null; initMapa();
+    setTimeout(() => { resizeMapCanvas(); if (typeof desenharMapa === 'function') desenharMapa(); }, 100);
   });
 }
 
+// Alterna entre a vista padrão (mapa + folha recolhida) e um painel expandido
+// dentro da mesma folha. 'mapa' sempre recolhe de volta pra vista padrão.
 function switchMobileTab(id) {
-  document.querySelectorAll('[id^="mpanel-"]').forEach(p => { p.style.display='none'; });
-  document.querySelectorAll('[id^="tab-"]').forEach(b => {
-    b.style.color='var(--muted)';
-    b.style.borderBottomColor='transparent';
-  });
-  const panel = document.getElementById('mpanel-'+id);
-  const btn   = document.getElementById('tab-'+id);
-  if (panel) {
-    panel.style.display='flex';
-    // Ensure content fills parent on mobile
-    const content = document.getElementById('sala-tab-content');
-    if (content) {
-      const h = content.getBoundingClientRect().height || content.offsetHeight;
-      if (h > 0) { panel.style.height = h+'px'; }
-    }
+  const sheet = document.getElementById('mobile-sheet');
+  if (!sheet) return;
+
+  if (id === 'mapa') {
+    sheet.classList.remove('expanded');
+    document.querySelectorAll('.mobile-sheet-tab').forEach(b => b.classList.remove('active'));
+    setTimeout(() => { resizeMapCanvas(); if (typeof desenharMapa === 'function') desenharMapa(); }, 60);
+    return;
   }
-  if (btn) { btn.style.color='var(--red)'; btn.style.borderBottomColor='var(--red)'; }
-  if (id==='mapa') {
-    setTimeout(()=>{ 
-      canvas=null; initMapa();
-      setTimeout(()=>{ resizeMapCanvas(); if(typeof desenharMapa==='function')desenharMapa(); },100);
-    }, 60);
+
+  sheet.classList.add('expanded');
+  document.querySelectorAll('[id^="mpanel-"]').forEach(p => { if (p.id !== 'mpanel-mapa') p.style.display = 'none'; });
+  document.querySelectorAll('.mobile-sheet-tab').forEach(b => b.classList.toggle('active', b.id === 'tab-' + id));
+  const panel = document.getElementById('mpanel-' + id);
+  if (panel) panel.style.display = 'flex';
+
+  if (id === 'tracker')   setTimeout(() => renderCT(), 50);
+  if (id === 'bestiario') setTimeout(() => renderBestiarioCT(), 50);
+  if (id === 'players')   setTimeout(() => renderPlayersParaCT(), 50);
+  if (id === 'feed')      setTimeout(() => scrollFeedToBottom(), 100);
+}
+
+// Espelha a última rolagem na folha da base (chamado por appendFeedMsg em app.js)
+function updateMobileRollCard(msg) {
+  const el = document.getElementById('mobile-sheet-roll');
+  if (!el) return;
+  const c = msg.conteudo;
+  if (c.oculto && !isMaster) {
+    el.innerHTML = `<span class="mobile-sheet-roll-label">🕶 O mestre rolou dados ocultos...</span>`;
+    return;
   }
-  if (id==='tracker') setTimeout(()=>renderCT(),50);
-  if (id==='bestiario') setTimeout(()=>renderBestiarioCT(),50);
-  if (id==='players') setTimeout(()=>renderPlayersParaCT(),50);
-  if (id==='feed') setTimeout(()=>scrollFeedToBottom(),100);
+  const sucesso = c.dif ? (c.total >= c.dif) : null;
+  el.innerHTML = `
+    <span class="mobile-sheet-roll-label">${fracIcon('d20', { size: 13 })}${esc(msg.username)} rolou 1d${c.dado}${c.label ? ' + ' + esc(c.label) : ''}</span>
+    <span><span class="mobile-sheet-roll-total">${c.total}</span>${sucesso !== null ? `<span class="mobile-sheet-roll-status" style="color:${sucesso ? 'var(--green)' : 'var(--red)'}">${sucesso ? 'SUCESSO' : 'FALHA'}</span>` : ''}</span>
+  `;
 }
 
 // ══════════════════════════════════════════════════

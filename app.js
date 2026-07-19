@@ -1345,6 +1345,7 @@ function appendFeedMsg(msg) {
         <div class="feed-msg-content" style="color:var(--muted);font-style:italic">O mestre rolou dados ocultos...</div>`;
       feed.appendChild(div);
       scrollFeedToBottom();
+      if (typeof updateMobileRollCard === 'function') updateMobileRollCard(msg);
       return;
     }
 
@@ -1390,6 +1391,7 @@ function appendFeedMsg(msg) {
 
   feed.appendChild(div);
   scrollFeedToBottom();
+  if (msg.tipo === 'roll' && typeof updateMobileRollCard === 'function') updateMobileRollCard(msg);
 }
 
 

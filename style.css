@@ -1613,150 +1613,70 @@ h1,h2,h3 { letter-spacing: .04em; }
 }
 
 /* ══════════════════════════════════════════════════
-   MOBILE SALA — interface dedicada
+   MOBILE SALA — mapa em tela cheia + bottom sheet (mockup 2a mobile)
 ══════════════════════════════════════════════════ */
-
-/* Barra de abas inferior no mobile */
-.mobile-tab-bar {
-  display: none;
-  position: fixed;
-  bottom: 0; left: 0; right: 0;
-  height: 58px;
-  background: var(--surface);
-  border-top: 1px solid var(--border);
-  z-index: 900;
-  padding: 0 4px;
+.mobile-sala-topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 18px; background: var(--surface2); border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
 }
-.mobile-tab-bar .mtab {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  background: none;
-  border: none;
-  color: var(--muted);
-  cursor: pointer;
-  padding: 6px 2px;
-  transition: color .15s;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: .5px;
-  text-transform: uppercase;
-  -webkit-tap-highlight-color: transparent;
-}
-.mobile-tab-bar .mtab .mtab-icon { font-size: 22px; line-height: 1; }
-.mobile-tab-bar .mtab.active { color: var(--accent-text); }
-
-/* Vista mobile da sala */
-.mobile-sala-view {
-  display: none;
-  flex-direction: column;
-  height: calc(100vh - 56px - 58px); /* topbar + tabbar */
-  overflow: hidden;
-}
-.mobile-sala-panel {
-  display: none;
-  flex-direction: column;
-  height: 100%;
-  overflow: hidden;
-}
-.mobile-sala-panel.active { display: flex; }
-
-/* Mapa mobile — tela cheia com HUD sobreposto */
-.mobile-mapa-container {
-  position: relative;
-  flex: 1;
-  overflow: hidden;
-  background: #03030a;
-}
-#mobile-mapa-canvas {
-  display: block;
-  width: 100%;
-  height: 100%;
-  touch-action: none;
-}
-.mobile-mapa-hud {
-  position: absolute;
-  top: 8px; left: 8px; right: 8px;
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  pointer-events: none;
-  gap: 6px;
-}
-.mobile-mapa-hud > * { pointer-events: all; }
-.mobile-mapa-btn {
-  background: rgba(10,10,18,.85);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  color: var(--text);
-  cursor: pointer;
-  font-size: 12px;
-  padding: 7px 11px;
-  backdrop-filter: blur(6px);
-  -webkit-tap-highlight-color: transparent;
-  white-space: nowrap;
-}
-.mobile-mapa-btn:active { background: rgba(192,57,43,.3); }
-.mobile-mapa-zoom {
-  position: absolute;
-  bottom: 12px; right: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.mobile-mapa-zoom button {
-  width: 40px; height: 40px;
-  background: rgba(10,10,18,.85);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  color: var(--text);
-  font-size: 20px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  backdrop-filter: blur(6px);
-  -webkit-tap-highlight-color: transparent;
-}
-.mobile-tensao-badge {
-  position: absolute;
-  bottom: 12px; left: 10px;
-  background: rgba(10,10,18,.85);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 6px 10px;
-  font-size: 11px;
-  font-weight: 700;
-  backdrop-filter: blur(6px);
+.mobile-sala-topbar-brand { display: flex; align-items: center; gap: 8px; }
+.mobile-sala-diamond { width: 15px; height: 15px; border: 2px solid var(--gold); border-radius: 4px; transform: rotate(45deg); flex-shrink: 0; }
+.mobile-sala-title { font-size: 12.5px; font-weight: 600; letter-spacing: .12em; }
+.mobile-sala-badge {
+  font-size: 9px; font-weight: 600; color: var(--gold-text);
+  border: 1px solid var(--gold-dim); border-radius: 999px; padding: 3px 9px;
+  letter-spacing: .14em; background: rgba(217,180,91,.06); flex-shrink: 0;
 }
 
-/* Tela cheia para mobile */
+.mobile-sala-stage { flex: 1; position: relative; overflow: hidden; background: #0b0b11; min-height: 0; }
+
+.mobile-sheet {
+  position: relative; z-index: 6; flex-shrink: 0;
+  background: var(--surface2); border-top: 1px solid var(--border);
+  border-radius: 18px 18px 0 0; margin-top: -18px;
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 10px 16px 12px;
+  max-height: 46vh; transition: max-height .2s;
+}
+.mobile-sheet.expanded { max-height: 72vh; }
+.mobile-sheet-handle { width: 40px; height: 4px; border-radius: 2px; background: var(--border); align-self: center; flex-shrink: 0; }
+
+.mobile-sheet-roll {
+  display: flex; flex-direction: column; gap: 5px;
+  background: var(--accent-soft); border: 1px solid var(--accent-border); border-radius: 10px; padding: 10px 12px;
+  flex-shrink: 0;
+}
+.mobile-sheet-roll-label { font-size: 10px; color: var(--muted); display: flex; gap: 6px; align-items: center; }
+.mobile-sheet-roll-total { font-size: 16px; font-weight: 600; color: var(--accent-text); }
+.mobile-sheet-roll-status { font-size: 10px; font-weight: 600; letter-spacing: .08em; margin-left: 6px; }
+
+.mobile-dice-row { display: flex; gap: 6px; flex-shrink: 0; }
+.mobile-dice-btn {
+  flex: 1; text-align: center; border: 1px solid var(--border); border-radius: 8px; padding: 9px 0;
+  font-size: 11.5px; color: var(--text); background: transparent; cursor: pointer;
+}
+.mobile-dice-btn.active { border-color: var(--accent-border); background: var(--accent-soft); color: var(--accent-text); font-weight: 600; }
+.mobile-roll-teste-btn {
+  flex: 2; text-align: center; background: var(--gold-grad); color: #191307; border: none; border-radius: 8px;
+  padding: 9px 0; font-size: 10.5px; font-weight: 700; letter-spacing: .1em; cursor: pointer;
+}
+
+.mobile-sheet-tabs { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; flex-shrink: 0; }
+.mobile-sheet-tab {
+  flex: 1; min-width: 52px; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  background: transparent; border: none; color: var(--muted); font-size: 9px; padding: 6px 2px;
+  cursor: pointer; border-radius: 6px; -webkit-tap-highlight-color: transparent;
+}
+.mobile-sheet-tab.active { color: var(--accent-text); background: var(--accent-soft); }
+
+.mobile-sheet-expanded { display: none; flex: 1; overflow: hidden; min-height: 0; margin: 0 -16px -12px; border-top: 1px solid var(--border); }
+.mobile-sheet.expanded .mobile-sheet-roll,
+.mobile-sheet.expanded .mobile-dice-row { display: none; }
+.mobile-sheet.expanded .mobile-sheet-expanded { display: flex; flex-direction: column; }
+
 @media (max-width: 768px) {
-  /* Esconde painéis flutuantes no mobile */
-  #sala-canvas { display: none !important; }
-  .sala-topbar { display: none !important; }
-  #page-sala > .sala-topbar { display: none; }
-
-  /* Mostra interface mobile */
-  .mobile-sala-view { display: flex; }
-  .mobile-tab-bar { display: flex; }
-
-  /* Ajusta altura do main */
-  .main-content { padding: 0; }
-  #page-sala { padding: 0; height: 100%; }
   #page-ficha, #page-notas, #page-master { padding: 12px; padding-bottom: 70px; }
-
-  /* Sidebar vira menu no topo — oculta no mobile */
-  .sidebar { display: none; }
-  .app-layout { grid-template-columns: 1fr; }
-}
-
-@media (min-width: 769px) {
-  .mobile-sala-view { display: none !important; }
-  .mobile-tab-bar { display: none !important; }
 }
 
 /* Mobile: régua de ferramentas do mapa quebra linha, canvas tem altura mínima */
