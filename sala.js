@@ -209,7 +209,11 @@ let zIdx = 30;
 let dragging = null, resizing = null;
 
 function buildDesktopDOM(root) {
-  root.style.cssText = 'position:relative;width:100%;height:calc(100vh - 56px - 52px);overflow:hidden;background:#03030a;';
+  // Fundo com grid roxo sutil (mockup 2a) em vez de preto chapado
+  root.style.cssText = 'position:relative;width:100%;height:calc(100vh - 56px - 52px);overflow:hidden;'
+    + 'background-color:#0b0b11;'
+    + 'background-image:linear-gradient(rgba(143,122,232,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(143,122,232,.05) 1px,transparent 1px);'
+    + 'background-size:46px 46px;';
 
   // Remove existing panels to avoid duplicates
   root.innerHTML = '';
@@ -235,6 +239,8 @@ function createFPanel(cfg, root) {
 
   const el = document.createElement('div');
   el.id = 'dpanel-'+cfg.id;
+  // fpanel-<id> define --fp-accent/--fp-title/--fp-hdr-bg no style.css (acento de cor por painel)
+  el.className = 'fpanel fpanel-'+cfg.id;
   el.style.cssText = `
     position:absolute;left:${x}px;top:${y}px;width:${w}px;height:${h}px;
     z-index:${zIdx++};display:${hidden?'none':'flex'};flex-direction:column;
@@ -245,11 +251,11 @@ function createFPanel(cfg, root) {
   const hdr = document.createElement('div');
   hdr.style.cssText = `
     display:flex;align-items:center;justify-content:space-between;
-    padding:7px 10px;background:var(--surface2);border-bottom:1px solid var(--border);
+    padding:7px 10px;background-color:var(--surface2);background-image:var(--fp-hdr-bg,none);border-bottom:1px solid var(--border);
     cursor:grab;user-select:none;flex-shrink:0;
   `;
   hdr.innerHTML = `
-    <span style="display:flex;align-items:center;gap:6px;font-size:10px;font-weight:700;letter-spacing:1.5px;color:var(--text);text-transform:uppercase;pointer-events:none">${fracIconOr(cfg.icon, cfg.icon, { size: 13 })}${cfg.label}</span>
+    <span style="display:flex;align-items:center;gap:6px;font-size:10px;font-weight:700;letter-spacing:1.5px;color:var(--fp-title,var(--text));text-transform:uppercase;pointer-events:none">${fracIconOr(cfg.icon, cfg.icon, { size: 13 })}${cfg.label}</span>
     <div style="display:flex;gap:4px">
       <button onclick="minPanel('${cfg.id}')" style="background:transparent;border:1px solid var(--border);border-radius:4px;color:var(--muted);cursor:pointer;font-size:11px;width:22px;height:22px;display:flex;align-items:center;justify-content:center" title="Minimizar">─</button>
       <button onclick="hidePanel('${cfg.id}')" style="background:transparent;border:1px solid var(--border);border-radius:4px;color:var(--muted);cursor:pointer;font-size:11px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;transition:all .12s" title="Fechar" onmouseover="this.style.background='var(--red)';this.style.color='#fff'" onmouseout="this.style.background='transparent';this.style.color='var(--muted)'">✕</button>

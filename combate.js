@@ -461,18 +461,61 @@ function renderBestiarioCT() {
       const iniLimpo={...ini}; delete iniLimpo._dbId;
       div.innerHTML=`
         <span class="ct-inimigo-emoji">${ini.emoji}</span>
-        <div class="ct-inimigo-info">
+        <div class="ct-inimigo-info" style="cursor:pointer" title="Ver ficha completa">
           <div class="ct-inimigo-nome">${esc(ini.nome)}</div>
           <div class="ct-inimigo-stats">PV ${ini.pv} · COM ${ini.com>=0?'+':''}${ini.com}</div>
         </div>
         <div style="display:flex;gap:3px;flex-shrink:0">
+          <button class="ct-add-btn ct-ver-btn" title="Ver ficha completa">👁</button>
           <button class="ct-add-btn" onclick='adicionarInimigoCT(${JSON.stringify(iniLimpo).replace(/'/g,"&#39;")})'>+CT</button>
           <button class="ct-add-btn ct-add-mapa" onclick='adicionarTokenMapa(${JSON.stringify(iniLimpo).replace(/'/g,"&#39;")})'>+🗺</button>
           <button class="ct-add-btn" style="color:var(--red)" title="Deletar monstro" onclick="deletarMonstro('${ini._dbId}','${esc(ini.nome).replace(/'/g,"&#39;")}')">✕</button>
         </div>`;
+      div.querySelector('.ct-ver-btn').onclick = () => verMonstro(ini, nomes[cat]||cat);
+      div.querySelector('.ct-inimigo-info').onclick = () => verMonstro(ini, nomes[cat]||cat);
       lista.appendChild(div);
     });
   });
+}
+
+// Ficha completa do monstro (leitura) — clicar no nome ou no 👁 abre
+function verMonstro(m, categoria) {
+  const stats = [
+    ['PV', m.pv ?? 0],
+    ['COM', (m.com >= 0 ? '+' : '') + (m.com ?? 0)],
+    ['AGI', (m.agi >= 0 ? '+' : '') + (m.agi ?? 0)],
+    ['RES', (m.res >= 0 ? '+' : '') + (m.res ?? 0)],
+  ];
+  const statsHtml = stats.map(([label, v]) => `
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 4px;text-align:center">
+      <div style="font-size:9px;color:var(--muted);letter-spacing:1px">${label}</div>
+      <div style="font-size:18px;font-weight:700;color:var(--text)">${v}</div>
+    </div>`).join('');
+  const habs = Array.isArray(m.habilidades) ? m.habilidades : String(m.habilidades || '').split('\n').filter(Boolean);
+  const habsHtml = habs.length
+    ? '<ul style="margin:0;padding-left:16px">' + habs.map(h => `<li style="margin-bottom:3px">${esc(h)}</li>`).join('') + '</ul>'
+    : '—';
+
+  const modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;inset:0;z-index:8600;background:rgba(0,0,0,0.72);display:flex;align-items:center;justify-content:center;padding:16px';
+  modal.innerHTML = `
+    <div style="width:100%;max-width:380px;max-height:90vh;overflow-y:auto;background:var(--bg,#0d0b08);border:1px solid var(--border);border-radius:10px;padding:16px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+        <span style="font-size:32px">${m.emoji || '👾'}</span>
+        <div>
+          <div style="font-size:16px;font-weight:700;color:var(--gold)">${esc(m.nome)}</div>
+          <div style="font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase">${esc(categoria || m.tipo || '')}</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:14px">${statsHtml}</div>
+      <div style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:var(--gold);text-transform:uppercase;margin-bottom:5px">Habilidades</div>
+      <div style="font-size:12px;color:var(--text);margin-bottom:12px">${habsHtml}</div>
+      <div style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:var(--gold);text-transform:uppercase;margin-bottom:5px">Fraqueza</div>
+      <div style="font-size:12px;color:var(--text);white-space:pre-wrap;margin-bottom:14px">${m.fraqueza ? esc(m.fraqueza) : '—'}</div>
+      <button class="btn-ghost" style="width:100%;font-size:11px;padding:8px" onclick="this.closest('div').parentElement.remove()">Fechar</button>
+    </div>`;
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+  document.body.appendChild(modal);
 }
 
 // ── CRIAR / DELETAR MONSTROS ──────────────────────

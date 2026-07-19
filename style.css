@@ -1679,6 +1679,24 @@ h1,h2,h3 { letter-spacing: .04em; }
   #page-ficha, #page-notas, #page-master { padding: 12px; padding-bottom: 70px; }
 }
 
+/* ══════════════════════════════════════════════════
+   SALA — acento de cor por painel flutuante
+   (linha no topo + tinta no cabeçalho + título colorido;
+   as vars são lidas pelos estilos inline de createFPanel)
+══════════════════════════════════════════════════ */
+.fpanel::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: var(--fp-accent, transparent); z-index: 5; pointer-events: none;
+}
+.fpanel-feed      { --fp-accent: linear-gradient(90deg,#8f7ae8,rgba(143,122,232,0)); --fp-title: #c9bdfa; --fp-hdr-bg: linear-gradient(180deg,rgba(143,122,232,.13),rgba(143,122,232,.02)); }
+.fpanel-players   { --fp-accent: linear-gradient(90deg,#7ab88a,rgba(122,184,138,0)); --fp-title: #a8d9b4; --fp-hdr-bg: linear-gradient(180deg,rgba(122,184,138,.13),rgba(122,184,138,.02)); }
+.fpanel-tensao    { --fp-accent: linear-gradient(90deg,#c9703d,rgba(201,112,61,0));  --fp-title: #e8965a; --fp-hdr-bg: linear-gradient(180deg,rgba(201,112,61,.13),rgba(201,112,61,.02)); }
+.fpanel-dados     { --fp-accent: linear-gradient(90deg,#d9b45b,rgba(217,180,91,0));  --fp-title: #e8cf8a; --fp-hdr-bg: linear-gradient(180deg,rgba(217,180,91,.13),rgba(217,180,91,.02)); }
+.fpanel-tracker   { --fp-accent: linear-gradient(90deg,#c0392b,rgba(192,57,43,0));   --fp-title: #e57d6f; --fp-hdr-bg: linear-gradient(180deg,rgba(192,57,43,.13),rgba(192,57,43,.02)); }
+.fpanel-mapa      { --fp-accent: linear-gradient(90deg,#7a9e5a,rgba(122,158,90,0));  --fp-title: #a8c97a; --fp-hdr-bg: linear-gradient(180deg,rgba(122,158,90,.13),rgba(122,158,90,.02)); }
+.fpanel-bestiario { --fp-accent: linear-gradient(90deg,#b8563d,rgba(184,86,61,0));   --fp-title: #e08a6a; --fp-hdr-bg: linear-gradient(180deg,rgba(184,86,61,.13),rgba(184,86,61,.02)); }
+.fpanel-galeria   { --fp-accent: linear-gradient(90deg,#9a7ab8,rgba(154,122,184,0)); --fp-title: #c9a8e8; --fp-hdr-bg: linear-gradient(180deg,rgba(154,122,184,.13),rgba(154,122,184,.02)); }
+
 /* Mobile: régua de ferramentas do mapa quebra linha, canvas tem altura mínima */
 @media (max-width: 768px) {
   .mapa-toolbar { flex-wrap:wrap; }
@@ -2470,14 +2488,25 @@ h1,h2,h3 { letter-spacing: .04em; }
 #page-ficha.tema-ouro .section-card-title::after {
   content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, #8a7433, transparent);
 }
-#page-ficha.tema-ouro .ficha-avatar-frame { width: 104px; height: 104px; }
+#page-ficha.tema-ouro .ficha-avatar-frame { width: 126px; height: 126px; }
+/* O losango é um quadrado girado 45°: o lado precisa ser ~frame/1.42 pra
+   diagonal caber no slot sem vazar por cima dos campos vizinhos. */
 #page-ficha.tema-ouro .ficha-avatar-shape {
-  display: block; position: absolute; inset: 15px; transform: rotate(45deg);
+  display: block; position: absolute; inset: 19px; transform: rotate(45deg);
   border: 2px solid #d9b45b; border-radius: 14px;
   background: linear-gradient(135deg,#1d1930,#0d0d13);
   box-shadow: 0 0 30px rgba(217,180,91,.22), inset 0 0 20px rgba(143,122,232,.15);
 }
-#page-ficha.tema-ouro .ficha-avatar-inner { background: transparent; border: none; position: absolute; inset: 15px; color: #a78bfa; font-size: 40px; }
+/* A foto preenche o losango: o inner é o mesmo quadrado girado (com clip),
+   e a imagem gira de volta -45° com scale pra cobrir os cantos. */
+#page-ficha.tema-ouro .ficha-avatar-inner {
+  background: transparent; border: none; position: absolute; inset: 23px;
+  width: auto; height: auto; /* deixa o inset dimensionar (a base fixa 76px) */
+  transform: rotate(45deg); border-radius: 10px; overflow: hidden;
+  color: #a78bfa; font-size: 40px;
+}
+#page-ficha.tema-ouro .ficha-avatar-inner img { transform: rotate(-45deg) scale(1.5); border-radius: 0 !important; }
+#page-ficha.tema-ouro .ficha-avatar-inner #char-foto-placeholder { display: inline-block; transform: rotate(-45deg); }
 #page-ficha.tema-ouro .ficha-avatar-hint { display: none; }
 #page-ficha.tema-ouro .ficha-id-fields { gap: 6px; }
 #page-ficha.tema-ouro .grid-3 { grid-template-columns: 1fr; gap: 4px; }
@@ -2562,7 +2591,14 @@ h1,h2,h3 { letter-spacing: .04em; }
   letter-spacing: .1em; padding: 3px 7px; border-radius: 3px; transform: rotate(-4deg);
   box-shadow: 0 3px 8px rgba(0,0,0,.5);
 }
-#page-ficha.tema-verde .ficha-avatar-inner { background: transparent; border: none; position: absolute; inset: 12px; color: #a8c97a; font-size: 36px; }
+/* A foto preenche o retângulo do quadro (mesma inclinação -2° da moldura) */
+#page-ficha.tema-verde .ficha-avatar-inner {
+  background: transparent; border: none; position: absolute; inset: 5px;
+  width: auto; height: auto; /* deixa o inset dimensionar (a base fixa 76px) */
+  transform: rotate(-2deg); border-radius: 7px; overflow: hidden;
+  color: #a8c97a; font-size: 36px;
+}
+#page-ficha.tema-verde .ficha-avatar-inner img { border-radius: 7px !important; }
 #page-ficha.tema-verde .ficha-avatar-hint { display: none; }
 #page-ficha.tema-verde .ficha-id-fields { gap: 6px; }
 #page-ficha.tema-verde .grid-3 { grid-template-columns: 1fr; gap: 4px; }
@@ -2651,6 +2687,10 @@ h1,h2,h3 { letter-spacing: .04em; }
   #page-ficha:not(.tema-ouro):not(.tema-verde) .ficha-avatar-inner {
     width: 74px; height: 74px;
   }
+  /* Losango dourado proporcional ao frame menor do celular */
+  #page-ficha.tema-ouro .ficha-avatar-shape { inset: 11px; }
+  #page-ficha.tema-ouro .ficha-avatar-inner { inset: 14px; font-size: 24px; }
+  #page-ficha.tema-verde .ficha-avatar-inner { font-size: 24px; }
   #page-ficha .ficha-id-fields {
     align-items: center; width: 100%;
   }
