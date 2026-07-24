@@ -23,7 +23,7 @@ let notaEditada = false;
 let realtimeSub = null;
 let vinculosCount = 1;
 
-const TENSAO_TYPES = ['C','C','C','A','A','A','P','P','T','T'];
+// TENSAO_TYPES e as faixas vivem em conteudo.js — fonte única, tirada do Cap. 06.
 
 // ── INIT ──────────────────────────────────────────
 async function init() {
@@ -63,6 +63,7 @@ async function init() {
   await mesaEscolher();
 
   buildAttrGrid();
+  buildProfissoes();
   buildPips('pip-pv', pvMax, pvAtual, 'roxo', onPVClick, 'pip-pv-val');
   buildPips('pip-sup', 10, supAtual, 'dourado', onSupClick, 'pip-sup-val');
   buildPips('pip-hum', 10, humAtual, 'roxo2', onHumClick, 'pip-hum-val');
@@ -175,6 +176,7 @@ function onAttrInput(id) {
     document.getElementById('pv-formula').textContent = `RES (${val || 0}) × 4 = máx ${pvMax}`;
     buildPips('pip-pv', pvMax, pvAtual, 'roxo', onPVClick, 'pip-pv-val');
   }
+  if (id === 'con') atualizarDicaPericias();  // nº de perícias sai do Mod de CON
   autoSave();
 }
 
@@ -218,6 +220,8 @@ function onPVClick(i, cid, total, valId) {
   autoSave();
 }
 
+// Cap. 10: "Suprimentos NÃO são individuais — são do grupo inteiro, e cada
+// gasto é uma decisão coletiva." A trilha é uma só para a mesa, igual à Tensão.
 function onSupClick(i, cid, total, valId) {
   const pips = document.querySelectorAll(`#${cid} .pip`);
   const cur = [...pips].filter(p => p.classList.contains('on')).length;
@@ -225,7 +229,36 @@ function onSupClick(i, cid, total, valId) {
   pips.forEach((p, j) => p.classList.toggle('on', j < supAtual));
   document.getElementById(valId).textContent = `${supAtual}/${total}`;
   _syncGauge('sup', supAtual, total);
+  publicarSuprimentos();
   autoSave();
+}
+
+// Empurra o valor do grupo para a mesa inteira.
+async function publicarSuprimentos() {
+  try {
+    if (typeof mesaId === 'function' && mesaId()) {
+      await publicarSala('suprimentos', { valor: supAtual });
+    }
+  } catch (e) {}
+}
+
+// Redesenha a trilha com um valor que veio de outro jogador.
+function aplicarSuprimentosSala(valor) {
+  supAtual = Math.max(0, Math.min(10, parseInt(valor) || 0));
+  buildPips('pip-sup', 10, supAtual, 'dourado', onSupClick, 'pip-sup-val');
+}
+
+async function carregarSuprimentosSala() {
+  try {
+    const { data } = await db
+      .from('sala')
+      .select('conteudo')
+      .eq('mesa_id', mesaId())
+      .eq('tipo', 'suprimentos')
+      .order('created_at', { ascending: false })
+      .limit(1);
+    if (data && data.length > 0) aplicarSuprimentosSala(data[0].conteudo?.valor || 0);
+  } catch (e) {}
 }
 
 function onHumClick(i, cid, total, valId) {
@@ -249,6 +282,7 @@ function ajustarRecurso(tipo, delta) {
   if (!cfg) return;
   cfg.set(Math.max(0, Math.min(cfg.max, cfg.get() + delta)));
   buildPips(cfg.cid, cfg.max, cfg.get(), cfg.color, cfg.click, cfg.valId);
+  if (tipo === 'sup') publicarSuprimentos();  // recurso do grupo
   autoSave();
 }
 
@@ -283,11 +317,9 @@ function buildTensaoPips(containerId, active, forFicha) {
 
 function updateTensaoStatus() {
   const t = tensaoSala;
-  let label, cls, tipText;
-  if (t <= 3)      { label='CALMA';  cls='calma';  tipText='Testes normais. Descanso permitido.'; }
-  else if (t <= 6) { label='ALERTA'; cls='alerta'; tipText='−1 Agilidade. NPCs na defensiva.'; }
-  else if (t <= 8) { label='PERIGO'; cls='perigo'; tipText='Cada teste custa +1 Suprimento.'; }
-  else             { label='TERROR'; cls='terror'; tipText='Falhas causam Trauma permanente!'; }
+  // Cap. 06 — A REGRA ÚNICA DA TENSÃO: a penalidade da faixa entra em TODO teste.
+  const faixa = tensaoFaixa(t);
+  const label = faixa.label, cls = faixa.cls, tipText = faixa.dica;
 
   const text = `${label} (${t}/10)`;
   ['tensao-status-text','tensao-status-mobile'].forEach(id => {
@@ -299,21 +331,49 @@ function updateTensaoStatus() {
 }
 
 // ── PERÍCIAS ─────────────────────────────────────
-const PERICIAS_DEFAULT = [
-  'Perícia 1 (Profissão)', 'Perícia 2 (Profissão)', 'Perícia 3 (Profissão)',
-  'Perícia 4 (Extra)', 'Perícia 5 (Extra)'
-];
+// Cap. 04 / ficha oficial: "PERÍCIAS ATIVAS — 1 da profissão + 1 por ponto
+// positivo do Mod de CONHECIMENTO (mínimo 1)". A ficha impressa tem 5 linhas
+// e não rotula nenhuma como "de profissão" — os rótulos aqui são neutros.
+const PERICIAS_SLOTS = 5;
+
+// <datalist> com as 67 perícias oficiais, agrupadas como no livro.
+function _periciasDatalist() {
+  if (document.getElementById('pericias-oficiais')) return;
+  const dl = document.createElement('datalist');
+  dl.id = 'pericias-oficiais';
+  const grupos = periciasPorCategoria();
+  PERICIAS_ORDEM.forEach(cat => {
+    (grupos[cat] || []).forEach(p => {
+      const o = document.createElement('option');
+      o.value = p.nome;
+      o.label = cat === 'SOBREVIVÊNCIA' ? `Sobrevivência [${p.attr}]` : cat;
+      dl.appendChild(o);
+    });
+  });
+  document.body.appendChild(dl);
+}
+
+// Ao escolher uma perícia do catálogo, preenche o atributo sozinho.
+function onPericiaNome(i) {
+  const nomeEl = document.getElementById(`p-nome-${i}`);
+  const atrEl  = document.getElementById(`p-atrib-${i}`);
+  const attr = atributoDaPericia(nomeEl?.value);
+  if (attr && atrEl) atrEl.value = attr;
+  autoSave();
+}
 
 function buildPericias() {
   const list = document.getElementById('pericias-list');
   list.innerHTML = '';
-  PERICIAS_DEFAULT.forEach((tag, i) => {
+  _periciasDatalist();
+  for (let i = 0; i < PERICIAS_SLOTS; i++) {
     const div = document.createElement('div');
     div.className = 'pericia-card';
     div.innerHTML = `
       <div class="pericia-main">
-        <div class="pericia-tag">${tag}</div>
-        <input type="text" class="pericia-nome-input" id="p-nome-${i}" placeholder="Nome da perícia..." oninput="autoSave()">
+        <div class="pericia-tag">Perícia ${i + 1}</div>
+        <input type="text" class="pericia-nome-input" id="p-nome-${i}" list="pericias-oficiais"
+          placeholder="Nome da perícia..." oninput="onPericiaNome(${i})">
       </div>
       <div class="pericia-atrib-wrap">
         <span class="pericia-atrib-label">ATRIB</span>
@@ -323,7 +383,69 @@ function buildPericias() {
       <button class="pericia-roll-btn" onclick="rolarPericiaFicha(${i})" title="Rolar 1d20 + atributo + 3 (perícia)">${fracIcon('d20', { size: 14 })}</button>
     `;
     list.appendChild(div);
+  }
+  atualizarDicaPericias();
+}
+
+// Quantas perícias o personagem tem direito: 1 da profissão + 1 por ponto
+// positivo do Mod de CONHECIMENTO, mínimo 1 extra (Cap. 03).
+function periciasPermitidas() {
+  const con = parseInt(document.getElementById('a-con')?.value) || 0;
+  const mod = con ? con - 3 : 0;
+  return 1 + Math.max(1, mod);
+}
+
+function atualizarDicaPericias() {
+  const el = document.getElementById('pericias-dica');
+  if (!el) return;
+  const con = parseInt(document.getElementById('a-con')?.value) || 0;
+  const mod = con ? con - 3 : 0;
+  const n = periciasPermitidas();
+  if (!con) {
+    el.textContent = '1 da profissão + 1 por ponto positivo do Mod de CONHECIMENTO (mínimo 1)';
+    return;
+  }
+  el.textContent = mod > 0
+    ? `${n} perícias — 1 da profissão + ${mod} pelo Mod de CON (+${mod})`
+    : `${n} perícias — 1 da profissão + 1 (mínimo; Mod de CON ${mod})`;
+}
+
+// ── PROFISSÕES ───────────────────────────────────
+function buildProfissoes() {
+  const sel = document.getElementById('f-profissao');
+  if (!sel || sel.dataset.pronto) return;
+  const atual = sel.value;
+  sel.innerHTML = '<option value="">Selecionar...</option>';
+  [['Livro Base', 'base'], ['Expansão', 'expansao']].forEach(([rotulo, livro]) => {
+    const g = document.createElement('optgroup');
+    g.label = rotulo;
+    PROFISSOES.filter(p => p.livro === livro).forEach(p => {
+      const o = document.createElement('option');
+      o.value = p.nome;
+      o.textContent = `${p.nome} — ${p.attrs}`;
+      g.appendChild(o);
+    });
+    sel.appendChild(g);
   });
+  sel.dataset.pronto = '1';
+  if (atual) sel.value = atual;
+  sel.addEventListener('change', mostrarProfissao);
+  mostrarProfissao();
+}
+
+// Mostra perícia Base/Extra e o Traço da profissão escolhida.
+function mostrarProfissao() {
+  const box = document.getElementById('profissao-info');
+  if (!box) return;
+  const p = profissao(document.getElementById('f-profissao')?.value);
+  if (!p) { box.innerHTML = ''; box.style.display = 'none'; return; }
+  box.style.display = '';
+  box.innerHTML = `
+    <div class="prof-info-linha"><b>Escolha uma perícia:</b>
+      <span class="prof-pericia">${p.base}</span> <i>ou</i>
+      <span class="prof-pericia">${p.extra}</span></div>
+    <div class="prof-info-linha"><b>Traço — ${p.traco}:</b> ${p.tracoDesc}</div>
+  `;
 }
 
 // ── VÍNCULOS (lista dinâmica — clique pra adicionar/remover) ──
@@ -503,6 +625,7 @@ function aplicarFicha(d) {
   document.getElementById('f-nome').value       = d.nome || '';
   document.getElementById('f-jogador').value    = d.jogador || '';
   document.getElementById('f-profissao').value  = d.profissao || '';
+  if (typeof mostrarProfissao === 'function') mostrarProfissao();
   document.getElementById('f-trauma').value     = d.trauma || '';
   document.getElementById('f-notas').value      = d.notas || '';
   if (d.foto_url) aplicarFotoPersonagem(d.foto_url);
@@ -518,9 +641,12 @@ function aplicarFicha(d) {
     document.getElementById(`m-${a.id}`).value = calcMod(val);
   });
   atualizarContadorPontos();
+  atualizarDicaPericias();
 
   pvAtual  = d.pv_atual || 0;
   pvMax    = Math.max((d.attr_res || 0) * 4, 4);
+  // Suprimentos são do grupo: o valor da mesa manda. O da ficha é só o ponto
+  // de partida enquanto a mesa ainda não publicou nenhum.
   supAtual = d.suprimentos || 0;
   humAtual = d.humanidade ?? 10;
   tensaoFicha = d.tensao || 0;
@@ -627,6 +753,7 @@ let _salaSubAtiva = false;
 async function subscribeToSala() {
   carregarFeed();
   carregarTensaoSala();
+  carregarSuprimentosSala();
 
   if (_salaSubAtiva) return;
   _salaSubAtiva = true;
@@ -638,7 +765,10 @@ async function subscribeToSala() {
       if (msg.tipo === 'tensao') {
         tensaoSala = msg.conteudo.valor;
         buildTensaoPips('tensao-pips-sala', tensaoSala, false);
+        updateTensaoStatus();
       }
+      // Suprimentos são do grupo (Cap. 10): o valor de qualquer um vale para todos.
+      if (msg.tipo === 'suprimentos') aplicarSuprimentosSala(msg.conteudo?.valor);
       // Vídeo/GIF no mapa - carrega para players
       if (msg.tipo === 'video_mapa' && !isMaster) {
         if (typeof mapaCarregarVideo === 'function') {
@@ -669,6 +799,7 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && typeof mesaId === 'function' && mesaId()) {
     carregarFeed();
     carregarTensaoSala();
+    carregarSuprimentosSala();
     if (!_salaSubAtiva) subscribeToSala();
   }
 });
@@ -708,6 +839,7 @@ async function carregarTensaoSala() {
     if (data && data.length > 0) {
       tensaoSala = data[0].conteudo?.valor || 0;
       buildTensaoPips('tensao-pips-sala', tensaoSala, false);
+      updateTensaoStatus();
     }
   } catch(e) {}
 }
@@ -938,8 +1070,7 @@ async function enviarMsg() {
 async function alterarTensao(delta) {
   if (!isMaster) return;
   tensaoSala = Math.max(0, Math.min(10, tensaoSala + delta));
-  const statuses = ['CALMA','CALMA','CALMA','CALMA','ALERTA','ALERTA','ALERTA','PERIGO','PERIGO','TERROR','TERROR'];
-  const status = statuses[tensaoSala];
+  const status = tensaoFaixa(tensaoSala).label;
   buildTensaoPips('tensao-pips-sala', tensaoSala, false);
   await publicarSala('tensao', { valor: tensaoSala, status });
 }

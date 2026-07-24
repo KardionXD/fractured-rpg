@@ -355,7 +355,7 @@ function npcParaCombatente(npc) {
     tag:         '',
     pvMax:       npc.pv_max,
     pvAtual:     npc.pv_max,
-    iniciativa:  Math.floor(Math.random() * 20) + 1 + (npc.agi || 0),
+    iniciativa:  Math.floor(Math.random() * 20) + 1 + ((npc.agi || 0) - 3), // d20 + mod AGI (Cap. 05)
     tipo:        npc.tipo,
     habilidades: npc.habilidades ? npc.habilidades.split('\n').filter(Boolean) : [],
     fraqueza:    npc.fraqueza || '',

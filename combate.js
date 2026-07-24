@@ -11,6 +11,21 @@ let BESTIARIO = {};        // { categoria: [monstros] }
 let TODOS_INIMIGOS = [];   // lista achatada p/ quick-add do mapa
 let _bestiarioCarregado = false;
 
+// ══════════════════════════════════════════════════
+//  CONDIÇÕES — Cap. 07 do Livro Base.
+//  São exatamente as do livro. "Atordoado" e "Envenenado", que estavam
+//  aqui antes, não existem em nenhum dos três livros.
+// ══════════════════════════════════════════════════
+const CONDICOES = [
+  { nome: 'Caído',        icone: '🡇', efeito: '−2 nas defesas. Levantar gasta o Movimento.' },
+  { nome: 'Agarrado',     icone: '🤝', efeito: 'Só pode tentar escapar.' },
+  { nome: 'Sangrando',    icone: '🩸', efeito: '−1 PV no início de cada rodada até receber curativo.' },
+  { nome: 'Em Chamas',    icone: '🔥', efeito: 'Dano de fogo por rodada. Apagar: 1 ação + teste de AGI ≥ 11.' },
+  { nome: 'Surpreso',     icone: '❕', efeito: 'Defende com −5.' },
+  { nome: 'Imobilizado',  icone: '🔒', efeito: 'Não rola defesa e não reduz dano.' },
+  { nome: 'Inconsciente', icone: '💤', efeito: 'Não rola defesa e não reduz dano.' },
+];
+
 async function carregarBestiario(force = false) {
   if (!isMaster || !mesaId()) return;
   if (_bestiarioCarregado && !force) { renderBestiarioCT(); return; }
@@ -189,9 +204,7 @@ function renderCT() {
         ${c.habilidades && isMaster ? `<details class="ct-detalhes"><summary>Habilidades</summary><ul>${c.habilidades.map(h=>`<li>${h}</li>`).join('')}</ul>${c.fraqueza?`<div class="ct-fraqueza">⚡ ${c.fraqueza}</div>`:''}</details>` : ''}
       </div>
       <div class="ct-acoes">
-        <button class="ct-btn" onclick="toggleCond('${c.id}','Atordoado')" title="Atordoado">😵</button>
-        <button class="ct-btn" onclick="toggleCond('${c.id}','Envenenado')" title="Envenenado">☠</button>
-        <button class="ct-btn" onclick="toggleCond('${c.id}','Imobilizado')" title="Imob.">🔒</button>
+        ${CONDICOES.map(cd => `<button class="ct-btn${c.condicoes?.includes(cd.nome)?' ct-btn-on':''}" onclick="toggleCond('${c.id}','${cd.nome}')" title="${cd.nome} — ${cd.efeito}">${cd.icone}</button>`).join('')}
         <button class="ct-btn ct-btn-red" onclick="removerComb('${c.id}')" title="Remover">✕</button>
       </div>
     `;
@@ -235,7 +248,7 @@ function adicionarInimigoCT(inimigo) {
     nome: inimigo.nome, emoji: inimigo.emoji,
     tag: existentes.length ? ` #${existentes.length+1}` : '',
     pvMax: inimigo.pv, pvAtual: inimigo.pv,
-    iniciativa: Math.floor(Math.random()*20)+1+(inimigo.agi||0),
+    iniciativa: Math.floor(Math.random()*20)+1+((inimigo.agi||0)-3), // d20 + mod AGI (Cap. 05)
     tipo: inimigo.tipo, habilidades: inimigo.habilidades,
     fraqueza: inimigo.fraqueza, condicoes: [], isPC: false,
     controlador: null,
@@ -379,7 +392,7 @@ function proximoTurno() {
   while(ord[turnoAtual]?.pvAtual<=0&&ord[turnoAtual]?.pvMax&&t<ord.length){
     turnoAtual++; if(turnoAtual>=ord.length){turnoAtual=0;rodadaAtual++;} t++;
   }
-  renderCT();
+  renderCT(); salvarCT();
 }
 
 function encerrarCombate() {
@@ -391,14 +404,14 @@ function alterarPV(id,delta) {
   const c=combatentes.find(x=>x.id===id); if(!c) return;
   c.pvAtual=Math.max(0,Math.min(c.pvMax,c.pvAtual+delta));
   const t=tokens.find(x=>x.id===id); if(t){t.pvAtual=c.pvAtual;desenharMapa();}
-  renderCT();
+  renderCT(); salvarCT();
 }
 
 function setPV(id,val) {
   const c=combatentes.find(x=>x.id===id); if(!c) return;
   c.pvAtual=Math.max(0,Math.min(c.pvMax,parseInt(val)||0));
   const t=tokens.find(x=>x.id===id); if(t){t.pvAtual=c.pvAtual;desenharMapa();}
-  renderCT();
+  renderCT(); salvarCT();
 }
 
 function danoRapido(id) {

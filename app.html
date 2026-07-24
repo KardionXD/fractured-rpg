@@ -73,14 +73,8 @@
             <div class="grid-3">
               <div class="field ficha-nome-field"><label>Nome</label><input type="text" id="f-nome" placeholder="..." oninput="autoSave()"></div>
               <div class="field ficha-prof-field"><label>Profissão</label>
-                <select id="f-profissao" onchange="autoSave()">
-                  <option value="">Selecionar...</option>
-                  <option>Médico de Campo</option><option>Mecânico</option><option>Ex-Policial</option>
-                  <option>Engenheiro Civil</option><option>Jornalista</option><option>Atirador Militar</option>
-                  <option>Agricultor / Botânico</option><option>Psicólogo / Conselheiro</option>
-                  <option>Químico / Farmacêutico</option><option>Líder Comunitário</option>
-                  <option>Ladrão / Arrombador</option><option>Sem Profissão Definida</option>
-                </select>
+                <select id="f-profissao" onchange="autoSave()"><option value="">Selecionar...</option></select>
+                <div id="profissao-info" class="profissao-info" style="display:none"></div>
               </div>
               <div class="field ficha-jogador-field"><label>Jogador</label><input type="text" id="f-jogador" placeholder="..." oninput="autoSave()"></div>
             </div>
@@ -110,10 +104,10 @@
             </div>
             <div class="recurso-item">
               <div class="recurso-pip-block">
-                <div class="pip-row"><span class="pip-label">Suprimentos</span><div class="pips" id="pip-sup"></div><span class="pip-val" id="pip-sup-val">0/10</span></div>
+                <div class="pip-row"><span class="pip-label" title="Recurso do grupo — Cap. 10">Suprimentos · grupo</span><div class="pips" id="pip-sup"></div><span class="pip-val" id="pip-sup-val">0/10</span></div>
               </div>
               <div class="recurso-gauge">
-                <div class="recurso-gauge-head"><span class="recurso-gauge-icon" data-fic="suprimentos" data-fic-size="16"></span><span class="recurso-gauge-label">Suprimentos</span><span class="recurso-gauge-val" id="gauge-sup-val">0/10</span></div>
+                <div class="recurso-gauge-head"><span class="recurso-gauge-icon" data-fic="suprimentos" data-fic-size="16"></span><span class="recurso-gauge-label" title="Recurso do grupo — Cap. 10">Suprimentos · grupo</span><span class="recurso-gauge-val" id="gauge-sup-val">0/10</span></div>
                 <div class="recurso-gauge-row">
                   <button type="button" class="recurso-gauge-btn" onclick="ajustarRecurso('sup',-1)">−</button>
                   <div class="recurso-gauge-track"><div class="recurso-gauge-fill" id="gauge-sup-fill"></div></div>
@@ -149,7 +143,7 @@
         </div>
       </div>
       <div class="grid-pericias-vinculos" id="section-pericias-vinculos">
-        <div class="section-card"><div class="section-card-title">Perícias</div><div id="pericias-list" class="gap-12"></div></div>
+        <div class="section-card"><div class="section-card-title">Perícias</div><div id="pericias-dica" class="pericias-dica">1 da profissão + 1 por ponto positivo do Mod de CONHECIMENTO (mínimo 1)</div><div id="pericias-list" class="gap-12"></div></div>
         <div class="section-card"><div class="section-card-title">Vínculos — Promessa &amp; Dívida</div><div id="vinculos-list"></div></div>
       </div>
       <div class="section-card" id="section-veiculo">
@@ -453,17 +447,18 @@
   </div>
 </div>
 
+<script src="conteudo.js?v=1"></script>
 <script src="supabase.js?v=9"></script>
 <script src="mesas.js?v=17"></script>
 <script src="mapa.js?v=17"></script>
 <script src="fog.js?v=17"></script>
-<script src="combate.js?v=19"></script>
-<script src="npcs.js?v=18"></script>
+<script src="combate.js?v=20"></script>
+<script src="npcs.js?v=19"></script>
 <script src="sala.js?v=26"></script>
 <script src="arquivos.js?v=25"></script>
 <script src="ficha_custom.js?v=28"></script>
 <script src="musica.js?v=27"></script>
-<script src="app.js?v=34"></script>
+<script src="app.js?v=35"></script>
 
 <script>
 // ── Ícones da marca (biblioteca SVG em icons.js) ──────────
