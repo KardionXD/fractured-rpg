@@ -2562,7 +2562,6 @@ h1,h2,h3 { letter-spacing: .04em; }
   background: transparent; border: 1px solid #4a3d85; border-radius: 5px;
   padding: 2px 8px; font-size: 9.5px; letter-spacing: .08em; color: #c9bdfa; width: auto;
 }
-#page-ficha.tema-ouro #section-veiculo,
 #page-ficha.tema-ouro #section-notas { display: none; }
 #page-ficha.tema-ouro #section-inventario { order: 4; }
 #page-ficha.tema-ouro .inv-item-card { border-color: #26262e; background: #0d0d13; }
@@ -2585,7 +2584,11 @@ h1,h2,h3 { letter-spacing: .04em; }
   background: linear-gradient(135deg,#1a2214,#0e120a);
   box-shadow: 0 0 26px rgba(122,158,90,.2), inset 0 0 18px rgba(122,158,90,.1);
 }
-#page-ficha.tema-verde .ficha-avatar-shape::after {
+/* O selo fica no ::after do FRAME, não do shape: shape e foto têm transform,
+   ou seja, cada um cria seu próprio contexto de empilhamento e o z-index de
+   dentro de um não vence o outro. Pendurado no frame (pai comum, sem
+   transform), o selo é o último a ser pintado e fica sempre acima da foto. */
+#page-ficha.tema-verde .ficha-avatar-frame::after {
   content: 'SOBREVIVENTE'; position: absolute; bottom: -9px; right: -14px;
   background: #c9703d; color: #160d06; font: 700 8px 'Share Tech Mono', monospace;
   letter-spacing: .1em; padding: 3px 7px; border-radius: 3px; transform: rotate(-4deg);
@@ -2661,7 +2664,6 @@ h1,h2,h3 { letter-spacing: .04em; }
 }
 #page-ficha.tema-verde .pericia-roll-btn:hover,
 #page-ficha.tema-verde .attr-roll-btn:hover { border-color: #c9703d; background: rgba(201,112,61,.12); }
-#page-ficha.tema-verde #section-veiculo,
 #page-ficha.tema-verde #section-notas { display: none; }
 #page-ficha.tema-verde #section-inventario { order: 4; }
 #page-ficha.tema-verde .inv-item-card { border-color: #232b1c; background: #0e120a; }
@@ -3144,3 +3146,64 @@ h1,h2,h3 { letter-spacing: .04em; }
 .sit-val.pos { color: #6fcf8a; }
 .sit-val.neg { color: #e07a7a; }
 .sit-nome { flex: 1; }
+
+
+/* ══════════════════════════════════════════════════════════
+   VEÍCULO nos temas dourada e verde
+   A seção existe no DOM desde sempre, mas os dois temas a escondiam.
+   Aqui ela volta, com os campos no visual de cada tema.
+══════════════════════════════════════════════════════════ */
+
+/* linha: Tipo ocupa metade, Integridade e Combustível dividem a outra */
+#page-ficha.tema-ouro  #section-veiculo .grid-2,
+#page-ficha.tema-verde #section-veiculo .grid-2 {
+  display: grid; grid-template-columns: 1.1fr 1fr; gap: 18px; align-items: end;
+}
+
+#page-ficha.tema-ouro  #section-veiculo .field label,
+#page-ficha.tema-verde #section-veiculo .field label {
+  font-size: 9px; letter-spacing: 2.4px;
+}
+#page-ficha.tema-ouro #section-veiculo .field label { color: #8a7433; }
+#page-ficha.tema-verde #section-veiculo .field label {
+  color: #6f8a5e; font-family: 'Share Tech Mono', monospace;
+}
+
+/* separador "/" entre atual e máximo */
+#page-ficha.tema-ouro  #section-veiculo span { color: #4a4a58; }
+#page-ficha.tema-verde #section-veiculo span { color: #3a4a2c; }
+
+/* ── dourada ── */
+#page-ficha.tema-ouro #section-veiculo .field select,
+#page-ficha.tema-ouro #section-veiculo .field input {
+  background: #0d0d13;
+  border: 1px solid #26262e;
+  border-radius: 9px;
+  color: #e8e4f0;
+  padding: 10px 12px;
+}
+#page-ficha.tema-ouro #section-veiculo .field select:focus,
+#page-ficha.tema-ouro #section-veiculo .field input:focus {
+  border-color: #4a3d85; box-shadow: 0 0 0 3px rgba(143,122,232,.12);
+}
+
+/* ── verde ── */
+#page-ficha.tema-verde #section-veiculo .field select,
+#page-ficha.tema-verde #section-veiculo .field input {
+  background: #0e120a;
+  border: 1px solid #232b1c;
+  border-radius: 7px;
+  color: #dff0cd;
+  font-family: 'Share Tech Mono', monospace;
+  padding: 10px 12px;
+}
+#page-ficha.tema-verde #section-veiculo .field select:focus,
+#page-ficha.tema-verde #section-veiculo .field input:focus {
+  border-color: #3a4a2c; box-shadow: 0 0 0 3px rgba(122,158,90,.12);
+}
+
+/* no celular tudo empilha, e Integridade/Combustível ficam lado a lado */
+@media (max-width: 700px) {
+  #page-ficha.tema-ouro  #section-veiculo .grid-2,
+  #page-ficha.tema-verde #section-veiculo .grid-2 { grid-template-columns: 1fr; gap: 12px; }
+}
