@@ -196,6 +196,22 @@ function tensaoFaixa(valor) {
 // Letra de cada pip (1 a 10) — derivada das faixas, não escrita à mão.
 const TENSAO_TYPES = Array.from({ length: 10 }, (_, i) => tensaoFaixa(i + 1).label[0]);
 
+// ── BÔNUS E PENALIDADES DE SITUAÇÃO ───────────────
+// Cap. 02. Podem ser combinados — o Guarda decide o que vale na cena.
+// A entrada de Tensão é dinâmica: usa a penalidade da faixa atual da mesa
+// (Cap. 06), em vez de um −2 fixo.
+
+const SITUACOES = [
+  { id: 'vinculo',  val:  3, nome: 'Vínculo Ativo',       desc: 'Expressando genuinamente o vínculo com o aliado' },
+  { id: 'ferram',   val:  2, nome: 'Ferramenta',          desc: 'Equipamento específico e em boas condições' },
+  { id: 'aliado',   val:  2, nome: 'Aliado Ajuda',        desc: 'Personagem em posição vantajosa auxilia' },
+  { id: 'vantagem', val:  2, nome: 'Vantagem',            desc: 'Terreno elevado ou emboscada preparada' },
+  { id: 'ferido',   val: -2, nome: 'Ferido (PV<75%)',     desc: 'Estado FERIDO ou pior — ver a trilha de PV no Cap. 07' },
+  { id: 'tensao',   val: -2, nome: 'Tensão da mesa',      desc: 'A penalidade da faixa atual entra em todo teste sob pressão', dyn: 'tensao' },
+  { id: 'semequip', val: -3, nome: 'Sem Equipamento',     desc: 'Tentando sem as ferramentas mínimas' },
+  { id: 'escuro',   val: -2, nome: 'Escuridão / Névoa',   desc: 'Visibilidade extremamente reduzida' },
+];
+
 // ── HELPERS ───────────────────────────────────────
 
 function pericia(nome) {

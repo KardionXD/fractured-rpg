@@ -766,6 +766,7 @@ async function subscribeToSala() {
         tensaoSala = msg.conteudo.valor;
         buildTensaoPips('tensao-pips-sala', tensaoSala, false);
         updateTensaoStatus();
+        if (typeof atualizarSituacaoTensao === 'function') atualizarSituacaoTensao();
       }
       // Suprimentos são do grupo (Cap. 10): o valor de qualquer um vale para todos.
       if (msg.tipo === 'suprimentos') aplicarSuprimentosSala(msg.conteudo?.valor);
@@ -840,6 +841,7 @@ async function carregarTensaoSala() {
       tensaoSala = data[0].conteudo?.valor || 0;
       buildTensaoPips('tensao-pips-sala', tensaoSala, false);
       updateTensaoStatus();
+      if (typeof atualizarSituacaoTensao === 'function') atualizarSituacaoTensao();
     }
   } catch(e) {}
 }
@@ -1014,10 +1016,122 @@ function rolarPericiaFicha(i) {
   });
 }
 
+// ── SITUAÇÃO (múltipla escolha) ──────────────────
+// Cap. 02: os modificadores de situação se somam. Antes era um <select>
+// simples, então só dava para aplicar um por vez.
+
+// Valor de uma situação. A da Tensão acompanha a faixa atual da mesa (Cap. 06).
+function situacaoValor(s) {
+  if (s.dyn === 'tensao') return tensaoFaixa(typeof tensaoSala === 'number' ? tensaoSala : 0).pen;
+  return s.val;
+}
+
+function situacaoRotulo(s) {
+  const v = situacaoValor(s);
+  if (s.dyn === 'tensao') {
+    const f = tensaoFaixa(typeof tensaoSala === 'number' ? tensaoSala : 0);
+    return `${s.nome} — ${f.label} (${v === 0 ? 'sem penalidade' : v})`;
+  }
+  return `${v > 0 ? '+' : ''}${v} ${s.nome}`;
+}
+
+function situacaoHTML() {
+  const itens = SITUACOES.map(s => `
+    <label class="sit-item" title="${s.desc}">
+      <input type="checkbox" class="sit-check" value="${s.id}" onchange="onSituacaoChange()">
+      <span class="sit-val ${situacaoValor(s) >= 0 ? 'pos' : 'neg'}" data-sit-val="${s.id}">${_sitSinal(situacaoValor(s))}</span>
+      <span class="sit-nome" data-sit-nome="${s.id}">${s.nome}</span>
+    </label>`).join('');
+  return `
+    <div class="sit-wrap" id="roll-situacao">
+      <button type="button" class="formula-select sit-toggle" id="sit-toggle" onclick="toggleSituacoes(event)">
+        <span id="sit-resumo">Normal</span><span class="sit-seta">▾</span>
+      </button>
+      <div class="sit-menu" id="sit-menu">
+        <div class="sit-menu-head">Marque tudo que se aplica — os valores se somam
+          <button type="button" class="sit-limpar" onclick="limparSituacoes()">limpar</button>
+        </div>
+        ${itens}
+      </div>
+    </div>`;
+}
+
+function toggleSituacoes(ev) {
+  if (ev) ev.stopPropagation();
+  const m = document.getElementById('sit-menu');
+  if (!m) return;
+  const abrir = !m.classList.contains('aberto');
+  m.classList.toggle('aberto', abrir);
+  if (abrir) {
+    atualizarSituacaoTensao();
+    setTimeout(() => document.addEventListener('click', _fecharSituacoes, { once: true }), 0);
+  }
+}
+function _fecharSituacoes(e) {
+  const w = document.getElementById('roll-situacao');
+  if (w && w.contains(e.target)) {
+    document.addEventListener('click', _fecharSituacoes, { once: true });
+    return;
+  }
+  document.getElementById('sit-menu')?.classList.remove('aberto');
+}
+
+function situacoesMarcadas() {
+  const ids = [...document.querySelectorAll('#sit-menu .sit-check:checked')].map(c => c.value);
+  return SITUACOES.filter(s => ids.includes(s.id));
+}
+
+function situacaoTotal() {
+  return situacoesMarcadas().reduce((t, s) => t + situacaoValor(s), 0);
+}
+
+// Formata o valor com o sinal de menos tipográfico usado no resto da interface.
+function _sitSinal(v) {
+  if (v > 0) return `+${v}`;
+  if (v < 0) return `\u2212${Math.abs(v)}`;
+  return '\u00b10';
+}
+
+function situacaoTexto() {
+  const m = situacoesMarcadas();
+  if (!m.length) return '';
+  return m.map(s => `${_sitSinal(situacaoValor(s))} ${s.nome}`).join(' \u00b7 ');
+}
+
+// Mantém a linha da Tensão em dia quando a mesa muda a trilha.
+function atualizarSituacaoTensao() {
+  const s = SITUACOES.find(x => x.dyn === 'tensao');
+  if (!s) return;
+  const v = situacaoValor(s);
+  const elV = document.querySelector(`[data-sit-val="${s.id}"]`);
+  const elN = document.querySelector(`[data-sit-nome="${s.id}"]`);
+  if (elV) {
+    elV.textContent = _sitSinal(v);
+    elV.className = `sit-val ${v >= 0 ? 'pos' : 'neg'}`;
+  }
+  if (elN) elN.textContent = `${s.nome} (${tensaoFaixa(typeof tensaoSala === 'number' ? tensaoSala : 0).label})`;
+  onSituacaoChange();
+}
+
+function onSituacaoChange() {
+  const el = document.getElementById('sit-resumo');
+  if (!el) return;
+  const m = situacoesMarcadas();
+  if (!m.length) { el.textContent = 'Normal'; el.classList.remove('sit-ativo'); return; }
+  const t = situacaoTotal();
+  el.textContent = `${m.length} selecionada${m.length > 1 ? 's' : ''} \u2014 total ${_sitSinal(t)}`;
+  el.classList.add('sit-ativo');
+}
+
+function limparSituacoes() {
+  document.querySelectorAll('#sit-menu .sit-check').forEach(c => { c.checked = false; });
+  onSituacaoChange();
+}
+
 function rolarFormula() {
   const modAtrib  = parseInt(document.getElementById('roll-atrib')?.value)   || 0;
   const modPer    = parseInt(document.getElementById('roll-pericia')?.value)  || 0;
-  const modSit    = parseInt(document.getElementById('roll-situacao')?.value) || 0;
+  const modSit    = situacaoTotal();   // soma de todas as situações marcadas
   // Dificuldade é OPCIONAL: vazio = rolagem livre (só mostra o total com bônus)
   const difSel = document.getElementById('roll-dif')?.value;
   let dif = null;
@@ -1038,7 +1152,7 @@ function rolarFormula() {
 
   const atribText  = document.getElementById('roll-atrib')?.selectedOptions[0]?.text || '';
   const perText    = document.getElementById('roll-pericia')?.selectedOptions[0]?.text || '';
-  const sitText    = document.getElementById('roll-situacao')?.selectedOptions[0]?.text || '';
+  const sitText    = situacaoTexto();
   const ajudaText  = ajudas > 0 ? `${ajudas} ajudante(s) (+${modAjuda})` : '';
   const customText = modCustom !== 0 ? `Bônus custom (${modCustom>0?'+':''}${modCustom})` : '';
 
@@ -1052,7 +1166,7 @@ function rolarFormula() {
     oculto: rolagemOculta(),
     label: [atribText,
       perText !== 'Sem perícia (+0)' ? perText : '',
-      sitText !== 'Normal' ? sitText : '',
+      sitText,
       ajudaText, customText
     ].filter(Boolean).join(' · ')
   });

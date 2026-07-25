@@ -3094,3 +3094,53 @@ h1,h2,h3 { letter-spacing: .04em; }
   border-color: var(--gold);
   color: #1a1206;
 }
+
+/* ── Situação: múltipla escolha (Cap. 02 — os modificadores se somam) ── */
+.sit-wrap { position: relative; width: 100%; }
+
+.sit-toggle {
+  display: flex; align-items: center; justify-content: space-between; gap: 6px;
+  text-align: left; cursor: pointer; font-family: inherit;
+}
+.sit-toggle .sit-seta { color: var(--muted); font-size: 10px; flex-shrink: 0; }
+#sit-resumo.sit-ativo { color: var(--gold); font-weight: 600; }
+
+.sit-menu {
+  display: none;
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 60;
+  max-height: 340px; overflow-y: auto;
+  background: var(--panel, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 10px 26px rgba(0,0,0,.55);
+  padding: 4px;
+}
+.sit-menu.aberto { display: block; }
+
+.sit-menu-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 6px 8px 7px;
+  font-size: 9px; line-height: 1.35; color: var(--muted);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 3px;
+}
+.sit-limpar {
+  background: none; border: none; padding: 2px 4px;
+  color: var(--gold); font-size: 9px; cursor: pointer; text-decoration: underline;
+  flex-shrink: 0; font-family: inherit;
+}
+
+.sit-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 8px; border-radius: 4px; cursor: pointer;
+  font-size: 12px; color: var(--text);
+}
+.sit-item:hover { background: rgba(255,255,255,.05); }
+.sit-item input { accent-color: var(--gold); cursor: pointer; flex-shrink: 0; margin: 0; }
+.sit-val {
+  min-width: 24px; text-align: right;
+  font-weight: 700; font-variant-numeric: tabular-nums; flex-shrink: 0;
+}
+.sit-val.pos { color: #6fcf8a; }
+.sit-val.neg { color: #e07a7a; }
+.sit-nome { flex: 1; }

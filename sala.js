@@ -487,13 +487,7 @@ function buildDadosPanel(c) {
           <label class="formula-label">Perícia</label>
           <select id="roll-pericia" class="formula-select"><option value="0">Sem perícia (+0)</option><option value="3">Com perícia (+3)</option></select>
           <label class="formula-label">Situação</label>
-          <select id="roll-situacao" class="formula-select">
-            <option value="0">Normal</option>
-            <option value="3">+3 Vínculo Ativo</option><option value="2">+2 Ferramenta</option>
-            <option value="2">+2 Aliado</option><option value="2">+2 Vantagem</option>
-            <option value="-2">−2 Ferido &lt;50%</option><option value="-2">−2 Tensão Alta</option>
-            <option value="-3">−3 Sem Equipamento</option><option value="-2">−2 Escuridão</option>
-          </select>
+          ${situacaoHTML()}
           <label class="formula-label">Dificuldade</label>
           <div style="display:flex;gap:5px;align-items:center">
             <select id="roll-dif" class="formula-select" style="flex:1" onchange="document.getElementById('roll-dif-val').style.display=(this.value==='custom')?'block':'none'">

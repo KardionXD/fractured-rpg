@@ -1,5 +1,5 @@
 diff --git a/app.html b/app.html
-index 4fc8970..11cabfb 100644
+index 4fc8970..97cc36a 100644
 --- a/app.html
 +++ b/app.html
 @@ -73,14 +73,8 @@
@@ -45,26 +45,27 @@ index 4fc8970..11cabfb 100644
    </div>
  </div>
  
-+<script src="conteudo.js?v=1"></script>
++<script src="conteudo.js?v=2"></script>
  <script src="supabase.js?v=9"></script>
  <script src="mesas.js?v=17"></script>
  <script src="mapa.js?v=17"></script>
  <script src="fog.js?v=17"></script>
 -<script src="combate.js?v=19"></script>
 -<script src="npcs.js?v=18"></script>
+-<script src="sala.js?v=26"></script>
 +<script src="combate.js?v=20"></script>
 +<script src="npcs.js?v=19"></script>
- <script src="sala.js?v=26"></script>
++<script src="sala.js?v=27"></script>
  <script src="arquivos.js?v=25"></script>
  <script src="ficha_custom.js?v=28"></script>
  <script src="musica.js?v=27"></script>
 -<script src="app.js?v=34"></script>
-+<script src="app.js?v=35"></script>
++<script src="app.js?v=36"></script>
  
  <script>
  // ── Ícones da marca (biblioteca SVG em icons.js) ──────────
 diff --git a/app.js b/app.js
-index cb14f4e..f39c0ca 100644
+index cb14f4e..15586be 100644
 --- a/app.js
 +++ b/app.js
 @@ -23,7 +23,7 @@ let notaEditada = false;
@@ -319,18 +320,19 @@ index cb14f4e..f39c0ca 100644
  
    if (_salaSubAtiva) return;
    _salaSubAtiva = true;
-@@ -638,7 +765,10 @@ async function subscribeToSala() {
+@@ -638,7 +765,11 @@ async function subscribeToSala() {
        if (msg.tipo === 'tensao') {
          tensaoSala = msg.conteudo.valor;
          buildTensaoPips('tensao-pips-sala', tensaoSala, false);
 +        updateTensaoStatus();
++        if (typeof atualizarSituacaoTensao === 'function') atualizarSituacaoTensao();
        }
 +      // Suprimentos são do grupo (Cap. 10): o valor de qualquer um vale para todos.
 +      if (msg.tipo === 'suprimentos') aplicarSuprimentosSala(msg.conteudo?.valor);
        // Vídeo/GIF no mapa - carrega para players
        if (msg.tipo === 'video_mapa' && !isMaster) {
          if (typeof mapaCarregarVideo === 'function') {
-@@ -669,6 +799,7 @@ document.addEventListener('visibilitychange', () => {
+@@ -669,6 +800,7 @@ document.addEventListener('visibilitychange', () => {
    if (document.visibilityState === 'visible' && typeof mesaId === 'function' && mesaId()) {
      carregarFeed();
      carregarTensaoSala();
@@ -338,15 +340,158 @@ index cb14f4e..f39c0ca 100644
      if (!_salaSubAtiva) subscribeToSala();
    }
  });
-@@ -708,6 +839,7 @@ async function carregarTensaoSala() {
+@@ -708,6 +840,8 @@ async function carregarTensaoSala() {
      if (data && data.length > 0) {
        tensaoSala = data[0].conteudo?.valor || 0;
        buildTensaoPips('tensao-pips-sala', tensaoSala, false);
 +      updateTensaoStatus();
++      if (typeof atualizarSituacaoTensao === 'function') atualizarSituacaoTensao();
      }
    } catch(e) {}
  }
-@@ -938,8 +1070,7 @@ async function enviarMsg() {
+@@ -882,10 +1016,122 @@ function rolarPericiaFicha(i) {
+   });
+ }
+ 
++// ── SITUAÇÃO (múltipla escolha) ──────────────────
++// Cap. 02: os modificadores de situação se somam. Antes era um <select>
++// simples, então só dava para aplicar um por vez.
++
++// Valor de uma situação. A da Tensão acompanha a faixa atual da mesa (Cap. 06).
++function situacaoValor(s) {
++  if (s.dyn === 'tensao') return tensaoFaixa(typeof tensaoSala === 'number' ? tensaoSala : 0).pen;
++  return s.val;
++}
++
++function situacaoRotulo(s) {
++  const v = situacaoValor(s);
++  if (s.dyn === 'tensao') {
++    const f = tensaoFaixa(typeof tensaoSala === 'number' ? tensaoSala : 0);
++    return `${s.nome} — ${f.label} (${v === 0 ? 'sem penalidade' : v})`;
++  }
++  return `${v > 0 ? '+' : ''}${v} ${s.nome}`;
++}
++
++function situacaoHTML() {
++  const itens = SITUACOES.map(s => `
++    <label class="sit-item" title="${s.desc}">
++      <input type="checkbox" class="sit-check" value="${s.id}" onchange="onSituacaoChange()">
++      <span class="sit-val ${situacaoValor(s) >= 0 ? 'pos' : 'neg'}" data-sit-val="${s.id}">${_sitSinal(situacaoValor(s))}</span>
++      <span class="sit-nome" data-sit-nome="${s.id}">${s.nome}</span>
++    </label>`).join('');
++  return `
++    <div class="sit-wrap" id="roll-situacao">
++      <button type="button" class="formula-select sit-toggle" id="sit-toggle" onclick="toggleSituacoes(event)">
++        <span id="sit-resumo">Normal</span><span class="sit-seta">▾</span>
++      </button>
++      <div class="sit-menu" id="sit-menu">
++        <div class="sit-menu-head">Marque tudo que se aplica — os valores se somam
++          <button type="button" class="sit-limpar" onclick="limparSituacoes()">limpar</button>
++        </div>
++        ${itens}
++      </div>
++    </div>`;
++}
++
++function toggleSituacoes(ev) {
++  if (ev) ev.stopPropagation();
++  const m = document.getElementById('sit-menu');
++  if (!m) return;
++  const abrir = !m.classList.contains('aberto');
++  m.classList.toggle('aberto', abrir);
++  if (abrir) {
++    atualizarSituacaoTensao();
++    setTimeout(() => document.addEventListener('click', _fecharSituacoes, { once: true }), 0);
++  }
++}
++function _fecharSituacoes(e) {
++  const w = document.getElementById('roll-situacao');
++  if (w && w.contains(e.target)) {
++    document.addEventListener('click', _fecharSituacoes, { once: true });
++    return;
++  }
++  document.getElementById('sit-menu')?.classList.remove('aberto');
++}
++
++function situacoesMarcadas() {
++  const ids = [...document.querySelectorAll('#sit-menu .sit-check:checked')].map(c => c.value);
++  return SITUACOES.filter(s => ids.includes(s.id));
++}
++
++function situacaoTotal() {
++  return situacoesMarcadas().reduce((t, s) => t + situacaoValor(s), 0);
++}
++
++// Formata o valor com o sinal de menos tipográfico usado no resto da interface.
++function _sitSinal(v) {
++  if (v > 0) return `+${v}`;
++  if (v < 0) return `\u2212${Math.abs(v)}`;
++  return '\u00b10';
++}
++
++function situacaoTexto() {
++  const m = situacoesMarcadas();
++  if (!m.length) return '';
++  return m.map(s => `${_sitSinal(situacaoValor(s))} ${s.nome}`).join(' \u00b7 ');
++}
++
++// Mantém a linha da Tensão em dia quando a mesa muda a trilha.
++function atualizarSituacaoTensao() {
++  const s = SITUACOES.find(x => x.dyn === 'tensao');
++  if (!s) return;
++  const v = situacaoValor(s);
++  const elV = document.querySelector(`[data-sit-val="${s.id}"]`);
++  const elN = document.querySelector(`[data-sit-nome="${s.id}"]`);
++  if (elV) {
++    elV.textContent = _sitSinal(v);
++    elV.className = `sit-val ${v >= 0 ? 'pos' : 'neg'}`;
++  }
++  if (elN) elN.textContent = `${s.nome} (${tensaoFaixa(typeof tensaoSala === 'number' ? tensaoSala : 0).label})`;
++  onSituacaoChange();
++}
++
++function onSituacaoChange() {
++  const el = document.getElementById('sit-resumo');
++  if (!el) return;
++  const m = situacoesMarcadas();
++  if (!m.length) { el.textContent = 'Normal'; el.classList.remove('sit-ativo'); return; }
++  const t = situacaoTotal();
++  el.textContent = `${m.length} selecionada${m.length > 1 ? 's' : ''} \u2014 total ${_sitSinal(t)}`;
++  el.classList.add('sit-ativo');
++}
++
++function limparSituacoes() {
++  document.querySelectorAll('#sit-menu .sit-check').forEach(c => { c.checked = false; });
++  onSituacaoChange();
++}
++
+ function rolarFormula() {
+   const modAtrib  = parseInt(document.getElementById('roll-atrib')?.value)   || 0;
+   const modPer    = parseInt(document.getElementById('roll-pericia')?.value)  || 0;
+-  const modSit    = parseInt(document.getElementById('roll-situacao')?.value) || 0;
++  const modSit    = situacaoTotal();   // soma de todas as situações marcadas
+   // Dificuldade é OPCIONAL: vazio = rolagem livre (só mostra o total com bônus)
+   const difSel = document.getElementById('roll-dif')?.value;
+   let dif = null;
+@@ -906,7 +1152,7 @@ function rolarFormula() {
+ 
+   const atribText  = document.getElementById('roll-atrib')?.selectedOptions[0]?.text || '';
+   const perText    = document.getElementById('roll-pericia')?.selectedOptions[0]?.text || '';
+-  const sitText    = document.getElementById('roll-situacao')?.selectedOptions[0]?.text || '';
++  const sitText    = situacaoTexto();
+   const ajudaText  = ajudas > 0 ? `${ajudas} ajudante(s) (+${modAjuda})` : '';
+   const customText = modCustom !== 0 ? `Bônus custom (${modCustom>0?'+':''}${modCustom})` : '';
+ 
+@@ -920,7 +1166,7 @@ function rolarFormula() {
+     oculto: rolagemOculta(),
+     label: [atribText,
+       perText !== 'Sem perícia (+0)' ? perText : '',
+-      sitText !== 'Normal' ? sitText : '',
++      sitText,
+       ajudaText, customText
+     ].filter(Boolean).join(' · ')
+   });
+@@ -938,8 +1184,7 @@ async function enviarMsg() {
  async function alterarTensao(delta) {
    if (!isMaster) return;
    tensaoSala = Math.max(0, Math.min(10, tensaoSala + delta));
@@ -441,11 +586,30 @@ index a7d37c9..e75b1e0 100644
      tipo:        npc.tipo,
      habilidades: npc.habilidades ? npc.habilidades.split('\n').filter(Boolean) : [],
      fraqueza:    npc.fraqueza || '',
+diff --git a/sala.js b/sala.js
+index 5a345b1..6271c2d 100644
+--- a/sala.js
++++ b/sala.js
+@@ -487,13 +487,7 @@ function buildDadosPanel(c) {
+           <label class="formula-label">Perícia</label>
+           <select id="roll-pericia" class="formula-select"><option value="0">Sem perícia (+0)</option><option value="3">Com perícia (+3)</option></select>
+           <label class="formula-label">Situação</label>
+-          <select id="roll-situacao" class="formula-select">
+-            <option value="0">Normal</option>
+-            <option value="3">+3 Vínculo Ativo</option><option value="2">+2 Ferramenta</option>
+-            <option value="2">+2 Aliado</option><option value="2">+2 Vantagem</option>
+-            <option value="-2">−2 Ferido &lt;50%</option><option value="-2">−2 Tensão Alta</option>
+-            <option value="-3">−3 Sem Equipamento</option><option value="-2">−2 Escuridão</option>
+-          </select>
++          ${situacaoHTML()}
+           <label class="formula-label">Dificuldade</label>
+           <div style="display:flex;gap:5px;align-items:center">
+             <select id="roll-dif" class="formula-select" style="flex:1" onchange="document.getElementById('roll-dif-val').style.display=(this.value==='custom')?'block':'none'">
 diff --git a/style.css b/style.css
-index 17e3279..462c563 100644
+index 17e3279..d461381 100644
 --- a/style.css
 +++ b/style.css
-@@ -3064,3 +3064,33 @@ h1,h2,h3 { letter-spacing: .04em; }
+@@ -3064,3 +3064,83 @@ h1,h2,h3 { letter-spacing: .04em; }
    #fcb-container.fcb-tema-papiro, #fcb-container.fcb-tema-cyberpunk,
    #fcb-container.fcb-tema-medieval, #fcb-container.fcb-tema-terror { padding: 14px; }
  }
@@ -479,3 +643,53 @@ index 17e3279..462c563 100644
 +  border-color: var(--gold);
 +  color: #1a1206;
 +}
++
++/* ── Situação: múltipla escolha (Cap. 02 — os modificadores se somam) ── */
++.sit-wrap { position: relative; width: 100%; }
++
++.sit-toggle {
++  display: flex; align-items: center; justify-content: space-between; gap: 6px;
++  text-align: left; cursor: pointer; font-family: inherit;
++}
++.sit-toggle .sit-seta { color: var(--muted); font-size: 10px; flex-shrink: 0; }
++#sit-resumo.sit-ativo { color: var(--gold); font-weight: 600; }
++
++.sit-menu {
++  display: none;
++  position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 60;
++  max-height: 340px; overflow-y: auto;
++  background: var(--panel, var(--bg));
++  border: 1px solid var(--border);
++  border-radius: 6px;
++  box-shadow: 0 10px 26px rgba(0,0,0,.55);
++  padding: 4px;
++}
++.sit-menu.aberto { display: block; }
++
++.sit-menu-head {
++  display: flex; align-items: center; justify-content: space-between; gap: 8px;
++  padding: 6px 8px 7px;
++  font-size: 9px; line-height: 1.35; color: var(--muted);
++  border-bottom: 1px solid var(--border);
++  margin-bottom: 3px;
++}
++.sit-limpar {
++  background: none; border: none; padding: 2px 4px;
++  color: var(--gold); font-size: 9px; cursor: pointer; text-decoration: underline;
++  flex-shrink: 0; font-family: inherit;
++}
++
++.sit-item {
++  display: flex; align-items: center; gap: 8px;
++  padding: 6px 8px; border-radius: 4px; cursor: pointer;
++  font-size: 12px; color: var(--text);
++}
++.sit-item:hover { background: rgba(255,255,255,.05); }
++.sit-item input { accent-color: var(--gold); cursor: pointer; flex-shrink: 0; margin: 0; }
++.sit-val {
++  min-width: 24px; text-align: right;
++  font-weight: 700; font-variant-numeric: tabular-nums; flex-shrink: 0;
++}
++.sit-val.pos { color: #6fcf8a; }
++.sit-val.neg { color: #e07a7a; }
++.sit-nome { flex: 1; }
