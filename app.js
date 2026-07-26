@@ -86,7 +86,7 @@ function navigate(page) {
     const nav = document.getElementById('nav-' + p);
     if (nav) nav.classList.toggle('active', p === page);
   });
-  if (page === 'master') carregarPlayers();
+  if (page === 'master') { carregarPlayers(_playersMostrarTodos); subscribePlayers(); }
   if (page === 'sala') setTimeout(() => scrollFeedToBottom(), 100);
   if (page === 'notas') renderListaNotas();
   if (page === 'arquivos') arquivosInit();
@@ -802,6 +802,7 @@ document.addEventListener('visibilitychange', () => {
     carregarTensaoSala();
     carregarSuprimentosSala();
     if (!_salaSubAtiva) subscribeToSala();
+    if (_masterVisivel()) { carregarPlayers(_playersMostrarTodos, true); subscribePlayers(); }
   }
 });
 
@@ -1299,9 +1300,63 @@ async function deletarNota() {
 //  PAINEL DO MESTRE
 // ══════════════════════════════════════════════════
 
-async function carregarPlayers(mostrarTodos = false) {
+// O painel só recarregava ao entrar na aba: se o player salvasse (ou refizesse)
+// a ficha, o mestre continuava vendo o estado antigo até trocar de aba.
+// Agora escuta a tabela `fichas` em tempo real, com uma sondagem de reserva
+// caso o realtime não esteja ligado para essa tabela no Supabase.
+let _playersSub = null;
+let _playersSubMesa = null;
+let _playersPoll = null;
+let _playersTimer = null;
+let _playersMostrarTodos = false;
+
+function _masterVisivel() {
+  const el = document.getElementById('page-master');
+  return !!el && el.style.display !== 'none';
+}
+
+// Um player salvando dispara vários eventos seguidos (autoSave) — junta tudo.
+function _agendarRecarregarPlayers() {
+  clearTimeout(_playersTimer);
+  _playersTimer = setTimeout(() => {
+    if (_masterVisivel()) carregarPlayers(_playersMostrarTodos, true);
+  }, 500);
+}
+
+function subscribePlayers() {
+  if (!isMaster || !mesaId()) return;
+
+  // Sondagem de reserva: garante a atualização mesmo se a tabela `fichas` não
+  // estiver publicada no realtime do Supabase.
+  clearInterval(_playersPoll);
+  _playersPoll = setInterval(() => {
+    if (_masterVisivel()) carregarPlayers(_playersMostrarTodos, true);
+  }, 15000);
+
+  if (_playersSub && _playersSubMesa === mesaId()) return;
+  if (_playersSub) { try { db.removeChannel(_playersSub); } catch (e) {} _playersSub = null; }
+
+  _playersSubMesa = mesaId();
+  _playersSub = db
+    .channel('fichas-live-' + mesaId())
+    .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'fichas', filter: 'mesa_id=eq.' + mesaId() },
+        () => _agendarRecarregarPlayers())
+    .subscribe(status => {
+      if (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        try { db.removeChannel(_playersSub); } catch (e) {}
+        _playersSub = null; _playersSubMesa = null;
+        setTimeout(() => { if (_masterVisivel()) subscribePlayers(); }, 2000);
+      }
+    });
+}
+
+// silencioso = recarrega sem piscar o "Carregando..." (usado pelo tempo real)
+async function carregarPlayers(mostrarTodos = false, silencioso = false) {
+  _playersMostrarTodos = mostrarTodos;
   const grid = document.getElementById('players-grid');
-  grid.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><p>Carregando...</p></div>';
+  if (!grid) return;
+  if (!silencioso) grid.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><p>Carregando...</p></div>';
 
   const { data: _membros } = await db
     .from('mesa_membros')
@@ -1330,6 +1385,7 @@ async function carregarPlayers(mostrarTodos = false) {
   const semFicha    = profiles.filter(p => !fichas?.find(f => f.user_id === p.id));
   const visiveis    = mostrarTodos ? profiles : comFicha;
 
+  const _scroll = grid.scrollTop;
   grid.innerHTML = '';
 
   // Botão de toggle no topo
@@ -1338,6 +1394,7 @@ async function carregarPlayers(mostrarTodos = false) {
   toggleRow.innerHTML = `
     <span style="font-size:11px;color:var(--muted)">
       ${comFicha.length} com ficha · ${semFicha.length} sem ficha
+      <span style="opacity:.6">· atualizado ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
     </span>
     <button class="btn-ghost" style="font-size:10px;padding:5px 12px" onclick="carregarPlayers(${!mostrarTodos})">
       ${mostrarTodos ? '👁 Ocultar sem ficha' : '👁 Ver todos os players'}
@@ -1418,6 +1475,8 @@ async function carregarPlayers(mostrarTodos = false) {
     }
     grid.appendChild(card);
   });
+
+  grid.scrollTop = _scroll;
 }
 
 async function apagarFichaPlayer(userId, nome) {
@@ -1426,7 +1485,7 @@ async function apagarFichaPlayer(userId, nome) {
   const { error } = await db.from('fichas').delete().eq('user_id', userId).eq('mesa_id', mesaId());
   if (error) return toast('Erro ao apagar ficha!', 'err');
   toast(`Ficha de ${nome} apagada.`, 'ok');
-  carregarPlayers();
+  carregarPlayers(_playersMostrarTodos);
 }
 
 async function verFichaCompleta(userId) {
