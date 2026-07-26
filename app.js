@@ -584,7 +584,7 @@ function removerItem(i) {
 
 // ── SAVE / LOAD FICHA ─────────────────────────────
 function coletarFicha() {
-  const pericias = PERICIAS_DEFAULT.map((_, i) => ({
+  const pericias = Array.from({ length: PERICIAS_SLOTS }, (_, i) => ({
     nome: document.getElementById(`p-nome-${i}`)?.value || '',
     atrib: document.getElementById(`p-atrib-${i}`)?.value || ''
   }));
@@ -698,7 +698,16 @@ function autoSave() {
 }
 
 async function salvarFicha(silencioso = false) {
-  const dados = coletarFicha();
+  // Se montar os dados falhar, o salvamento morria aqui sem nenhum aviso na
+  // tela — o jogador só via o botão não fazer nada. Agora o erro aparece.
+  let dados;
+  try {
+    dados = coletarFicha();
+  } catch (e) {
+    console.error('[salvarFicha] falha ao montar os dados da ficha:', e);
+    toast('Erro ao ler a ficha: ' + (e.message || 'ver console (F12)'), 'err');
+    return;
+  }
   dados.mesa_id = mesaId();
 
   // upsert (em vez de decidir insert/update pelo fichaId em memória) evita criar
