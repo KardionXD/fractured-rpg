@@ -68,6 +68,11 @@ function mapaInit() {
 
   // Mouse
   cvs.addEventListener('mousedown',  mapaMouseDown);
+  cvs.addEventListener('dblclick', e => {   // duplo-clique marca o ponto para todos
+    e.preventDefault();
+    const w = event2world(e);
+    mapaPing(w.x, w.y);
+  });
   cvs.addEventListener('wheel',      mapaWheel, { passive: false });
   cvs.addEventListener('contextmenu', e => e.preventDefault());
 
@@ -127,6 +132,108 @@ function event2world(e) {
 }
 
 // ── DESENHO ──────────────────────────────────────
+
+// ══════════════════════════════════════════════════
+//  PING — marcar um ponto do mapa para todo mundo
+//  Vive num canal de broadcast próprio: é efêmero, não vai para o banco.
+// ══════════════════════════════════════════════════
+const PING_MS = 2600;          // quanto tempo a marca fica na tela
+const PINGS = [];              // { x, y, t0, nome, cor }
+let _pingChan = null;
+let _pingRaf  = null;
+
+function mapaInitPing() {
+  if (_pingChan || typeof db === 'undefined' || !mesaId()) return;
+  _pingChan = db.channel('ping-live-' + mesaId(), { config: { broadcast: { self: false } } });
+  _pingChan
+    .on('broadcast', { event: 'ping' }, ({ payload }) => {
+      if (!payload || typeof payload.x !== 'number') return;
+      _pingAdicionar(payload.x, payload.y, payload.nome, payload.cor);
+    })
+    .subscribe();
+}
+
+function _pingAdicionar(x, y, nome, cor) {
+  PINGS.push({ x, y, t0: performance.now(), nome: nome || '', cor: cor || '#d9b45b' });
+  if (PINGS.length > 12) PINGS.shift();
+  _pingAnimar();
+}
+
+// Chamado pelo duplo-clique (ou toque longo). wx/wy em coordenadas do mundo.
+function mapaPing(wx, wy) {
+  const nome = (typeof currentProfile !== 'undefined' && currentProfile?.username) || 'alguém';
+  const cor  = isMaster ? '#d9b45b' : '#8f7ae8';
+  _pingAdicionar(wx, wy, nome, cor);
+  try {
+    _pingChan?.send({ type: 'broadcast', event: 'ping', payload: { x: wx, y: wy, nome, cor } });
+  } catch (e) {}
+}
+
+function _pingAnimar() {
+  if (_pingRaf) return;
+  const passo = () => {
+    const agora = performance.now();
+    for (let i = PINGS.length - 1; i >= 0; i--) {
+      if (agora - PINGS[i].t0 > PING_MS) PINGS.splice(i, 1);
+    }
+    mapaDraw();
+    _pingRaf = PINGS.length ? requestAnimationFrame(passo) : null;
+  };
+  _pingRaf = requestAnimationFrame(passo);
+}
+
+// Desenhado em coordenadas do mundo: a marca fica grudada no ponto do mapa
+// mesmo se alguém arrastar a visão ou der zoom.
+function mapaDrawPings(ctx, zoom, gridSize) {
+  if (!PINGS.length) return;
+  const agora = performance.now();
+  const R = (gridSize || 60) * 1.5;
+
+  PINGS.forEach(p => {
+    const k = (agora - p.t0) / PING_MS;
+    if (k < 0 || k > 1) return;
+    const sumindo = k > 0.75 ? (1 - k) / 0.25 : 1;      // esmaece no fim
+
+    ctx.save();
+    ctx.strokeStyle = p.cor;
+    ctx.lineWidth = 2.5 / zoom;
+
+    // três anéis defasados abrindo a partir do ponto
+    for (let i = 0; i < 3; i++) {
+      const f = (k * 2.2) - i * 0.3;
+      if (f <= 0 || f >= 1) continue;
+      ctx.globalAlpha = (1 - f) * sumindo;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, f * R, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    // cruz no ponto exato
+    const b = R * 0.22;
+    ctx.globalAlpha = sumindo;
+    ctx.beginPath();
+    ctx.moveTo(p.x - b, p.y); ctx.lineTo(p.x + b, p.y);
+    ctx.moveTo(p.x, p.y - b); ctx.lineTo(p.x, p.y + b);
+    ctx.stroke();
+
+    // quem marcou
+    if (p.nome) {
+      const fs = 12 / zoom;
+      ctx.font = `700 ${fs}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      const larg = ctx.measureText(p.nome).width;
+      ctx.globalAlpha = 0.75 * sumindo;
+      ctx.fillStyle = 'rgba(0,0,0,0.72)';
+      ctx.fillRect(p.x - larg/2 - 5/zoom, p.y - R*0.34 - fs - 4/zoom, larg + 10/zoom, fs + 6/zoom);
+      ctx.globalAlpha = sumindo;
+      ctx.fillStyle = p.cor;
+      ctx.fillText(p.nome, p.x, p.y - R*0.34);
+    }
+    ctx.restore();
+  });
+}
+
 function mapaDraw() {
   const { canvas: cvs, ctx, zoom, offX, offY,
           img, gridSize, gridVisible, gridColor, gridOpacity,
@@ -215,6 +322,9 @@ function mapaDraw() {
 
   // Tokens
   tokens.forEach(t => mapaDrawToken(ctx, t, zoom, gridSize, sel, selMulti));
+
+  // Ping (mundo, para acompanhar zoom e arrasto)
+  mapaDrawPings(ctx, zoom, gridSize);
 
   // Fog of War: paredes (mundo)
   if (typeof fogRenderWorld === 'function') fogRenderWorld(ctx, zoom);
@@ -365,6 +475,7 @@ function mapaResetDrag() {
     MAP.pan = null; MAP.selRect = null;
     mapaDraw();
     mapaSalvarDB(); // salva posição atual
+    mapaSincronizarPendente();
   }
 }
 
@@ -474,7 +585,13 @@ function mapaMouseMove(e) {
 
 function mapaMouseUp(e) {
   if (!MAP.canvas) return;
-  if (typeof fogToolMouseUp === 'function' && fogToolMouseUp()) return;
+  if (typeof fogToolMouseUp === 'function' && fogToolMouseUp()) {
+    // A ferramenta de fog consumia o evento e saía antes de limpar o arrasto.
+    // MAP.drag ficava preso — e, preso, o cliente passava a ignorar TODO update
+    // de realtime, congelando os tokens dos outros na tela dele.
+    if (MAP.drag) { MAP.drag = null; MAP.dragMulti = []; mapaSincronizarPendente(); }
+    return;
+  }
 
   if (MAP.drag) {
     if (!MAP._moved) {
@@ -486,7 +603,7 @@ function mapaMouseUp(e) {
     }
     MAP.drag = null; MAP.dragMulti = [];
     MAP.trailTok = null; MAP.trailOrigin = null;
-    mapaDraw(); mapaSalvarDB(); return;
+    mapaDraw(); mapaSalvarDB(); mapaSincronizarPendente(); return;
   }
 
   if (MAP.selRect) {
@@ -572,12 +689,26 @@ function mapaTouchStart(e) {
     MAP.sel = null; MAP.selMulti = [];
     MAP.pan = { lx: c.x, ly: c.y };
     mapaEsconderInfo(); mapaDraw();
+    // No celular não há duplo-clique: segurar o dedo parado marca o ponto.
+    _pingCancelarToque();
+    MAP._pingTimer = setTimeout(() => {
+      MAP._pingTimer = null;
+      if (MAP._moved || MAP.drag) return;
+      MAP.pan = null;                       // não vira arrasto de visão depois do ping
+      mapaPing(w.x, w.y);
+      if (navigator.vibrate) navigator.vibrate(25);
+    }, 550);
   }
+}
+
+function _pingCancelarToque() {
+  if (MAP._pingTimer) { clearTimeout(MAP._pingTimer); MAP._pingTimer = null; }
 }
 
 function mapaTouchMove(e) {
   e.preventDefault();
   MAP._moved = true;
+  _pingCancelarToque();
 
   if (e.touches.length === 2) {
     const dx = e.touches[0].clientX - e.touches[1].clientX;
@@ -628,6 +759,7 @@ function mapaTouchMove(e) {
 
 function mapaTouchEnd(e) {
   MAP.pinch = null;
+  _pingCancelarToque();
 
   if (MAP.drag) {
     if (!MAP._moved) {
@@ -637,7 +769,7 @@ function mapaTouchEnd(e) {
     }
     MAP.drag = null; MAP.dragMulti = [];
     MAP.trailTok = null; MAP.trailOrigin = null;
-    mapaDraw(); mapaSalvarDB(); return;
+    mapaDraw(); mapaSalvarDB(); mapaSincronizarPendente(); return;
   }
 
   // Double-tap para cancelar régua
@@ -851,11 +983,15 @@ function mapaSalvarDB() {
 async function _mapaSalvarNow() {
   if (MAP.drag) { mapaSalvarDB(); return; } // retry after drag ends
   if (!isMaster) {
-    // Player: salva apenas seus próprios tokens
+    // Player: salva os tokens que ele pode mover.
+    // Antes filtrava só por `userId`, ou seja, apenas o PC dele — então mover um
+    // token que o mestre atribuiu a ele (controladorNome) mexia só na tela dele
+    // e nunca chegava aos outros. O critério agora é o mesmo do podeMoverToken.
+    const meu = t => t.userId === currentUser?.id
+                  || t.controladorNome === currentProfile?.username;
     try {
       const { data } = await db.from('mapa_estado').select('tokens').eq('id', mesaId()).single();
-      let toks = (data?.tokens || []).filter(t => t.userId !== currentUser.id);
-      toks = [...toks, ...MAP.tokens.filter(t => t.userId === currentUser.id)];
+      const toks = [...(data?.tokens || []).filter(t => !meu(t)), ...MAP.tokens.filter(meu)];
       await db.from('mapa_estado').upsert({ id: mesaId(), tokens:toks, updated_at:new Date().toISOString() });
     } catch(e) {}
     return;
@@ -911,6 +1047,23 @@ function mapaSalvarFogDB() {
   }, 2000);
 }
 
+// Busca o estado do mapa quando um update de realtime chegou durante um arrasto
+// e precisou ser descartado. Sem isto, aquele update se perdia para sempre.
+async function mapaSincronizarPendente() {
+  if (!MAP._syncPendente || MAP.drag) return;
+  MAP._syncPendente = false;
+  try {
+    const { data } = await db.from('mapa_estado').select('tokens').eq('id', mesaId()).single();
+    if (!data) return;
+    const meu = t => t.userId === currentUser?.id
+                  || t.controladorNome === currentProfile?.username;
+    // Preserva o que EU acabei de mover (ainda pode não ter chegado ao banco).
+    const meusAgora = MAP.tokens.filter(meu);
+    MAP.tokens = [...(data.tokens || []).filter(t => !meu(t)), ...meusAgora];
+    mapaDraw();
+  } catch (e) {}
+}
+
 async function mapaCarregarDB() {
   try {
     const { data } = await db.from('mapa_estado').select('*').eq('id', mesaId()).single();
@@ -957,6 +1110,7 @@ function mapaSubscribeRealtime() {
 
   // Canal de sync ao vivo do Fog of War (broadcast, independente do banco)
   if (typeof fogInitSync === 'function') fogInitSync();
+  mapaInitPing();
 
   db.channel('mapa-v5-'+mesaId())
     .on('postgres_changes', { event:'*', schema:'public', table:'fog_estado', filter: 'id=eq.' + mesaId() }, payload => {
@@ -970,8 +1124,10 @@ function mapaSubscribeRealtime() {
       const d = payload.new; if (!d) return;
       console.log('mapa realtime: UPDATE recebido, tokens:', d.tokens?.length);
 
-      // Ignora realtime enquanto estiver arrastando um token
-      if (MAP.drag) return;
+      // Ignora realtime enquanto estiver arrastando um token — mas anota, para
+      // buscar de novo assim que o arrasto acabar. Antes o update era jogado
+      // fora e o token dos outros ficava parado na posição velha.
+      if (MAP.drag) { MAP._syncPendente = true; return; }
 
       MAP.tokens      = d.tokens || [];
       MAP.gridSize    = d.grid_size || 60;

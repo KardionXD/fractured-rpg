@@ -316,24 +316,59 @@ document.addEventListener('click', e => {
   if (!e.target.closest('.arq-dd')) document.querySelectorAll('.arq-dd-menu').forEach(m => m.style.display = 'none');
 });
 
-// Tamanho de fonte em px LIVRE (execCommand nativo só vai de 1 a 7;
-// truque: aplica o 7 e converte no tamanho exato escolhido)
+// Tamanho de fonte em px LIVRE.
+//
+// O execCommand nativo só aceita 1..7, então o jeito é aplicar o 7 e trocar o
+// que ele criou pelo tamanho exato. O problema: o formato que ele cria depende
+// da flag styleWithCSS do documento. Com ela desligada sai <font size="7">;
+// com ela LIGADA sai <span style="font-size: xxx-large"> — e aí o seletor
+// antigo não achava nada, nada era convertido e o texto ficava travado em
+// 48px, sem volta. Era exatamente esse o bug.
+//
+// Agora: força a flag desligada, marca o que já existia antes do comando e
+// converte tudo que for novo, nos DOIS formatos. Também limpa tamanhos
+// aninhados, senão um span de dentro continua vencendo o de fora.
 function _arqTamanho(px) {
   const ed = document.getElementById('arqdoc-editor');
   if (!ed) return;
   _arqRestaurarSel();
+
+  const sel = window.getSelection();
+  if (!sel || !sel.rangeCount || sel.getRangeAt(0).collapsed) {
+    toast('Selecione o texto antes de mudar o tamanho.', 'err');
+    return;
+  }
+
+  const NOVOS = 'font[size="7"], span[style*="xxx-large"]';
+  ed.querySelectorAll(NOVOS).forEach(el => el.setAttribute('data-arq-antigo', '1'));
+
+  try { document.execCommand('styleWithCSS', false, false); } catch (e) {}
   document.execCommand('fontSize', false, '7');
-  ed.querySelectorAll('font[size="7"]').forEach(f => {
+
+  ed.querySelectorAll(NOVOS).forEach(el => {
+    if (el.hasAttribute('data-arq-antigo')) return;      // já estava aqui
     const span = document.createElement('span');
     span.style.fontSize = px + 'px';
-    span.innerHTML = f.innerHTML;
-    f.replaceWith(span);
+    while (el.firstChild) span.appendChild(el.firstChild);
+    // tamanho de dentro sobrepõe o de fora — zera para o novo valer
+    span.querySelectorAll('[style*="font-size"]').forEach(e => { e.style.fontSize = ''; });
+    span.querySelectorAll('font[size]').forEach(f => f.removeAttribute('size'));
+    el.replaceWith(span);
   });
+
+  ed.querySelectorAll('[data-arq-antigo]').forEach(el => el.removeAttribute('data-arq-antigo'));
+  // sobras sem função nenhuma
+  ed.querySelectorAll('span[style=""], font:not([size]):not([color]):not([face])')
+    .forEach(e => e.replaceWith(...e.childNodes));
+
+  _arqSalvarSel();
 }
 
 function _arqTamanhoCustom() {
-  const v = parseInt(prompt('Tamanho da letra (px):', '16'));
-  if (v >= 8 && v <= 96) _arqTamanho(v);
+  const v = parseInt(prompt('Tamanho da letra (px):', '16'), 10);
+  if (!Number.isFinite(v)) return;
+  if (v < 8 || v > 96) { toast('Escolha um tamanho entre 8 e 96.', 'err'); return; }
+  _arqTamanho(v);
 }
 
 // ── IMAGENS NO DOCUMENTO ───────────────────────────
