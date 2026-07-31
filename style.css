@@ -3207,3 +3207,118 @@ h1,h2,h3 { letter-spacing: .04em; }
   #page-ficha.tema-ouro  #section-veiculo .grid-2,
   #page-ficha.tema-verde #section-veiculo .grid-2 { grid-template-columns: 1fr; gap: 12px; }
 }
+
+
+/* ══════════════════════════════════════════════════════════
+   CELULAR — ajustes de layout e de uso
+   Medido em 320 / 360 / 390 / 430 px e no aparelho deitado.
+══════════════════════════════════════════════════════════ */
+
+/* 1) Estouro horizontal em telas de 320px.
+   As faixas do grid são `1fr`, e `1fr` tem largura mínima automática — o
+   conteúdo mais largo (a topbar) empurrava a coluna para 322px e a página
+   inteira ganhava rolagem lateral. `min-width: 0` deixa a faixa encolher. */
+.app-layout > * { min-width: 0; }
+.topbar { min-width: 0; }
+.topbar-user { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.main-content { min-width: 0; overflow-x: hidden; }
+
+@media (max-width: 380px) {
+  .topbar { padding: 0 12px; gap: 8px; }
+  .topbar-title { font-size: 15px; letter-spacing: 2px; }
+  .main-content { padding: 12px; }
+}
+
+/* 2) Nada de zoom automático ao tocar num campo.
+   O iOS dá zoom sempre que o campo tem fonte menor que 16px — e aí a tela
+   fica torta até o usuário pinçar de volta.
+   O critério é a largura da tela, e não `pointer: coarse`: nem todo celular
+   reporta coarse, e notebook com tela de toque reporta fine. */
+@media (max-width: 768px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  textarea, select { font-size: 16px; }
+  .field input, .field textarea, .field select { font-size: 16px; }
+  .attr-val, .attr-mod { font-size: 16px; }
+  .pericia-nome-input, .pericia-atrib-input { font-size: 15.5px; }
+}
+
+/* 3) Alvos de toque grandes o bastante para o dedo.
+   A recomendação é 44px (Apple) / 48dp (Android); vários botões estavam
+   com 19 a 24px. No desktop a interface segue compacta como era. */
+@media (max-width: 768px) {
+  .btn-ghost, .btn-primary, .btn-icon, .tema-btn, .tab,
+  .ct-pv-btn, .attr-roll-btn, .pericia-roll-btn, .dado-btn,
+  .mobile-dice-btn, .mobile-roll-teste-btn, .arq-dd > button {
+    min-height: 40px;
+  }
+  .btn-ghost, .btn-primary { padding-top: 9px; padding-bottom: 9px; }
+  .ct-pv-btn, .attr-roll-btn, .pericia-roll-btn { min-width: 40px; }
+  /* pega todo campo de digitar, não só os que estão dentro de .field */
+  input[type="text"], input[type="number"], input[type="email"],
+  input[type="password"], input[type="search"], input:not([type]),
+  select, textarea { min-height: 42px; box-sizing: border-box; max-width: 100%; }
+  .attr-val, .attr-mod, .pericia-nome-input, .pericia-atrib-input,
+  .inv-item-name, .inv-item-sub { min-height: 40px; }
+  /* os pips de recurso e a trilha de tensão não são campos — ficam de fora */
+  .pip, .tpip { min-height: 0; }
+  /* título + sessão da nota lado a lado não cabem em telas estreitas */
+  .nota-editor-header { flex-wrap: wrap; }
+  .nota-editor-header > * { flex: 1 1 100%; min-width: 0; }
+  .sit-item { padding: 10px 8px; }          /* lista de situações no rolador */
+  .sit-item input { width: 20px; height: 20px; }
+  .mobile-nav-btn { min-height: 48px; }
+}
+
+/* 4) A fileira de abas do painel de baixo (Chat · Dados · Combate · …) rola de
+   lado, mas parecia simplesmente cortada. A sombra na borda mostra que tem
+   mais coisa, e o toque rola com inércia. */
+.mobile-sheet-tabs {
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x proximity;
+  position: relative;
+  -ms-overflow-style: none;
+}
+.mobile-sheet-tabs::-webkit-scrollbar { display: none; }
+.mobile-sheet-tab { scroll-snap-align: center; }
+.mobile-sheet-tabs-wrap { position: relative; }
+.mobile-sheet-tabs-wrap::after {
+  content: ''; position: absolute; right: 0; top: 0; bottom: 0; width: 26px;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, var(--surface) 85%);
+}
+@media (max-width: 400px) {
+  .mobile-sheet-tab { min-width: 46px; font-size: 8.5px; padding: 7px 1px; }
+}
+
+/* 5) O quadro da profissão (perícia Base/Extra e Traço) ficava espremido numa
+   coluna estreita ao lado do seletor. No celular ele ocupa a linha toda. */
+@media (max-width: 700px) {
+  .ficha-prof-field { grid-column: 1 / -1; }
+  .profissao-info { font-size: 12px; }
+}
+
+/* 6) Respiro embaixo: sem isto o último cartão fica atrás da barra de navegação
+   fixa (e da faixa do gesto de voltar, no iPhone). */
+@media (max-width: 768px) {
+  .main-content { padding-bottom: calc(78px + env(safe-area-inset-bottom, 0px)); }
+  #page-sala { padding-bottom: 0; }
+}
+
+/* 7) Aparelho deitado: a barra de baixo comia quase toda a altura útil. */
+@media (max-width: 900px) and (max-height: 460px) and (orientation: landscape) {
+  .mobile-nav { padding: 0 0 env(safe-area-inset-bottom, 0px); }
+  .mobile-nav-btn { min-height: 40px; font-size: 9px; }
+  .mobile-nav-btn .nav-icon { font-size: 15px; }
+  .main-content { padding-bottom: calc(52px + env(safe-area-inset-bottom, 0px)); }
+  .topbar { position: static; }
+}
+
+/* 8) Detalhes de toque: sem realce azul do Android e sem seleção acidental de
+   texto ao segurar um botão. */
+@media (max-width: 768px), (pointer: coarse) {
+  button, .tab, .mobile-nav-btn, .mobile-sheet-tab, .tema-btn {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-user-select: none; user-select: none;
+  }
+  #map-canvas { touch-action: none; }
+}

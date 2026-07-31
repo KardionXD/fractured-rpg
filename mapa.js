@@ -658,7 +658,7 @@ let _lastTap = 0;
 function mapaTouchStart(e) {
   e.preventDefault();
   if (e.touches.length === 2) {
-    MAP.drag = null; MAP.pan = null;
+    MAP.drag = null; MAP.pan = null; _pingCancelarToque();
     const dx = e.touches[0].clientX - e.touches[1].clientX;
     const dy = e.touches[0].clientY - e.touches[1].clientY;
     MAP.pinch = Math.hypot(dx, dy);
@@ -690,10 +690,16 @@ function mapaTouchStart(e) {
     MAP.pan = { lx: c.x, ly: c.y };
     mapaEsconderInfo(); mapaDraw();
     // No celular não há duplo-clique: segurar o dedo parado marca o ponto.
+    // O dedo nunca fica 100% imóvel, então guardamos onde ele encostou e só
+    // desistimos se ele andar de verdade (ver mapaTouchMove).
     _pingCancelarToque();
+    MAP._pingDe = { x: t0.clientX, y: t0.clientY };
     MAP._pingTimer = setTimeout(() => {
       MAP._pingTimer = null;
-      if (MAP._moved || MAP.drag) return;
+      // Não olha MAP._moved: o dedo parado gera touchmove e ele vira true na
+      // hora. Quem decide se andou demais é a tolerância no mapaTouchMove,
+      // que cancela este timer.
+      if (MAP.drag) return;
       MAP.pan = null;                       // não vira arrasto de visão depois do ping
       mapaPing(w.x, w.y);
       if (navigator.vibrate) navigator.vibrate(25);
@@ -703,12 +709,23 @@ function mapaTouchStart(e) {
 
 function _pingCancelarToque() {
   if (MAP._pingTimer) { clearTimeout(MAP._pingTimer); MAP._pingTimer = null; }
+  MAP._pingDe = null;
 }
+
+const PING_TOLERANCIA = 14;   // px de folga: tremor de dedo não cancela o ping
 
 function mapaTouchMove(e) {
   e.preventDefault();
   MAP._moved = true;
-  _pingCancelarToque();
+  // Antes qualquer touchmove matava o toque longo — e o dedo parado gera
+  // touchmove o tempo todo, então o ping nunca chegava a disparar no celular.
+  if (MAP._pingTimer && MAP._pingDe && e.touches[0]) {
+    const dx = e.touches[0].clientX - MAP._pingDe.x;
+    const dy = e.touches[0].clientY - MAP._pingDe.y;
+    if (Math.hypot(dx, dy) > PING_TOLERANCIA) _pingCancelarToque();
+  } else if (!MAP._pingDe) {
+    _pingCancelarToque();
+  }
 
   if (e.touches.length === 2) {
     const dx = e.touches[0].clientX - e.touches[1].clientX;

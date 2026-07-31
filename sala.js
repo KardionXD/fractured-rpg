@@ -114,7 +114,7 @@ function buildMobileDOM(root) {
       <button class="mobile-dice-btn active">d20</button>
       <button class="mobile-roll-teste-btn" onclick="rolarFormula()">ROLAR TESTE</button>
     </div>
-    <div class="mobile-sheet-tabs" id="mobile-sheet-tabs"></div>
+    <div class="mobile-sheet-tabs-wrap"><div class="mobile-sheet-tabs" id="mobile-sheet-tabs"></div></div>
     <div class="mobile-sheet-expanded" id="mobile-sheet-expanded"></div>
   `;
 
