@@ -1639,7 +1639,7 @@ h1,h2,h3 { letter-spacing: .04em; }
   padding: 10px 16px 12px;
   max-height: 46vh; transition: max-height .2s;
 }
-.mobile-sheet.expanded { max-height: 72vh; }
+/* altura da folha expandida: ver o bloco MAPA NO CELULAR, no fim do arquivo */
 .mobile-sheet-handle { width: 40px; height: 4px; border-radius: 2px; background: var(--border); align-self: center; flex-shrink: 0; }
 
 .mobile-sheet-roll {
@@ -3300,8 +3300,13 @@ h1,h2,h3 { letter-spacing: .04em; }
 /* 6) Respiro embaixo: sem isto o último cartão fica atrás da barra de navegação
    fixa (e da faixa do gesto de voltar, no iPhone). */
 @media (max-width: 768px) {
-  .main-content { padding-bottom: calc(78px + env(safe-area-inset-bottom, 0px)); }
-  #page-sala { padding-bottom: 0; }
+  /* A folga vai nas páginas que rolam, e não no .main-content: a Sala tem
+     altura fixa de tela cheia, e a folga nela criava rolagem e um vazio preto
+     embaixo. */
+  #page-ficha, #page-notas, #page-master, #page-npcs, #page-arquivos {
+    padding-bottom: calc(78px + env(safe-area-inset-bottom, 0px));
+  }
+  .main-content { padding-bottom: 0; }
 }
 
 /* 7) Aparelho deitado: a barra de baixo comia quase toda a altura útil. */
@@ -3321,4 +3326,60 @@ h1,h2,h3 { letter-spacing: .04em; }
     -webkit-user-select: none; user-select: none;
   }
   #map-canvas { touch-action: none; }
+}
+
+
+/* ══════════════════════════════════════════════════════════
+   MAPA NO CELULAR — devolver a tela ao mapa
+══════════════════════════════════════════════════════════ */
+
+/* Botão que recolhe/mostra as ferramentas, flutuando sobre o mapa. */
+.mapa-ferramentas-btn {
+  position: absolute; top: 8px; left: 8px; z-index: 15;
+  width: 38px; height: 38px; border-radius: 10px;
+  background: rgba(13,13,20,.82); border: 1px solid var(--border);
+  color: var(--gold-text); font-size: 16px; line-height: 1; cursor: pointer;
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  display: none;
+}
+@media (max-width: 768px) { .mapa-ferramentas-btn { display: block; } }
+
+/* Com as ferramentas recolhidas o mapa fica com a altura toda. */
+.mapa-sem-ferramentas .mapa-toolbar { display: none; }
+
+@media (max-width: 768px) {
+  /* Quando visíveis, cada barra vira UMA linha que rola de lado, em vez de
+     quebrar em três e comer metade da tela. */
+  .mapa-toolbar {
+    flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .mapa-toolbar::-webkit-scrollbar { display: none; }
+  .mapa-toolbar > * { flex-shrink: 0; }
+  .mapa-toolbar { padding-top: 4px !important; padding-bottom: 4px !important; }
+  .mapa-toolbar .btn-ghost, .mapa-toolbar .ct-pv-btn { min-height: 36px; }
+  .mapa-toolbar [style*="margin-left:auto"] { margin-left: 8px !important; }
+
+  /* O mínimo de 260px empurrava o conteúdo para além da tela e sobrava um
+     vazio preto embaixo. O mapa agora ocupa o que existir. */
+  #mapa-canvas { min-height: 0; }
+
+  /* Altura real da janela: com 100vh o navegador conta a barra de endereço
+     que some ao rolar, e a página fica mais alta que a tela visível. */
+  #page-sala { height: calc(100dvh - 56px - 64px); }
+}
+
+/* Folha da base: abre em metade da tela (era 72%) e o puxador arrasta. */
+.mobile-sheet.expanded {
+  max-height: 76vh;
+  height: var(--sheet-h, 50vh);
+}
+.mobile-sheet-handle { width: 46px; height: 4px; cursor: grab; }
+.mobile-sheet.expanded .mobile-sheet-handle {
+  width: 60px; height: 5px; background: var(--gold-dim);
+}
+
+/* Deitado sobra pouca altura: a folha abre menor ainda. */
+@media (max-height: 460px) and (orientation: landscape) {
+  .mobile-sheet.expanded { height: var(--sheet-h, 70vh); }
 }

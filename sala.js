@@ -141,6 +141,8 @@ function buildMobileDOM(root) {
 
   requestAnimationFrame(() => {
     canvas = null; initMapa();
+    _mapaRestaurarFerramentas();
+    sheetInitDrag();
     setTimeout(() => { resizeMapCanvas(); if (typeof desenharMapa === 'function') desenharMapa(); }, 100);
   });
 }
@@ -153,6 +155,7 @@ function switchMobileTab(id) {
 
   if (id === 'mapa') {
     sheet.classList.remove('expanded');
+    sheet.style.removeProperty('--sheet-h');
     document.querySelectorAll('.mobile-sheet-tab').forEach(b => b.classList.remove('active'));
     setTimeout(() => { resizeMapCanvas(); if (typeof desenharMapa === 'function') desenharMapa(); }, 60);
     return;
@@ -557,6 +560,98 @@ function buildTrackerPanel(c) {
     </div>`;
   setTimeout(()=>renderCT(),50);
 }
+// No celular as barras de ferramentas ocupavam quase metade da tela antes de o
+// mapa começar. Agora elas vêm recolhidas e o ⚙ sobre o mapa mostra/esconde.
+function mapaToggleFerramentas() {
+  const painel = document.getElementById('mpanel-mapa') || document.querySelector('#page-sala .fpanel-mapa');
+  const alvo = painel || document.body;
+  const oculto = alvo.classList.toggle('mapa-sem-ferramentas');
+  try { localStorage.setItem('fractured_mapa_ferramentas', oculto ? 'off' : 'on'); } catch (e) {}
+  setTimeout(() => {
+    if (typeof resizeMapCanvas === 'function') resizeMapCanvas();
+    if (typeof mapaDraw === 'function') mapaDraw();
+  }, 60);
+}
+
+function _mapaRestaurarFerramentas() {
+  if (window.innerWidth > 768) return;          // no computador ficam sempre visíveis
+  let estado = 'off';                            // no celular, recolhidas por padrão
+  try { estado = localStorage.getItem('fractured_mapa_ferramentas') || 'off'; } catch (e) {}
+  const painel = document.getElementById('mpanel-mapa');
+  if (painel && estado === 'off') painel.classList.add('mapa-sem-ferramentas');
+}
+
+// ── Folha da base: arrastável, com três alturas ──────────────────────────
+// Antes ela abria fixa em 72% da tela e engolia o mapa. Agora o puxador
+// arrasta, e ao soltar encaixa em recolhida / meia / cheia.
+function sheetInitDrag() {
+  const sheet  = document.getElementById('mobile-sheet');
+  const handle = sheet && sheet.querySelector('.mobile-sheet-handle');
+  if (!sheet || !handle || handle.dataset.arrastavel) return;
+  handle.dataset.arrastavel = '1';
+  handle.style.touchAction = 'none';
+  handle.style.cursor = 'grab';
+  handle.style.padding = '10px 0';               // área de toque maior que o risquinho
+  handle.style.backgroundClip = 'content-box';
+
+  // O maior encaixe para em 76% para sempre sobrar uma faixa de mapa visível —
+  // com a folha em tela cheia o canvas ficava com altura zero.
+  const encaixes = () => [110, Math.round(innerHeight * 0.5), Math.round(innerHeight * 0.76)];
+  const aplicar = px => {
+    const [min, , max] = encaixes();
+    sheet.style.setProperty('--sheet-h', Math.max(min, Math.min(max, px)) + 'px');
+  };
+  const guardar = px => { try { localStorage.setItem('fractured_sheet_h', String(px)); } catch (e) {} };
+
+  let arrastando = false, y0 = 0, h0 = 0, andou = false;
+  handle.addEventListener('pointerdown', e => {
+    if (!sheet.classList.contains('expanded')) return;
+    arrastando = true; andou = false; y0 = e.clientY; h0 = sheet.getBoundingClientRect().height;
+    handle.setPointerCapture(e.pointerId);
+    sheet.style.transition = 'none';
+    e.preventDefault();
+  });
+  handle.addEventListener('pointermove', e => {
+    if (!arrastando) return;
+    if (Math.abs(e.clientY - y0) > 6) andou = true;
+    aplicar(h0 + (y0 - e.clientY));
+  });
+  const soltar = () => {
+    if (!arrastando) return;
+    arrastando = false;
+    sheet.style.transition = '';
+    const h = sheet.getBoundingClientRect().height;
+    const alvo = encaixes().reduce((a, b) => Math.abs(b - h) < Math.abs(a - h) ? b : a);
+    aplicar(alvo); guardar(alvo);
+    setTimeout(() => {
+      if (typeof resizeMapCanvas === 'function') resizeMapCanvas();
+      if (typeof mapaDraw === 'function') mapaDraw();
+    }, 220);
+  };
+  handle.addEventListener('pointerup', soltar);
+  handle.addEventListener('pointercancel', soltar);
+
+  // toque simples no puxador percorre as três alturas.
+  // Sem o `andou`, o clique que vem depois de um arrasto desfazia o arrasto.
+  handle.addEventListener('click', () => {
+    if (!sheet.classList.contains('expanded')) return;
+    if (andou) { andou = false; return; }
+    const h = sheet.getBoundingClientRect().height;
+    const [a, b, c] = encaixes();
+    const prox = h < (a + b) / 2 ? b : (h < (b + c) / 2 ? c : a);
+    aplicar(prox); guardar(prox);
+    setTimeout(() => {
+      if (typeof resizeMapCanvas === 'function') resizeMapCanvas();
+      if (typeof mapaDraw === 'function') mapaDraw();
+    }, 220);
+  });
+
+  try {
+    const salvo = parseInt(localStorage.getItem('fractured_sheet_h'), 10);
+    if (Number.isFinite(salvo)) aplicar(salvo);
+  } catch (e) {}
+}
+
 function buildMapaPanel(c) {
   c.style.padding = '0';
   // Build toolbar HTML - avoid isMaster inside template literals
@@ -626,6 +721,8 @@ function buildMapaPanel(c) {
         </div>
       </div>
       <div style="flex:1;overflow:hidden;position:relative;min-height:0">
+        <button class="mapa-ferramentas-btn" onclick="mapaToggleFerramentas()"
+                title="Mostrar/esconder as ferramentas do mapa">⚙</button>
         <canvas id="mapa-canvas" style="display:block;touch-action:none;width:100%;height:100%"></canvas>
         <!-- token-info como overlay - NÃO afeta o tamanho do canvas -->
         <div id="token-info" style="display:none;position:absolute;bottom:0;left:0;right:0;padding:8px;background:rgba(13,13,20,0.96);border-top:1px solid var(--border);max-height:120px;overflow-y:auto;z-index:20;backdrop-filter:blur(6px)"
