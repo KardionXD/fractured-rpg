@@ -3383,3 +3383,44 @@ h1,h2,h3 { letter-spacing: .04em; }
 @media (max-height: 460px) and (orientation: landscape) {
   .mobile-sheet.expanded { height: var(--sheet-h, 70vh); }
 }
+
+
+/* ══════════════════════════════════════════════════════════
+   ALTURA REAL DA JANELA NO CELULAR
+   `100vh` é a janela GRANDE: inclui o espaço da barra de endereço, que some
+   ao rolar. Com ela, o layout ficava mais alto que a tela visível — a página
+   ganhava rolagem e sobrava aquele vão preto entre a folha e a barra de baixo,
+   porque a barra é fixa na tela e o conteúdo terminava mais acima.
+   `100dvh` é a janela DINÂMICA: exatamente o que dá para ver agora.
+══════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  body { min-height: 100dvh; }
+  /* Só a altura mínima muda. Mexer no `height`/`overflow` do layout fazia a
+     Sala perder a altura de referência e o mapa ia a zero — testado. */
+  .app-layout { min-height: 100dvh; }
+  /* Login e modais também mediam pela janela grande e estouravam a tela. */
+  .login-page { min-height: 100dvh; }
+  .ct-modal, .mapa-modal { height: 100dvh; max-height: 100dvh; }
+}
+
+
+/* ══════════════════════════════════════════════════════════
+   IDENTIDADE DA FICHA NO CELULAR
+   `justify-items: center` fazia cada item do grid usar a largura do próprio
+   conteúdo. O seletor de profissão e o quadro do Traço são mais largos que a
+   coluna, e como estavam centralizados vazavam para os DOIS lados, saindo
+   por fora do cartão. Esticar resolve — o conteúdo continua centralizado
+   por dentro (o nome tem text-align, os campos têm justify-content).
+══════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  #page-ficha .grid-3 { justify-items: stretch; }
+  #page-ficha .grid-3 > *,
+  #page-ficha .ficha-id-fields,
+  #page-ficha .ficha-id-fields > * { min-width: 0; max-width: 100%; }
+  #page-ficha .ficha-id-fields select,
+  #page-ficha .ficha-id-fields input,
+  #page-ficha .profissao-info { max-width: 100%; box-sizing: border-box; }
+  /* nome e profissão seguem centralizados, agora sem estourar */
+  #page-ficha.tema-ouro .ficha-prof-field select,
+  #page-ficha.tema-verde .ficha-prof-field select { text-align: center; }
+}
