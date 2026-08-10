@@ -177,6 +177,7 @@ function onAttrInput(id) {
     buildPips('pip-pv', pvMax, pvAtual, 'roxo', onPVClick, 'pip-pv-val');
   }
   if (id === 'con') atualizarDicaPericias();  // nº de perícias sai do Mod de CON
+  atualizarRotulosAtributo();                // o rolador mostra o mod novo
   autoSave();
 }
 
@@ -642,6 +643,7 @@ function aplicarFicha(d) {
   });
   atualizarContadorPontos();
   atualizarDicaPericias();
+  atualizarRotulosAtributo();
 
   pvAtual  = d.pv_atual || 0;
   pvMax    = Math.max((d.attr_res || 0) * 4, 4);
@@ -1138,8 +1140,113 @@ function limparSituacoes() {
   onSituacaoChange();
 }
 
+// ══════════════════════════════════════════════════
+//  EXPRESSÕES DE DADO  —  "1d8+2", "2d6+1d4-1", "d20+3"
+//  Usado pela rolagem livre do chat (/r) e pelo rolador.
+// ══════════════════════════════════════════════════
+const DADO_MAX_QTD = 50, DADO_MAX_FACES = 1000;
+
+// Devolve null se não for uma expressão de dado válida — assim uma mensagem
+// comum de chat nunca é confundida com rolagem.
+function parseExpressaoDado(txt) {
+  if (!txt) return null;
+  const limpo = String(txt).trim().replace(/\s+/g, '').replace(/[\u2212\u2013\u2014]/g, '-');
+  if (!/^[+-]?(\d*[dD]\d+|\d+)([+-](\d*[dD]\d+|\d+))*$/.test(limpo)) return null;
+  if (!/[dD]/.test(limpo)) return null;            // "2+2" não é rolagem
+
+  const termos = limpo.match(/[+-]?(?:\d*[dD]\d+|\d+)/g) || [];
+  const partes = [];
+  let total = 0, temDado = false;
+
+  for (const t of termos) {
+    const sinal = t.startsWith('-') ? -1 : 1;
+    const corpo = t.replace(/^[+-]/, '');
+    if (/[dD]/.test(corpo)) {
+      const [q, f] = corpo.split(/[dD]/);
+      const qtd = q === '' ? 1 : parseInt(q, 10);
+      const faces = parseInt(f, 10);
+      if (!(qtd >= 1 && qtd <= DADO_MAX_QTD)) return null;
+      if (!(faces >= 2 && faces <= DADO_MAX_FACES)) return null;
+      const valores = [];
+      for (let i = 0; i < qtd; i++) valores.push(Math.floor(Math.random() * faces) + 1);
+      const soma = valores.reduce((a, b) => a + b, 0);
+      total += sinal * soma;
+      temDado = true;
+      partes.push({ tipo: 'dado', sinal, qtd, faces, valores, soma });
+    } else {
+      const n = parseInt(corpo, 10);
+      if (!Number.isFinite(n) || n > 9999) return null;
+      total += sinal * n;
+      partes.push({ tipo: 'fixo', sinal, valor: n });
+    }
+  }
+  if (!temDado) return null;
+
+  const texto = partes.map((p, i) => {
+    const op = p.sinal < 0 ? '\u2212' : (i === 0 ? '' : '+');
+    const corpo = p.tipo === 'dado'
+      ? `${p.qtd}d${p.faces} [${p.valores.join(', ')}]`
+      : String(p.valor);
+    return (i === 0 ? op : ' ' + op + ' ') + corpo;
+  }).join('');
+
+  const dados = partes.filter(p => p.tipo === 'dado');
+  const umDadoSo = dados.length === 1 && dados[0].qtd === 1;
+  return {
+    partes, total, texto,
+    faces: umDadoSo ? dados[0].faces : null,          // para marcar crítico/falha
+    resultado: umDadoSo ? dados[0].valores[0] : null,
+    formula: limpo.toLowerCase(),
+  };
+}
+
+// Rola uma expressão e publica no feed. Devolve false se não for expressão.
+function rolarExpressao(txt) {
+  const r = parseExpressaoDado(txt);
+  if (!r) return false;
+  const crit  = r.faces === 20 && r.resultado === 20;
+  const falha = r.faces === 20 && r.resultado === 1;
+  mostrarAnimacaoDado(r.faces || 20, r.total, crit, falha);
+  publicarSala('roll', {
+    dado: r.faces || 0,
+    resultado_dado: r.resultado ?? r.total,
+    total: r.total,
+    oculto: rolagemOculta(),
+    formula: r.formula,
+    label: `${r.formula} \u2192 ${r.texto}`,
+  });
+  return true;
+}
+
+// ══════════════════════════════════════════════════
+//  MODIFICADOR DE ATRIBUTO VINDO DA FICHA
+//  Antes era preciso caçar "COM +1" entre 31 opções do seletor. Agora
+//  escolhe-se só o atributo e o valor vem da ficha aberta.
+// ══════════════════════════════════════════════════
+function modDoAtributo(id) {
+  if (!id) return 0;
+  const bruto = document.getElementById('m-' + id)?.value;
+  const n = parseInt(bruto, 10);
+  if (Number.isFinite(n)) return n;
+  const v = parseInt(document.getElementById('a-' + id)?.value, 10);
+  return Number.isFinite(v) && v > 0 ? v - 3 : 0;
+}
+
+// Mostra o modificador atual dentro de cada opção do seletor.
+function atualizarRotulosAtributo() {
+  const sel = document.getElementById('roll-atrib');
+  if (!sel) return;
+  [...sel.options].forEach(o => {
+    if (!o.value) return;
+    const m = modDoAtributo(o.value);
+    o.textContent = `${o.value.toUpperCase()} (${m > 0 ? '+' : m < 0 ? '\u2212' : '\u00b1'}${Math.abs(m)})`;
+  });
+}
+
 function rolarFormula() {
-  const modAtrib  = parseInt(document.getElementById('roll-atrib')?.value)   || 0;
+  const atribId   = document.getElementById('roll-atrib')?.value || '';
+  const modAtrib  = modDoAtributo(atribId);
+  const faces     = parseInt(document.getElementById('roll-dado')?.value) || 20;
   const modPer    = parseInt(document.getElementById('roll-pericia')?.value)  || 0;
   const modSit    = situacaoTotal();   // soma de todas as situações marcadas
   // Dificuldade é OPCIONAL: vazio = rolagem livre (só mostra o total com bônus)
@@ -1156,19 +1263,21 @@ function rolarFormula() {
   const ajudas   = parseInt(document.getElementById('roll-ajudas')?.value) || 0;
   const modAjuda = Math.min(3, ajudas) * 2;
 
-  const dado  = Math.floor(Math.random() * 20) + 1;
+  const dado  = Math.floor(Math.random() * faces) + 1;
   const bonus = modAtrib + modPer + modSit + modAjuda + modCustom;
   const total = dado + bonus;
 
-  const atribText  = document.getElementById('roll-atrib')?.selectedOptions[0]?.text || '';
+  const atribText  = atribId
+    ? `${atribId.toUpperCase()} ${modAtrib >= 0 ? '+' : '\u2212'}${Math.abs(modAtrib)}`
+    : '';
   const perText    = document.getElementById('roll-pericia')?.selectedOptions[0]?.text || '';
   const sitText    = situacaoTexto();
   const ajudaText  = ajudas > 0 ? `${ajudas} ajudante(s) (+${modAjuda})` : '';
-  const customText = modCustom !== 0 ? `Bônus custom (${modCustom>0?'+':''}${modCustom})` : '';
+  const customText = modCustom !== 0 ? `manual (${modCustom>0?'+':''}${modCustom})` : '';
 
-  mostrarAnimacaoDado(20, dado, dado === 20, dado === 1);
+  mostrarAnimacaoDado(faces, dado, faces === 20 && dado === 20, faces === 20 && dado === 1);
   publicarSala('roll', {
-    dado: 20,
+    dado: faces,
     resultado_dado: dado,
     bonus,
     total,
@@ -1186,6 +1295,17 @@ async function enviarMsg() {
   const input = document.getElementById('msg-input');
   const texto = input.value.trim();
   if (!texto) return;
+
+  // "/r 1d8+2", "/rolar 2d6", ou a expressão direta "1d8+2".
+  // Sem a barra só vale se a mensagem INTEIRA for uma expressão válida —
+  // uma frase normal nunca é confundida com rolagem.
+  const semBarra = texto.replace(/^\/(rolar|roll|r)\s*/i, '');
+  const pediuRolagem = /^\/(rolar|roll|r)\b/i.test(texto);
+  if (pediuRolagem || parseExpressaoDado(texto)) {
+    if (rolarExpressao(semBarra)) { input.value = ''; return; }
+    if (pediuRolagem) { toast('Não entendi. Exemplos: /r 1d8+2 · /r 2d6 · /r 1d20+3', 'err'); return; }
+  }
+
   input.value = '';
   await publicarSala('mensagem', { texto });
 }
@@ -1680,9 +1800,11 @@ function appendFeedMsg(msg) {
         ${isFalha ? ' <span style="color:var(--red)">💀 FALHA CRÍTICA!</span>' : ''}
       </div>
       <div class="roll-detail">
-        rolou 1d${c.dado} → ${c.resultado_dado}
-        ${c.bonus ? ` + bônus ${c.bonus > 0 ? '+' : ''}${c.bonus}` : ''}
-        ${c.label ? ` — ${esc(c.label)}` : ''}
+        ${c.formula
+          ? `rolou ${esc(c.label || c.formula)}`
+          : `rolou 1d${c.dado} → ${c.resultado_dado}` +
+            (c.bonus ? ` + bônus ${c.bonus > 0 ? '+' : ''}${c.bonus}` : '') +
+            (c.label ? ` — ${esc(c.label)}` : '')}
       </div>
     `;
   } else if (msg.tipo === 'tensao') {

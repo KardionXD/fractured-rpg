@@ -39,6 +39,7 @@ async function initSala() {
 }
 
 function refreshSalaContent() {
+  if (typeof atualizarRotulosAtributo === 'function') atualizarRotulosAtributo();
   // Reconstrói apenas o conteúdo dinâmico sem recriar o DOM todo
   renderCT();
   if (isMaster) { carregarBestiario(); renderPlayersParaCT(); }
@@ -423,7 +424,7 @@ function buildFeed(c) {
         <div class="empty-state"><div class="empty-icon">${fracIcon('d20', { size: 36 })}</div><p>Role um dado para começar.</p></div>
       </div>
       <div style="padding:8px;border-top:1px solid var(--border);display:flex;gap:6px;flex-shrink:0">
-        <input type="text" class="feed-input" id="msg-input" placeholder="Mensagem..." onkeydown="if(event.key==='Enter')enviarMsg()" style="flex:1">
+        <input type="text" class="feed-input" id="msg-input" placeholder="Mensagem ou /r 1d8+2" onkeydown="if(event.key==='Enter')enviarMsg()" style="flex:1">
         <button class="btn-gold" onclick="enviarMsg()" style="font-size:11px;padding:5px 10px">Enviar</button>
       </div>
       ${limparBtn}
@@ -475,17 +476,27 @@ function buildDadosPanel(c) {
         </div>
       </div>
       <div class="roll-formula" style="margin:0">
-        <div class="roll-formula-title">Teste — 1d20 + Mod + Perícia</div>
+        <div class="roll-formula-title">Rolagem — dado + modificadores</div>
         <div class="formula-grid">
+          <label class="formula-label">Dado</label>
+          <select id="roll-dado" class="formula-select">
+            <option value="20" selected>1d20 — teste</option>
+            <option value="4">1d4 — dano</option>
+            <option value="6">1d6 — dano</option>
+            <option value="8">1d8 — dano</option>
+            <option value="10">1d10 — dano</option>
+            <option value="12">1d12 — dano</option>
+            <option value="100">1d100</option>
+          </select>
           <label class="formula-label">Atributo</label>
-          <select id="roll-atrib" class="formula-select">
-            <option value="0">— nenhum —</option>
-            <option value="-2">FOR −2</option><option value="-1">FOR −1</option><option value="0">FOR +0</option><option value="1">FOR +1</option><option value="2">FOR +2</option>
-            <option value="-2">RES −2</option><option value="-1">RES −1</option><option value="0">RES +0</option><option value="1">RES +1</option><option value="2">RES +2</option>
-            <option value="-2">COM −2</option><option value="-1">COM −1</option><option value="0">COM +0</option><option value="1">COM +1</option><option value="2">COM +2</option>
-            <option value="-2">SOC −2</option><option value="-1">SOC −1</option><option value="0">SOC +0</option><option value="1">SOC +1</option><option value="2">SOC +2</option>
-            <option value="-2">CON −2</option><option value="-1">CON −1</option><option value="0">CON +0</option><option value="1">CON +1</option><option value="2">CON +2</option>
-            <option value="-2">AGI −2</option><option value="-1">AGI −1</option><option value="0">AGI +0</option><option value="1">AGI +1</option><option value="2">AGI +2</option>
+          <select id="roll-atrib" class="formula-select" onchange="atualizarRotulosAtributo()">
+            <option value="" selected>— nenhum —</option>
+            <option value="for">FOR</option>
+            <option value="res">RES</option>
+            <option value="com">COM</option>
+            <option value="soc">SOC</option>
+            <option value="con">CON</option>
+            <option value="agi">AGI</option>
           </select>
           <label class="formula-label">Perícia</label>
           <select id="roll-pericia" class="formula-select"><option value="0">Sem perícia (+0)</option><option value="3">Com perícia (+3)</option></select>
@@ -519,7 +530,7 @@ function buildDadosPanel(c) {
             <span style="font-size:10px;color:var(--muted)" id="ajuda-label">0 ajudante(s)</span>
           </div>
 
-          <label class="formula-label">Bônus / Penalidade custom</label>
+          <label class="formula-label">Modificador manual <span style="color:var(--muted);font-size:9px">(criaturas, +3 ou mais)</span></label>
           <div style="display:flex;align-items:center;gap:6px">
             <button class="ct-pv-btn" onclick="let e=document.getElementById('roll-bonus-custom');e.value=parseInt(e.value||0)-1">−</button>
             <input type="number" id="roll-bonus-custom" value="0"
