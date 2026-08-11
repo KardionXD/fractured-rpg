@@ -3424,3 +3424,633 @@ h1,h2,h3 { letter-spacing: .04em; }
   #page-ficha.tema-ouro .ficha-prof-field select,
   #page-ficha.tema-verde .ficha-prof-field select { text-align: center; }
 }
+
+
+/* ══════════════════════════════════════════════════════════════════
+   ▓▓ EXPERIÊNCIA MOBILE — BLOCO ÚNICO ▓▓
+
+   Tudo daqui para baixo é celular/tablet. O desktop passa por este
+   bloco sem tocar em nada: as regras estão dentro de media queries,
+   e as poucas que valem para todos (foco visível, movimento reduzido)
+   só melhoram também no desktop.
+══════════════════════════════════════════════════════════════════ */
+
+
+/* ──────────────────────────────────────────────────────────────
+   1) FOCO VISÍVEL EM TODO LUGAR
+   Existia só na tela de login. Sem isto, quem navega por teclado ou
+   por controle não enxerga onde está. `:focus-visible` não desenha
+   nada no clique de mouse — só quando o foco veio de teclado.
+────────────────────────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--gold-text, #d4af5f);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+/* Campos de texto já têm borda própria: o realce vai por dentro. */
+input:focus-visible, textarea:focus-visible, select:focus-visible {
+  outline-offset: 0;
+}
+
+
+/* ──────────────────────────────────────────────────────────────
+   2) MOVIMENTO REDUZIDO — de verdade
+   Antes só a animação do losango da marca respeitava a preferência.
+   Quem liga isso no sistema costuma fazer por enjoo ou enxaqueca;
+   uma animação esquecida já basta para incomodar.
+────────────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+
+/* ──────────────────────────────────────────────────────────────
+   3) MODAIS VIRAM FOLHA DA BASE (bottom sheet)
+   No celular a mão alcança a metade de baixo da tela. Um modal
+   centralizado deixa os botões no meio, longe do polegar, e o
+   `max-height:92vh` fazia a caixa quase encostar no topo — parecia
+   tela cheia mal cortada. Como folha, sobe de baixo, encosta nas
+   laterais e os botões ficam onde o dedo está.
+────────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  /* O `align-items:center` está no atributo style do HTML; só o
+     !important vence a especificidade de estilo em linha. */
+  .modal-overlay {
+    align-items: flex-end !important;
+    padding: 0 !important;
+  }
+
+  /* Filho direto do overlay = a caixa do modal. Vale para os modais
+     de NPC e de token personalizado, e para qualquer um novo. */
+  .modal-overlay > div:not(.ct-modal):not(.mapa-modal) {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    border-radius: 16px 16px 0 0 !important;
+    border-bottom: none !important;
+    max-height: 88dvh !important;
+    padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px)) !important;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;   /* rolar dentro não arrasta a página */
+    animation: mobFolhaSobe .22s cubic-bezier(.32,.72,0,1);
+  }
+
+  /* Puxador: o traço no topo é o que faz a pessoa entender que aquilo
+     é uma folha e não uma tela nova. */
+  .modal-overlay > div:not(.ct-modal):not(.mapa-modal)::before {
+    content: '';
+    display: block;
+    width: 42px; height: 4px;
+    margin: -8px auto 14px;
+    border-radius: 2px;
+    background: var(--border);
+  }
+
+  /* Modais grandes (combate, mapa) continuam em tela cheia — é o
+     padrão certo para conteúdo denso —, mas respeitando o entalhe. */
+  .ct-modal, .mapa-modal {
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    box-sizing: border-box;
+  }
+  /* O tracker era 320px + 1fr lado a lado: em 360px de tela a segunda
+     coluna nascia com 40px. Empilhado, cada parte usa a largura toda. */
+  .ct-modal { grid-template-columns: 1fr !important; grid-template-rows: auto 1fr; }
+}
+
+@keyframes mobFolhaSobe {
+  from { transform: translateY(100%); }
+  to   { transform: none; }
+}
+
+
+/* ──────────────────────────────────────────────────────────────
+   4) O TECLADO NÃO COBRE MAIS O CAMPO
+   Com o teclado aberto, a barra fixa de baixo subia junto e ficava
+   exatamente sobre o campo. Enquanto se digita, ela sai de cena —
+   ninguém troca de tela no meio de uma frase.
+────────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  body.teclado-aberto .mobile-bottom-nav { transform: translateY(120%); }
+  .mobile-bottom-nav { transition: transform .18s ease; }
+  body.teclado-aberto #page-ficha,
+  body.teclado-aberto #page-notas,
+  body.teclado-aberto #page-master,
+  body.teclado-aberto #page-npcs,
+  body.teclado-aberto #page-arquivos { padding-bottom: 12px; }
+  /* A folha da Sala precisa encolher, senão o teclado a empurra
+     inteira para fora e o campo de mensagem some. */
+  body.teclado-aberto .mobile-sheet.expanded { height: 42dvh; }
+}
+
+
+/* ──────────────────────────────────────────────────────────────
+   5) AVISOS ONDE DÁ PARA LER
+   O toast nascia no canto inferior direito — bem embaixo da barra de
+   navegação, meio escondido. No celular ele passa a nascer no alto,
+   centralizado, abaixo do entalhe.
+────────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .toast {
+    top: calc(env(safe-area-inset-top, 0px) + 64px);
+    bottom: auto;
+    left: 12px; right: 12px;
+    text-align: center;
+    font-size: 13px;
+    padding: 12px 16px;
+    animation: mobToastDesce .18s ease;
+    box-shadow: 0 8px 24px rgba(0,0,0,.5);
+  }
+}
+@keyframes mobToastDesce {
+  from { transform: translateY(-12px); opacity: 0; }
+  to   { transform: none; opacity: 1; }
+}
+
+
+/* ──────────────────────────────────────────────────────────────
+   6) ALVO DE TOQUE MAIOR SEM BOTÃO MAIOR
+   O mínimo recomendado é 44px. Vários ícones aqui têm 24–30px e
+   aumentá-los estragaria o desenho das barras. A solução é esticar
+   só a ÁREA que responde ao dedo, com um pseudo-elemento invisível:
+   o botão continua pequeno na tela e grande para o toque.
+────────────────────────────────────────────────────────────── */
+@media (pointer: coarse) {
+  .mapa-toolbar .btn-ghost,
+  .mapa-ferramentas-btn,
+  .mobile-sheet-tab,
+  .tema-btn,
+  .ct-pv-btn,
+  .npc-pasta-btn {
+    position: relative;
+  }
+  .mapa-toolbar .btn-ghost::after,
+  .mapa-ferramentas-btn::after,
+  .mobile-sheet-tab::after,
+  .tema-btn::after,
+  .ct-pv-btn::after,
+  .npc-pasta-btn::after {
+    content: '';
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%; height: 100%;
+    min-width: 44px; min-height: 44px;
+  }
+  /* Fechar modal é o botão mais errado de se acertar em toda interface. */
+  .modal-overlay button[onclick*="fechar"],
+  .modal-overlay button[onclick*="Fechar"] {
+    min-width: 44px; min-height: 44px;
+  }
+}
+
+
+/* ──────────────────────────────────────────────────────────────
+   7) BOTÃO OCUPADO
+   Entre tocar em "Salvar" e a resposta do servidor passa quase um
+   segundo. Sem sinal nenhum a pessoa toca de novo — e salva duas
+   vezes. O estado "ocupado" some com isso.
+────────────────────────────────────────────────────────────── */
+button.ocupado {
+  opacity: .55;
+  pointer-events: none;
+  position: relative;
+}
+button.ocupado::after {
+  content: '';
+  position: absolute; top: 50%; right: 8px;
+  width: 12px; height: 12px; margin-top: -6px;
+  border: 2px solid currentColor; border-right-color: transparent;
+  border-radius: 50%;
+  animation: mobGira .6s linear infinite;
+}
+@keyframes mobGira { to { transform: rotate(360deg); } }
+
+
+/* ──────────────────────────────────────────────────────────────
+   8) ESQUELETO DE CARREGAMENTO
+   Lista vazia por dois segundos parece lista sem nada. O esqueleto
+   diz "está vindo" sem precisar de texto.
+────────────────────────────────────────────────────────────── */
+.skeleton {
+  background: linear-gradient(90deg, var(--surface2) 25%, var(--border) 37%, var(--surface2) 63%);
+  background-size: 400% 100%;
+  animation: mobBrilho 1.2s ease infinite;
+  border-radius: 6px;
+  min-height: 14px;
+}
+@keyframes mobBrilho { from { background-position: 100% 50%; } to { background-position: 0 50%; } }
+
+
+/* ──────────────────────────────────────────────────────────────
+   9) BOTÃO DE REPETIR A ÚLTIMA ROLAGEM
+   A ação mais repetida da mesa em um toque, na barra da folha —
+   onde o polegar já está.
+────────────────────────────────────────────────────────────── */
+.mob-repetir {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--gold-text, #d4af5f);
+  border-radius: 8px;
+  font-size: 15px;
+  line-height: 1;
+  padding: 0 10px;
+  min-height: 36px;
+  min-width: 40px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.mob-repetir:disabled { opacity: .35; cursor: default; }
+.mob-repetir:active:not(:disabled) { background: var(--border); }
+
+
+/* ──────────────────────────────────────────────────────────────
+   10) TELAS ESTREITAS DE VERDADE (≤360px)
+   iPhone SE, Galaxy A0x e afins. Aqui o que quebra é a barra de
+   navegação: seis abas com rótulo não cabem, os textos se encavalam.
+────────────────────────────────────────────────────────────── */
+@media (max-width: 360px) {
+  .mobile-nav-btn { font-size: 9px; padding: 6px 2px; gap: 1px; }
+  .mobile-nav-btn span:last-child {
+    max-width: 100%; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap;
+  }
+  .page-title { font-size: 17px; }
+  .section-card { padding: 12px; }
+  .modal-overlay > div:not(.ct-modal):not(.mapa-modal) { padding: 16px 14px !important; }
+  .topbar-user { display: none; }   /* o nome já aparece na ficha */
+}
+
+
+/* ──────────────────────────────────────────────────────────────
+   11) TELAS GRANDES DE CELULAR E TABLETS (769–1024px)
+   Entre 769 e 1024 o site já mostrava a barra lateral do desktop,
+   mas com colunas apertadas. Aqui o conteúdo respira sem virar
+   layout de celular.
+────────────────────────────────────────────────────────────── */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .sidebar { width: 168px; }
+  .grid-3 { gap: 12px; }
+  .section-card { padding: 16px; }
+}
+
+/* Tablet em pé com toque: alvos maiores mesmo sem ser "celular". */
+@media (pointer: coarse) and (min-width: 769px) {
+  button, .tab, .nav-item { min-height: 42px; }
+}
+
+
+/* ──────────────────────────────────────────────────────────────
+   12) ENTALHE E BORDAS ARREDONDADAS
+   Em aparelho com entalhe, o `viewport-fit=cover` (já no HTML) deixa
+   o conteúdo ir até a borda — o que é bom para o mapa e ruim para
+   texto, que sumia atrás do entalhe.
+────────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .topbar {
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-left: max(12px, env(safe-area-inset-left, 0px));
+    padding-right: max(12px, env(safe-area-inset-right, 0px));
+  }
+  .main-content {
+    padding-left: max(12px, env(safe-area-inset-left, 0px));
+    padding-right: max(12px, env(safe-area-inset-right, 0px));
+  }
+}
+
+/* Deitado, o entalhe fica na lateral e come a barra de ferramentas. */
+@media (orientation: landscape) and (max-width: 950px) {
+  .mobile-bottom-nav {
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+  .mapa-toolbar { padding-left: max(8px, env(safe-area-inset-left, 0px)); }
+}
+
+
+/* ──────────────────────────────────────────────────────────────
+   13) ROLAGEM QUE NÃO ARRASTA A PÁGINA INTEIRA
+   Chegar ao fim de uma lista e continuar arrastando puxava a página
+   atrás dela (e, no iOS, disparava o "recarregar"). `overscroll-behavior`
+   fecha a rolagem dentro do painel.
+────────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .mobile-sheet-expanded,
+  #feed, .npc-list, .arq-lista, .ct-lista {
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+
+/* ──────────────────────────────────────────────────────────────
+   14) HIERARQUIA DOS CARTÕES NO CELULAR
+   A regra que você pediu — título, estado, informação principal,
+   ação principal — e o resto atrás de "ver mais". `<details>` faz
+   isso sem uma linha de JavaScript e já vem acessível de fábrica.
+────────────────────────────────────────────────────────────── */
+.mob-mais { margin-top: 8px; }
+.mob-mais > summary {
+  cursor: pointer;
+  list-style: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  padding: 8px 0;
+  min-height: 32px;
+  display: flex; align-items: center; gap: 6px;
+  -webkit-tap-highlight-color: transparent;
+}
+.mob-mais > summary::-webkit-details-marker { display: none; }
+.mob-mais > summary::before { content: '▸'; transition: transform .15s; }
+.mob-mais[open] > summary::before { transform: rotate(90deg); }
+.mob-mais[open] > summary { color: var(--gold-text, #d4af5f); }
+
+
+/* ──────────────────────────────────────────────────────────────
+   15) CONTRASTE
+   `--muted` em cinza sobre fundo escuro batia perto de 3:1 — abaixo
+   do mínimo de 4.5:1 para texto pequeno. No celular, com brilho baixo
+   e sol na tela, isso vira texto invisível. O tom sobe só no celular
+   para não mexer no visual do desktop.
+────────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  :root { --muted: #9aa0ab; }
+  .page-sub, .field label, .nav-label { color: #9aa0ab; }
+}
+
+
+/* ──────────────────────────────────────────────────────────────
+   16) A BARRA DE CIMA PARAVA DE CABER
+   Medido: em 390px de tela, o conteúdo forçava a página a 589px —
+   quase 200px de rolagem lateral em TODAS as telas. O navegador
+   afasta o zoom para dar conta, e por isso tudo aparecia menorzinho.
+
+   A causa: `.topbar-right` tem três itens ("Olá, fulano", o botão da
+   mesa e Sair) e, como item de flex, seu `min-width` vale `auto` —
+   ou seja, ele se recusa a encolher abaixo do conteúdo. Com
+   `min-width: 0` ele volta a poder encolher, e cada parte ganha o
+   seu limite.
+────────────────────────────────────────────────────────────── */
+.topbar { min-width: 0; }
+.topbar-brand { min-width: 0; flex-shrink: 1; }
+.topbar-right { min-width: 0; flex-shrink: 1; }
+
+@media (max-width: 768px) {
+  /* "Olá, fulano" some: o nome já aparece na ficha e no chat, e o
+     espaço vale mais para o nome da mesa, que muda o tempo todo. */
+  .topbar-user { display: none; }
+  .topbar-right { gap: 8px; }
+  .topbar-title { letter-spacing: 2px; font-size: 15px; }
+  /* Nome de mesa comprido vira reticências em vez de empurrar tudo. */
+  .mesa-topbar-btn {
+    max-width: 42vw;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .topbar > * { min-width: 0; }
+}
+
+/* Rede de segurança: nada rola de lado. Se algum conteúdo novo passar
+   da largura, ele é cortado em vez de deslocar a página inteira. */
+@media (max-width: 768px) {
+  html, body { overflow-x: hidden; max-width: 100%; }
+}
+
+
+/* ──────────────────────────────────────────────────────────────
+   17) TRÊS COISAS DISPUTANDO O MESMO CANTO
+   O botão da música é fixo em `bottom:14px; left:14px` — exatamente
+   em cima do primeiro botão da barra de navegação. No celular ele
+   sobe para acima da barra, e o painel abre para o lado certo.
+────────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  #musica-widget {
+    bottom: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
+    left: 12px !important;
+    z-index: 400 !important;   /* abaixo dos modais, acima do conteúdo */
+  }
+  #mus-painel {
+    width: min(270px, calc(100vw - 32px)) !important;
+    max-height: 60dvh; overflow-y: auto;
+  }
+  /* Na Sala a tela é do mapa: o botão encolhe e sai do caminho. */
+  #page-sala:not([style*="display: none"]) ~ * #musica-widget,
+  body.na-sala #musica-widget { opacity: .55; }
+}
+
+/* ──────────────────────────────────────────────────────────────
+   18) A BARRA DE CIMA COM O SELO "MESTRE"
+   Medido em 390px: o selo encostava no botão da mesa e as letras se
+   sobrepunham. O selo é informação que a pessoa já sabe (e as abas de
+   Mestre/NPCs só aparecem para ela), então some no celular.
+────────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .topbar-badge { display: none !important; }
+  .topbar-brand { flex-shrink: 1; overflow: hidden; }
+  .topbar-title { overflow: hidden; text-overflow: clip; }
+}
+@media (max-width: 420px) {
+  /* Abaixo disto, só o losango da marca — o nome do app não é o que
+     a pessoa precisa ler dez vezes por sessão. */
+  .topbar-title { display: none; }
+  .mesa-topbar-btn { max-width: 50vw; }
+}
+
+
+/* ──────────────────────────────────────────────────────────────
+   19) QUEM FICA NA FRENTE DE QUEM
+   Estava embaralhado: o modal tinha z-index 200, a barra de baixo 500
+   e o botão da música 8000. Resultado prático no celular — abrir um
+   modal deixava a barra de navegação e o botão de música POR CIMA
+   dele, cobrindo justamente os botões da folha.
+
+   A ordem passa a ser: conteúdo < música < barra de baixo < modal.
+────────────────────────────────────────────────────────────── */
+.modal-overlay { z-index: 900; }
+@media (max-width: 768px) {
+  #musica-widget { z-index: 150 !important; }
+  .mobile-bottom-nav { z-index: 500; }
+  /* Com a folha aberta, a barra de baixo sai de cena: o que vale
+     naquele momento é o que está na folha. */
+  body.folha-aberta .mobile-bottom-nav { transform: translateY(120%); }
+  body.folha-aberta { overflow: hidden; }
+}
+.toast { z-index: 1100; }   /* aviso sempre por cima de tudo */
+
+
+/* ──────────────────────────────────────────────────────────────
+   20) A SALA GANHA UMA FAIXA INTEIRA DE VOLTA
+   Havia DUAS barras com a mesma informação empilhadas: a do app
+   ("MESA TESTE · trocar · Sair") e a da Sala ("MESA TESTE · MESTRE").
+   Medido: 90px de altura repetindo o que já estava logo acima —
+   numa tela de 844px isso é 11% do celular gasto duas vezes.
+────────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .mobile-sala-topbar { display: none !important; }
+}
+
+/* ──────────────────────────────────────────────────────────────
+   21) O BOTÃO DA MÚSICA SAI DE CIMA DAS ABAS
+   Na Sala, o canto de baixo à esquerda é da folha (Chat/Dados/...).
+   Lá o botão vai para o alto do mapa, ao lado do de ferramentas.
+────────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  body.na-sala #musica-widget {
+    bottom: auto !important;
+    top: calc(56px + env(safe-area-inset-top, 0px) + 8px) !important;
+    left: auto !important;
+    right: 10px !important;
+  }
+  body.na-sala #mus-painel {
+    bottom: auto; top: 50px;
+    left: auto; right: 0;
+  }
+  body.na-sala #mus-toggle { width: 38px; height: 38px; }
+}
+
+
+/* ──────────────────────────────────────────────────────────────
+   22) "CLIQUE PARA TROCAR" EM CIMA DO CAMPO NOME
+   A moldura da foto ganhou altura fixa de 74px no celular, mas dentro
+   dela cabem a foto (74px) + o espaço + a legenda — uns 95px. O que
+   sobrava vazava por cima do campo seguinte. Isso só afeta o tema
+   Padrão: nos temas Dourado e Verde a legenda está escondida e a
+   moldura precisa mesmo da altura fixa (o losango é posicionado por
+   ela). Por isso a correção é escopada.
+────────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  #page-ficha:not(.tema-ouro):not(.tema-verde) .ficha-avatar-frame {
+    height: auto;
+    margin-bottom: 4px;
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────
+   23) O BOTÃO DA MÚSICA SÓ ONDE ELE SERVE
+   Ele é um botão flutuante fixo: em telas de 320px caía em cima do
+   seletor de Profissão. A música é da MESA e se controla na Sala —
+   nas outras telas ele só atrapalhava. Fica visível na Sala (no alto,
+   fora do caminho) e some do resto no celular.
+────────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  #musica-widget { display: none !important; }
+  body.na-sala #musica-widget { display: block !important; }
+}
+
+
+/* ──────────────────────────────────────────────────────────────
+   24) UM CAMPO POR LINHA NA IDENTIDADE
+   Medido em 320px: "Nome" ficava com 118px e "Profissão" com 246px,
+   lado a lado com "Jogador" — três larguras diferentes empilhadas
+   tortas. Em telefone, um campo por linha é mais rápido de preencher
+   (o dedo não erra a coluna) e mais claro de ler.
+   O grid de 2 colunas continua valendo do tablet para cima.
+────────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  #page-ficha .ficha-id-fields .grid-3 { grid-template-columns: 1fr; gap: 8px; }
+  #page-ficha .ficha-id-fields > * { width: 100%; box-sizing: border-box; }
+  #page-ficha .ficha-id-fields .field > input,
+  #page-ficha .ficha-id-fields .field > select { width: 100%; box-sizing: border-box; }
+}
+
+
+/* ──────────────────────────────────────────────────────────────
+   25) A TELA DE NPCs ERA DESKTOP ESPREMIDO
+   Medido em 390px: o grid `200px 1fr` dava 200px para a coluna de
+   pastas e sobravam 154px para a LISTA — a parte principal da tela.
+   O texto quebrava com uma palavra por linha ("Nenhum / NPC /
+   encontrado."). Havia um `@media (max-width:600px)` na folha de
+   estilo, mas ele mirava outra classe: o grid real está no atributo
+   `style` do HTML, e estilo em linha ganha de qualquer regra sem
+   `!important`. Por isso a correção nunca chegou a valer.
+
+   No celular vira uma coisa só, em pé: as pastas viram uma fileira
+   de fichinhas que rola de lado (o padrão de filtro em telefone) e
+   a lista fica com a largura inteira.
+────────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .npcs-split {
+    grid-template-columns: 1fr !important;
+    grid-template-rows: auto 1fr !important;
+    height: auto !important;
+    min-height: 0 !important;
+    gap: 10px !important;
+  }
+  .npcs-split-lado {
+    max-height: 190px;
+    padding: 10px !important;
+  }
+  /* Pastas e cenas lado a lado, rolando na horizontal. */
+  #npc-pastas, #cenas-lista {
+    flex-direction: row !important;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 6px !important;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+  }
+  #npc-pastas::-webkit-scrollbar, #cenas-lista::-webkit-scrollbar { display: none; }
+  #npc-pastas > *, #cenas-lista > * {
+    flex: 0 0 auto;
+    width: auto !important;
+    white-space: nowrap;
+    min-height: 36px;
+    border-radius: 999px;
+    scroll-snap-align: start;
+  }
+  .npcs-split-principal {
+    min-height: 46dvh;
+    padding: 10px !important;
+  }
+}
+
+
+/* Painel lateral dos NPCs no celular: sem altura travada. Cortar a
+   190px deixava um botão pela metade — parecia defeito, não rolagem. */
+@media (max-width: 768px) {
+  .npcs-split-lado { max-height: none; overflow: visible; }
+  .npcs-split-principal { overflow: visible; }
+  .npcs-split { height: auto !important; }
+  /* Os dois botões de cena viram uma linha só, do tamanho do dedo. */
+  .npcs-split-lado > .btn-ghost { width: auto !important; min-height: 38px; }
+}
+
+/* "Ver mais" do cartão de NPC.
+   No desktop o cartão nasce aberto (o npcs.js põe o atributo `open`
+   quando a janela é larga) e a setinha some — fica igual ao que era.
+   No celular nasce fechado: o que decide a jogada é nome, tipo, PV,
+   COM e as ações; a habilidade é consulta e ocupava 3 linhas em cada
+   cartão da lista. */
+.npc-hab-wrap > .npc-hab { margin-top: 4px; }
+@media (min-width: 769px) {
+  .npc-hab-wrap > summary { display: none; }
+}
+
+
+/* ──────────────────────────────────────────────────────────────
+   26) OS SELETORES DE ROLAGEM ESTOURAVAM O PAINEL
+   `grid-template-columns: auto 1fr` parece seguro, mas `1fr` tem
+   largura mínima igual ao conteúdo. Como as opções são compridas
+   ("Selecionar perícia..."), a coluna se recusava a encolher e o
+   grupo inteiro passava da borda do painel — medido em 167px a mais
+   do que cabia, num painel com `overflow:hidden`, ou seja: os
+   seletores ficavam cortados e fora de alcance.
+   `minmax(0, 1fr)` autoriza o encolhimento.
+────────────────────────────────────────────────────────────── */
+.formula-grid { grid-template-columns: auto minmax(0, 1fr); }
+.formula-grid > * { min-width: 0; }
+.formula-select { max-width: 100%; }
+
+
+/* As linhas de "Ajudantes" e "Modificador manual" são flex sem quebra:
+   − [campo] + "0 ajudante(s)". Em painel estreito o texto do fim
+   passava da borda. Agora quebra para a linha de baixo. */
+.formula-grid > div { flex-wrap: wrap; }

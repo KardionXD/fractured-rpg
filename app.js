@@ -1215,6 +1215,8 @@ function rolarExpressao(txt) {
     formula: r.formula,
     label: `${r.formula} \u2192 ${r.texto}`,
   });
+  // Guarda para o botão de repetir da folha no celular.
+  if (typeof mobLembrarRolagem === 'function') mobLembrarRolagem('expr', txt.trim());
   return true;
 }
 
@@ -1289,6 +1291,7 @@ function rolarFormula() {
       ajudaText, customText
     ].filter(Boolean).join(' · ')
   });
+  if (typeof mobLembrarRolagem === 'function') mobLembrarRolagem('formula', true);
 }
 
 async function enviarMsg() {

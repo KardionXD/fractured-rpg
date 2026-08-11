@@ -113,7 +113,7 @@ function renderNPCs() {
         <div class="npc-card-header">
           <div class="npc-avatar">
             ${npc.img_url
-              ? `<img src="${npc.img_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
+              ? `<img src="${npc.img_url}" alt="" loading="lazy" decoding="async" width="44" height="44" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
               : `<span style="font-size:22px">${npc.emoji || tipoEmoji(npc.tipo)}</span>`}
           </div>
           <div class="npc-info">
@@ -129,7 +129,7 @@ function renderNPCs() {
             <button class="npc-btn" onclick="deletarNPC('${npc.id}')" title="Deletar" style="color:var(--red)">🗑</button>
           </div>
         </div>
-        ${npc.habilidades ? `<div class="npc-hab">${npc.habilidades.substring(0,80)}${npc.habilidades.length>80?'…':''}</div>` : ''}
+        ${npc.habilidades ? `<details class="mob-mais npc-hab-wrap" ${window.innerWidth > 768 ? 'open' : ''}><summary>Habilidades</summary><div class="npc-hab">${npc.habilidades}</div></details>` : ''}
         <div class="npc-footer">
           <button class="npc-add-btn" onclick="adicionarNPCaoMapa('${npc.id}')">+🗺 Mapa</button>
           <button class="npc-add-btn" onclick="adicionarNPCaoCT('${npc.id}')">+⚔ CT</button>

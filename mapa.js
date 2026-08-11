@@ -176,7 +176,7 @@ function _pingAnimar() {
     for (let i = PINGS.length - 1; i >= 0; i--) {
       if (agora - PINGS[i].t0 > PING_MS) PINGS.splice(i, 1);
     }
-    mapaDraw();
+    _mapaDrawJa();
     _pingRaf = PINGS.length ? requestAnimationFrame(passo) : null;
   };
   _pingRaf = requestAnimationFrame(passo);
@@ -234,7 +234,26 @@ function mapaDrawPings(ctx, zoom, gridSize) {
   });
 }
 
+// ══════════════════════════════════════════════════
+//  DESENHO DO MAPA — UM POR QUADRO
+//
+//  Arrastar um token no celular dispara `touchmove` mais rápido do que
+//  a tela atualiza: chegavam 2 a 3 pedidos de redesenho para cada quadro
+//  exibido, e os extras eram trabalho jogado fora — o que no aparelho
+//  simples vira arrasto engasgado e bateria indo embora.
+//
+//  `mapaDraw()` agora só AGENDA o desenho; vários pedidos dentro do mesmo
+//  quadro viram um. Os 53 lugares que chamam a função continuam iguais.
+//  Quem precisa do traço na hora (a animação do ping, que já roda em
+//  quadro) chama `_mapaDrawJa()` direto.
+// ══════════════════════════════════════════════════
+let _drawRaf = null;
 function mapaDraw() {
+  if (_drawRaf) return;
+  _drawRaf = requestAnimationFrame(() => { _drawRaf = null; _mapaDrawJa(); });
+}
+
+function _mapaDrawJa() {
   const { canvas: cvs, ctx, zoom, offX, offY,
           img, gridSize, gridVisible, gridColor, gridOpacity,
           tokens, sel, selMulti, selRect,

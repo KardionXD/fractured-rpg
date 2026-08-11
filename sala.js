@@ -112,8 +112,11 @@ function buildMobileDOM(root) {
     <div class="mobile-dice-row">
       <button class="mobile-dice-btn" onclick="rolarDado(6)">d6</button>
       <button class="mobile-dice-btn" onclick="rolarDado(10)">d10</button>
-      <button class="mobile-dice-btn active">d20</button>
+      <button class="mobile-dice-btn" onclick="rolarDado(20)">d20</button>
       <button class="mobile-roll-teste-btn" onclick="rolarFormula()">ROLAR TESTE</button>
+      <button class="mob-repetir" id="mob-repetir" disabled
+              onclick="mobRepetirRolagem()"
+              aria-label="Repetir a última rolagem" title="Repetir a última rolagem">↻</button>
     </div>
     <div class="mobile-sheet-tabs-wrap"><div class="mobile-sheet-tabs" id="mobile-sheet-tabs"></div></div>
     <div class="mobile-sheet-expanded" id="mobile-sheet-expanded"></div>
@@ -234,11 +237,77 @@ function buildDesktopDOM(root) {
   updateDesktopPanelMenu();
 }
 
+// ══════════════════════════════════════════════════
+//  PAINÉIS FLUTUANTES SEMPRE DENTRO DA TELA
+//
+//  As posições padrão foram desenhadas para uma área de ~1424px: o
+//  painel do Mapa nasce em x=654 com 760 de largura, terminando em
+//  1414. Numa janela de 820px (tablet em pé, ou o navegador do
+//  computador em meia tela) ele nascia INTEIRO fora da área visível —
+//  o mapa simplesmente não aparecia, e não havia como arrastá-lo de
+//  volta porque nem a barra de título dele estava na tela.
+//
+//  Esta função encaixa qualquer painel na área que existe de fato,
+//  respeitando o tamanho mínimo de cada um. Vale tanto para a posição
+//  padrão quanto para uma posição salva de quando a janela era maior.
+// ══════════════════════════════════════════════════
+function _fpEncaixar(cfg, x, y, w, h, root) {
+  const larg = root?.clientWidth  || window.innerWidth;
+  const alt  = root?.clientHeight || window.innerHeight;
+  const minW = cfg.minW || 200, minH = cfg.minH || 150;
+  const M = 8;                 // respiro na borda
+  const DESENHADO_PARA = 1100; // largura de palco que o arranjo padrão pressupõe
+  const ALCANCE = 200;         // quanto de painel precisa sobrar para dar pra pegar
+
+  if (larg < DESENHADO_PARA) {
+    // Palco estreito (tablet em pé, janela em meia tela): o arranjo de
+    // três colunas não cabe. Cada painel encolhe até o mínimo dele e
+    // volta para dentro. Os painéis se sobrepõem — mas todos existem
+    // na tela e dá para reorganizar arrastando.
+    w = Math.max(minW, Math.min(w, Math.max(minW, larg - M * 2)));
+    h = Math.max(minH, Math.min(h, Math.max(minH, alt  - M * 2)));
+    x = Math.max(M, Math.min(x, Math.max(M, larg - w - M)));
+    y = Math.max(M, Math.min(y, Math.max(M, alt  - h - M)));
+    return { x, y, w, h };
+  }
+
+  // Tela larga: NÃO mexer no arranjo — ele é o desenho da mesa e as
+  // pessoas já sabem onde cada coisa fica. A única garantia é que
+  // nenhum painel fique inteiramente fora de alcance (o que acontecia
+  // com uma posição salva de um monitor maior).
+  x = Math.min(x, larg - ALCANCE);
+  x = Math.max(x, ALCANCE - w);
+  y = Math.min(y, alt - 34);   // a barra de título precisa aparecer
+  y = Math.max(y, 0);
+  return { x, y, w, h };
+}
+
+// Ao girar o aparelho ou redimensionar a janela, os painéis que
+// ficaram para fora voltam para dentro em vez de sumirem.
+function fpanelsReencaixar() {
+  if (window.innerWidth <= 768) return;      // no celular não há painéis
+  const root = document.getElementById('sala-root');
+  if (!root) return;
+  DESKTOP_PANELS.forEach(cfg => {
+    const el = document.getElementById('dpanel-' + cfg.id);
+    if (!el || el.style.display === 'none') return;
+    const r = _fpEncaixar(cfg, parseInt(el.style.left) || 0, parseInt(el.style.top) || 0,
+                               parseInt(el.style.width) || cfg.def.w, parseInt(el.style.height) || cfg.def.h, root);
+    el.style.left = r.x + 'px'; el.style.top = r.y + 'px';
+    el.style.width = r.w + 'px'; el.style.height = r.h + 'px';
+  });
+}
+window.addEventListener('resize', () => {
+  clearTimeout(window._fpReenc);
+  window._fpReenc = setTimeout(fpanelsReencaixar, 180);
+});
+
 function createFPanel(cfg, root) {
   const saved = pStates[cfg.id] || {};
   const d = cfg.def;
-  const x = saved.x ?? d.x, y = saved.y ?? d.y;
-  const w = saved.w ?? d.w, h = saved.h ?? d.h;
+  const _enc = _fpEncaixar(cfg, saved.x ?? d.x, saved.y ?? d.y, saved.w ?? d.w, saved.h ?? d.h, root);
+  const x = _enc.x, y = _enc.y;
+  const w = _enc.w, h = _enc.h;
   const hidden = saved.hidden ?? cfg.defaultHidden ?? false;
 
   const el = document.createElement('div');

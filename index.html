@@ -2,13 +2,15 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
+<meta name="theme-color" content="#08080c">
+<meta name="color-scheme" content="dark">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>FRACTURED RPG</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=29">
 </head>
 <body class="login-page">
 
@@ -30,11 +32,14 @@
     <div id="tab-login">
       <div class="field">
         <label>Email</label>
-        <input type="email" id="login-email" placeholder="seu@email.com">
+        <input type="email" id="login-email" placeholder="seu@email.com"
+               autocomplete="username" inputmode="email" enterkeyhint="next"
+               autocapitalize="off" autocorrect="off" spellcheck="false">
       </div>
       <div class="field">
         <label>Senha</label>
-        <input type="password" id="login-password" placeholder="••••••••">
+        <input type="password" id="login-password" placeholder="••••••••"
+               autocomplete="current-password" enterkeyhint="go">
       </div>
       <button class="btn-primary" onclick="login()">Entrar</button>
       <button type="button" class="forgot-link" onclick="forgotPassword()">Esqueci a senha</button>
@@ -44,19 +49,25 @@
     <div id="tab-register" style="display:none">
       <div class="field">
         <label>Nome do Usuário</label>
-        <input type="text" id="reg-username" placeholder="Como você quer ser chamado">
+        <input type="text" id="reg-username" placeholder="Como você quer ser chamado"
+               autocomplete="nickname" enterkeyhint="next" autocapitalize="words">
       </div>
       <div class="field">
         <label>Email</label>
-        <input type="email" id="reg-email" placeholder="seu@email.com">
+        <input type="email" id="reg-email" placeholder="seu@email.com"
+               autocomplete="email" inputmode="email" enterkeyhint="next"
+               autocapitalize="off" autocorrect="off" spellcheck="false">
       </div>
       <div class="field">
         <label>Senha</label>
-        <input type="password" id="reg-password" placeholder="mínimo 6 caracteres">
+        <input type="password" id="reg-password" placeholder="mínimo 6 caracteres"
+               autocomplete="new-password" enterkeyhint="next" minlength="6">
       </div>
       <div class="field">
         <label>Convite de cadastro *</label>
-        <input type="text" id="reg-convite" placeholder="Código fornecido pelo administrador" style="text-transform:uppercase">
+        <input type="text" id="reg-convite" placeholder="Código fornecido pelo administrador" style="text-transform:uppercase"
+               autocomplete="off" enterkeyhint="go" autocapitalize="characters"
+               autocorrect="off" spellcheck="false">
       </div>
       <button class="btn-primary" onclick="register()">Criar Conta</button>
     </div>
@@ -76,6 +87,30 @@ function switchTab(tab) {
   document.getElementById('auth-msg').textContent = '';
 }
 
+// ── Enter envia (o teclado do celular promete isso com enterkeyhint) ──
+// Sem isto, a pessoa apertava "Ir" no teclado, nada acontecia, e ela
+// precisava fechar o teclado para achar o botão embaixo.
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  const id = e.target && e.target.id;
+  if (id === 'login-email')    { document.getElementById('login-password').focus(); e.preventDefault(); }
+  else if (id === 'login-password') { e.preventDefault(); login(); }
+  else if (id === 'reg-username') { document.getElementById('reg-email').focus(); e.preventDefault(); }
+  else if (id === 'reg-email')    { document.getElementById('reg-password').focus(); e.preventDefault(); }
+  else if (id === 'reg-password') { document.getElementById('reg-convite').focus(); e.preventDefault(); }
+  else if (id === 'reg-convite')  { e.preventDefault(); register(); }
+});
+
+// ── Um toque só ──
+// Entrar demora quase um segundo; sem sinal a pessoa toca de novo e
+// dispara duas autenticações. O botão trava enquanto trabalha.
+function travarBotao(btn, texto) {
+  if (!btn) return () => {};
+  const antes = btn.textContent;
+  btn.disabled = true; btn.textContent = texto;
+  return () => { btn.disabled = false; btn.textContent = antes; };
+}
+
 function showMsg(msg, err=false) {
   const el = document.getElementById('auth-msg');
   el.textContent = msg;
@@ -87,9 +122,10 @@ async function login() {
   const password = document.getElementById('login-password').value;
   if (!email || !password) return showMsg('Preencha email e senha.', true);
 
+  const soltar = travarBotao(document.querySelector('#tab-login .btn-primary'), 'Entrando...');
   showMsg('Entrando...');
   const { error } = await db.auth.signInWithPassword({ email, password });
-  if (error) return showMsg(error.message, true);
+  if (error) { soltar(); return showMsg(error.message, true); }
   window.location.href = 'app.html';
 }
 
