@@ -13,21 +13,22 @@ let cenaRealtimeSub = null;
 
 // ── CÁLCULO AUTOMÁTICO NPC ────────────────────────
 function npcCalcAttr() {
-  const attrs = ['for','res','com','soc','con','agi'];
-  attrs.forEach(a => {
-    const val = parseInt(document.getElementById('npc-a-'+a)?.value) || 0;
-    const mod = val - 3;
-    const el  = document.getElementById('npc-m-'+a);
+  S().atributos.forEach(a => {
+    const val = parseInt(document.getElementById('npc-a-' + a.id)?.value) || 0;
+    const mod = modAtrib(val);
+    const el  = document.getElementById('npc-m-' + a.id);
     if (el) el.value = (mod >= 0 ? '+' : '') + mod;
   });
 
-  // PV = RES × 4, ou personalizado
-  const res    = parseInt(document.getElementById('npc-a-res')?.value) || 1;
+  // O PV vem do sistema da mesa, a menos que o mestre digite um valor.
+  const res      = parseInt(document.getElementById('npc-a-res')?.value) || 1;
   const pvCustom = parseInt(document.getElementById('npc-f-pv')?.value) || 0;
-  const pvMax  = pvCustom > 0 ? pvCustom : Math.max(res * 4, 4);
+  const pvMax    = pvCustom > 0 ? pvCustom : derivado('pv_max', { res });
   const pvCalc = document.getElementById('npc-pv-calc');
   const pvForm = document.getElementById('npc-pv-formula');
   if (pvCalc) pvCalc.textContent = pvMax;
+  // A frase do painel de NPC é mais curta que a da ficha ("= 8", não
+  // "= máx 8"); o texto continua daqui, só a CONTA saiu para o sistema.
   if (pvForm) pvForm.textContent = pvCustom > 0
     ? `Personalizado: ${pvMax}`
     : `RES (${res}) × 4 = ${pvMax}`;
@@ -224,7 +225,7 @@ async function salvarNPC() {
   const getN = id => parseInt(document.getElementById(id)?.value) || 0;
   const res  = getN('npc-a-res');
   const pvCustom = getN('npc-f-pv');
-  const pvMax    = pvCustom > 0 ? pvCustom : Math.max(res * 4, 4);
+  const pvMax    = pvCustom > 0 ? pvCustom : derivado('pv_max', { res });
 
   const payload = {
     master_id:   currentUser.id,
@@ -290,7 +291,7 @@ function verNPCCompleto(id) {
     <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 4px;text-align:center">
       <div style="font-size:9px;color:var(--muted);letter-spacing:1px">${label}</div>
       <div style="font-size:18px;font-weight:700;color:var(--text)">${v ?? 0}</div>
-      <div style="font-size:10px;color:var(--muted)">${(v ?? 0) - 3 >= 0 ? '+' : ''}${(v ?? 0) - 3}</div>
+      <div style="font-size:10px;color:var(--muted)">${modAtrib(v ?? 0) >= 0 ? '+' : ''}${modAtrib(v ?? 0)}</div>
     </div>`).join('');
 
   const m = document.createElement('div');
@@ -355,7 +356,7 @@ function npcParaCombatente(npc) {
     tag:         '',
     pvMax:       npc.pv_max,
     pvAtual:     npc.pv_max,
-    iniciativa:  Math.floor(Math.random() * 20) + 1 + ((npc.agi || 0) - 3), // d20 + mod AGI (Cap. 05)
+    iniciativa:  rolarIniciativa(atributosDe(npc)),   // o sistema da mesa decide a conta
     tipo:        npc.tipo,
     habilidades: npc.habilidades ? npc.habilidades.split('\n').filter(Boolean) : [],
     fraqueza:    npc.fraqueza || '',

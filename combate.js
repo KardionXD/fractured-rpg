@@ -263,14 +263,14 @@ async function adicionarPlayerCT(userId) {
   const { data: profile } = await db.from('profiles').select('username').eq('id', userId).single();
   if (!ficha) return toast('Esse player não tem ficha ainda.', 'err');
 
-  const pvMax = Math.max((ficha.attr_res||0)*4, 4);
+  const pvMax = derivado('pv_max', atributosDe(ficha));
   const id = 'pc_'+userId;
   if (!combatentes.find(c => c.id === id)) {
     combatentes.push({
       id, nome: ficha.nome || profile.username,
       emoji: '🧑', imgUrl: ficha.foto_url || null,
       pvMax, pvAtual: ficha.pv_atual || pvMax,
-      iniciativa: Math.floor(Math.random()*20)+1 + ((ficha.attr_agi || 0) - 3), // d20 + mod AGI
+      iniciativa: rolarIniciativa(atributosDe(ficha)),   // o sistema da mesa decide a conta
       tipo: 'pc', isPC: true, userId,
       condicoes: [], controlador: profile.username,
     });
@@ -292,7 +292,7 @@ async function adicionarMeuPersonagem() {
   const { data: ficha } = await db.from('fichas').select('*').eq('user_id', currentUser.id).eq('mesa_id', mesaId()).maybeSingle();
   if (!ficha) return toast('Você ainda não criou sua ficha!', 'err');
 
-  const pvMax = Math.max((ficha.attr_res||0)*4, 4);
+  const pvMax = derivado('pv_max', atributosDe(ficha));
   const id = 'pc_'+currentUser.id;
 
   if (MAP.tokens.find(t => t.id === id)) return toast('Você já está no mapa!', 'err');
@@ -613,7 +613,7 @@ async function renderPlayersParaCT() {
   profiles.forEach(p => {
     const f = fichas?.find(x=>x.user_id===p.id);
     if (!f) return; // só mostra players com ficha
-    const pvMax = Math.max((f.attr_res||0)*4,4);
+    const pvMax = derivado('pv_max', atributosDe(f));
     const avatar = f.foto_url
       ? `<img src="${f.foto_url}" style="width:34px;height:34px;border-radius:50%;object-fit:cover;flex-shrink:0;border:2px solid var(--border)">`
       : `<div style="width:34px;height:34px;border-radius:50%;background:var(--surface2);border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">🧑</div>`;
@@ -646,14 +646,14 @@ async function adicionarPlayerSomenteCT(userId) {
   const { data: ficha } = await db.from('fichas').select('*').eq('user_id', userId).eq('mesa_id', mesaId()).maybeSingle();
   const { data: profile } = await db.from('profiles').select('username').eq('id', userId).single();
   if (!ficha) return toast('Esse player não tem ficha ainda.', 'err');
-  const pvMax = Math.max((ficha.attr_res||0)*4, 4);
+  const pvMax = derivado('pv_max', atributosDe(ficha));
   const id = 'pc_'+userId;
   if (!combatentes.find(c => c.id === id)) {
     combatentes.push({
       id, nome: ficha.nome || profile.username,
       emoji: '🧑', imgUrl: ficha.foto_url || null,
       pvMax, pvAtual: ficha.pv_atual || pvMax,
-      iniciativa: Math.floor(Math.random()*20)+1 + ((ficha.attr_agi || 0) - 3), // d20 + mod AGI
+      iniciativa: rolarIniciativa(atributosDe(ficha)),   // o sistema da mesa decide a conta
       tipo: 'pc', isPC: true, userId,
       condicoes: [], controlador: profile.username,
     });
@@ -668,7 +668,7 @@ async function adicionarPlayerSomenteMapa(userId) {
   const { data: ficha } = await db.from('fichas').select('*').eq('user_id', userId).eq('mesa_id', mesaId()).maybeSingle();
   const { data: profile } = await db.from('profiles').select('username').eq('id', userId).single();
   if (!ficha) return toast('Esse player não tem ficha ainda.', 'err');
-  const pvMax = Math.max((ficha.attr_res||0)*4, 4);
+  const pvMax = derivado('pv_max', atributosDe(ficha));
   const id = 'pc_'+userId;
   if (MAP.tokens.find(t => t.id === id)) return toast('Player já está no mapa.', 'err');
   mapaAdicionarToken({ id, nome: ficha.nome || profile.username, emoji: '🧑', imgUrl: ficha.foto_url || null, tipo: 'pc', pvMax, pvAtual: ficha.pv_atual || pvMax, isPC: true, userId });

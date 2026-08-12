@@ -112,19 +112,18 @@ async function logout() {
 //  FICHA
 // ══════════════════════════════════════════════════
 
-const ATTRS = [
-  { abbr: 'FOR', name: 'Força',        id: 'for' },
-  { abbr: 'RES', name: 'Resistência',  id: 'res' },
-  { abbr: 'COM', name: 'Combate',      id: 'com' },
-  { abbr: 'SOC', name: 'Social',       id: 'soc' },
-  { abbr: 'CON', name: 'Conhecimento', id: 'con' },
-  { abbr: 'AGI', name: 'Agilidade',    id: 'agi' },
-];
+// Os atributos vêm do sistema da mesa, não de uma lista aqui.
+// Continua sendo uma função com o mesmo formato de antes ({abbr,name,id})
+// para não mexer nos seis lugares que já usavam ATTRS.
+function ATTRS_() {
+  return S().atributos.map(a => ({ abbr: a.sigla, name: a.nome, id: a.id,
+                                   min: a.min, max: a.max }));
+}
 
 function buildAttrGrid() {
   const grid = document.getElementById('attr-grid');
   grid.innerHTML = '';
-  ATTRS.forEach(a => {
+  ATTRS_().forEach(a => {
     const card = document.createElement('div');
     card.className = 'attr-card';
     card.innerHTML = `
@@ -132,7 +131,7 @@ function buildAttrGrid() {
       <div class="attr-abbr">${a.abbr}</div>
       <div class="attr-name">${a.name}</div>
       <div class="attr-inputs">
-        <input type="number" min="1" max="5" placeholder="0" class="attr-val"
+        <input type="number" min="${a.min}" max="${a.max}" placeholder="0" class="attr-val"
           id="a-${a.id}" oninput="onAttrInput('${a.id}')">
         <input type="text" class="attr-mod" id="m-${a.id}" readonly placeholder="±0">
       </div>
@@ -156,14 +155,16 @@ function atualizarContadorPontos() {
   const cont = document.getElementById('attr-pontos');
   if (!cont) return;
   let gasto = 0;
-  ATTRS.forEach(a => { gasto += parseInt(document.getElementById('a-' + a.id)?.value) || 0; });
+  ATTRS_().forEach(a => { gasto += parseInt(document.getElementById('a-' + a.id)?.value) || 0; });
   cont.innerHTML = `
     <span style="color:var(--muted);letter-spacing:1px">PONTOS DE ATRIBUTO</span>
     <span style="font-weight:700;color:var(--gold)">${gasto} ${gasto === 1 ? 'ponto gasto' : 'pontos gastos'}</span>`;
 }
 
+// O texto do modificador ao lado do atributo. A CONTA sai do sistema da
+// mesa (nucleo/registro.js → sistemas/<id>/regras.js); aqui só formatamos.
 function calcMod(v) {
-  const m = (parseInt(v) || 0) - 3;
+  const m = modAtrib(v);
   return (m >= 0 ? '+' : '') + m;
 }
 
@@ -172,8 +173,9 @@ function onAttrInput(id) {
   document.getElementById('m-' + id).value = calcMod(val);
   atualizarContadorPontos();
   if (id === 'res') {
-    pvMax = Math.max((parseInt(val) || 0) * 4, 4);
-    document.getElementById('pv-formula').textContent = `RES (${val || 0}) × 4 = máx ${pvMax}`;
+    const attr = { res: parseInt(val) || 0 };
+    pvMax = derivado('pv_max', attr);
+    document.getElementById('pv-formula').textContent = derivadoTexto('pv_max', attr);
     buildPips('pip-pv', pvMax, pvAtual, 'roxo', onPVClick, 'pip-pv-val');
   }
   if (id === 'con') atualizarDicaPericias();  // nº de perícias sai do Mod de CON
@@ -392,15 +394,14 @@ function buildPericias() {
 // positivo do Mod de CONHECIMENTO, mínimo 1 extra (Cap. 03).
 function periciasPermitidas() {
   const con = parseInt(document.getElementById('a-con')?.value) || 0;
-  const mod = con ? con - 3 : 0;
-  return 1 + Math.max(1, mod);
+  return S().pericias.quantas({ con });
 }
 
 function atualizarDicaPericias() {
   const el = document.getElementById('pericias-dica');
   if (!el) return;
   const con = parseInt(document.getElementById('a-con')?.value) || 0;
-  const mod = con ? con - 3 : 0;
+  const mod = con ? modAtrib(con) : 0;
   const n = periciasPermitidas();
   if (!con) {
     el.textContent = '1 da profissão + 1 por ponto positivo do Mod de CONHECIMENTO (mínimo 1)';
@@ -636,7 +637,7 @@ function aplicarFicha(d) {
   document.getElementById('f-vcomb-a').value  = d.veiculo_comb_atual || 0;
   document.getElementById('f-vcomb-m').value  = d.veiculo_comb_max || 0;
 
-  ATTRS.forEach(a => {
+  ATTRS_().forEach(a => {
     const val = d[`attr_${a.id}`] || 0;
     document.getElementById(`a-${a.id}`).value = val;
     document.getElementById(`m-${a.id}`).value = calcMod(val);
@@ -646,7 +647,7 @@ function aplicarFicha(d) {
   atualizarRotulosAtributo();
 
   pvAtual  = d.pv_atual || 0;
-  pvMax    = Math.max((d.attr_res || 0) * 4, 4);
+  pvMax    = derivado('pv_max', atributosDe(d));
   // Suprimentos são do grupo: o valor da mesa manda. O da ficha é só o ponto
   // de partida enquanto a mesa ainda não publicou nenhum.
   supAtual = d.suprimentos || 0;
@@ -996,7 +997,7 @@ function rolarDado(faces, qtd = 1) {
 //  ROLAGEM DIRETO DA FICHA
 // ══════════════════════════════════════════════════
 function rolarAtributoFicha(id) {
-  const attr = ATTRS.find(x => x.id === id);
+  const attr = ATTRS_().find(x => x.id === id);
   const mod  = parseInt(document.getElementById('m-' + id)?.value) || 0;
   const dado = Math.floor(Math.random() * 20) + 1;
   const total = dado + mod;
@@ -1013,7 +1014,7 @@ function rolarPericiaFicha(i) {
   const atrib = (document.getElementById('p-atrib-' + i)?.value || '').trim().toUpperCase();
   if (!nome) { toast('Preencha o nome da perícia primeiro.', 'err'); return; }
 
-  const attr = ATTRS.find(x => x.abbr === atrib);
+  const attr = ATTRS_().find(x => x.abbr === atrib);
   const mod  = attr ? (parseInt(document.getElementById('m-' + attr.id)?.value) || 0) : 0;
   const PERICIA_BONUS = 3;
 
@@ -1231,7 +1232,7 @@ function modDoAtributo(id) {
   const n = parseInt(bruto, 10);
   if (Number.isFinite(n)) return n;
   const v = parseInt(document.getElementById('a-' + id)?.value, 10);
-  return Number.isFinite(v) && v > 0 ? v - 3 : 0;
+  return Number.isFinite(v) && v > 0 ? modAtrib(v) : 0;
 }
 
 // Mostra o modificador atual dentro de cada opção do seletor.
@@ -1558,7 +1559,7 @@ async function carregarPlayers(mostrarTodos = false, silencioso = false) {
         </div>
       `;
     } else {
-      const pvMax = Math.max((ficha.attr_res || 0) * 4, 4);
+      const pvMax = derivado('pv_max', atributosDe(ficha));
       let pct = Math.round((ficha.pv_atual / pvMax) * 100);
       if (!isFinite(pct)) pct = 0; // ficha custom (sem PV do FRACTURED)
       const pvColor = pct > 50 ? 'var(--green)' : pct > 25 ? 'var(--gold)' : 'var(--red)';
@@ -1652,7 +1653,7 @@ async function verFichaCompleta(userId) {
   const { data: profile } = await db.from('profiles').select('username').eq('id', userId).single();
   if (!ficha) return toast('Ficha não encontrada.', 'err');
 
-  const pvMax = Math.max((ficha.attr_res || 0) * 4, 4);
+  const pvMax = derivado('pv_max', atributosDe(ficha));
   const pericias = (ficha.pericias || []).filter(p => p.nome).map(p => `<li>${p.nome} <span style="color:var(--purple)">(${p.atrib})</span></li>`).join('');
   const vinculos = (ficha.vinculos || []).filter(v => v.personagem).map(v =>
     `<li><strong>${v.personagem}</strong> — ${v.tipo || '?'}<br>
@@ -1679,12 +1680,11 @@ async function verFichaCompleta(userId) {
 
       <div style="font-size:11px;color:var(--gold);font-weight:700;letter-spacing:2px;margin-bottom:8px">ATRIBUTOS</div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:14px">
-        ${['FOR','RES','COM','SOC','CON','AGI'].map((a,i) => {
-          const keys = ['attr_for','attr_res','attr_com','attr_soc','attr_con','attr_agi'];
-          const val = ficha[keys[i]] || 0;
-          const mod = val - 3;
+        ${S().atributos.map(at => {
+          const val = ficha['attr_' + at.id] || 0;
+          const mod = modAtrib(val);
           return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:8px;text-align:center">
-            <div style="font-size:9px;color:var(--gold);font-weight:700">${a}</div>
+            <div style="font-size:9px;color:var(--gold);font-weight:700">${at.sigla}</div>
             <div style="font-size:20px;font-weight:700">${val}</div>
             <div style="font-size:11px;color:var(--purple)">${mod >= 0 ? '+' : ''}${mod}</div>
           </div>`;
