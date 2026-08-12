@@ -62,6 +62,19 @@ async function init() {
   // isMaster agora é por mesa (definido em _mesaAtivar via mesas.js)
   await mesaEscolher();
 
+  // A ficha é montada AGORA, e não no HTML: só aqui a mesa já é
+  // conhecida, e é ela que diz qual sistema desenhar. Tem que vir antes
+  // de tudo que preenche a ficha — buildAttrGrid, buildPips e o resto
+  // procuram por elementos que ainda não existiriam.
+  fichaMotorMontar();
+  // Os botões de tema nascem junto com a ficha; o tema salvo foi
+  // aplicado antes deles existirem, então marcamos de novo.
+  if (typeof setTemaFicha === 'function') {
+    let t = 'padrao';
+    try { t = localStorage.getItem('fractured_tema_ficha') || 'padrao'; } catch (e) {}
+    setTemaFicha(t);
+  }
+
   buildAttrGrid();
   buildProfissoes();
   buildPips('pip-pv', pvMax, pvAtual, 'roxo', onPVClick, 'pip-pv-val');
@@ -90,7 +103,17 @@ function navigate(page) {
   if (page === 'sala') setTimeout(() => scrollFeedToBottom(), 100);
   if (page === 'notas') renderListaNotas();
   if (page === 'arquivos') arquivosInit();
-  if (page === 'ficha' && typeof fichaCustomInit === 'function') fichaCustomInit();
+  if (page === 'ficha') {
+    // Rede de segurança: a ficha é montada no init(). Se aquele caminho
+    // tiver falhado (mesa não carregou, rede caiu), a tela ficaria em
+    // branco para sempre. Aqui ela é montada na hora de aparecer.
+    const alvo = document.getElementById('page-ficha');
+    if (alvo && !alvo.children.length && typeof fichaMotorMontar === 'function') {
+      fichaMotorMontar();
+      if (typeof buildAttrGrid === 'function') buildAttrGrid();
+    }
+    if (typeof fichaCustomInit === 'function') fichaCustomInit();
+  }
 }
 
 // ── TOAST ─────────────────────────────────────────

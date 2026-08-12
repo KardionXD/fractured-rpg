@@ -39,11 +39,23 @@ registrarSistema({
   ],
 
   // ── RECURSOS DO PERSONAGEM ──────────────────────────────────────
+  //  A ordem aqui é a ordem em que aparecem na ficha.
+  //  `formulaId`/`legendaId` existem porque outras partes do código
+  //  atualizam esses textos ao vivo (o PV muda quando RES muda; a
+  //  legenda de Suprimentos muda com o valor).
   recursos: [
-    { id: 'pv',  nome: 'Pontos de Vida', max: 'pv_max', estilo: 'pips', cor: 'roxo'    },
-    { id: 'sup', nome: 'Suprimentos',    max: 10,       estilo: 'pips', cor: 'dourado',
+    { id: 'pv',  nome: 'Pontos de Vida', max: 20, estilo: 'pips', cor: 'roxo',
+      icone: 'vida', nomeMedidor: 'Vida', legenda: 'RES × 4',
+      legendaId: 'gauge-pv-caption',
+      formulaId: 'pv-formula', formulaTexto: 'RES × 4 = máx 20' },
+
+    { id: 'sup', nome: 'Suprimentos · grupo', max: 10, estilo: 'pips', cor: 'dourado',
+      icone: 'suprimentos', dica: 'Recurso do grupo — Cap. 10',
+      legenda: 'Escasso', legendaId: 'gauge-sup-caption',
       daMesa: true },   // no Fractured suprimento é do grupo, não da pessoa
-    { id: 'hum', nome: 'Humanidade',     max: 10,       estilo: 'pips', cor: 'roxo2'   },
+
+    { id: 'hum', nome: 'Humanidade', max: 10, estilo: 'pips', cor: 'roxo2',
+      icone: 'humanidade', legenda: 'O que resta de você', comecaCheio: true },
   ],
 
   // ── RECURSOS DA MESA (compartilhados) ───────────────────────────
@@ -96,8 +108,42 @@ registrarSistema({
   //  o que já existe em HTML, para que a descrição e a tela não saiam
   //  de sincronia enquanto a migração não acontece.
   ficha: {
-    secoes: ['identidade', 'atributos', 'recursos', 'pericias',
-             'vinculos', 'veiculo', 'inventario', 'notas'],
+    titulo: 'Ficha do Personagem',
+    subtitulo: 'FRACTURED · d20',
+
+    // ── AS SEÇÕES, NA ORDEM EM QUE APARECEM ───────────────────────
+    //  Os tipos `identidade`, `atributos`, `recursos`, `pericias` e
+    //  `notas` o motor conhece e serve a qualquer sistema. O tipo
+    //  `bloco` é o escape: o próprio módulo devolve o HTML, e o motor
+    //  só abre espaço. Veículo e Inventário são disso.
+    secoes: [
+      { tipo: 'identidade', titulo: 'Identidade', campos: [
+        { id: 'f-nome',      rotulo: 'Nome',    classe: 'ficha-nome-field' },
+        { id: 'f-profissao', rotulo: 'Profissão', tipo: 'select',
+          classe: 'ficha-prof-field',
+          extra: '\n                <div id="profissao-info" class="profissao-info" style="display:none"></div>' },
+        { id: 'f-jogador',   rotulo: 'Jogador', classe: 'ficha-jogador-field' },
+        { id: 'f-trauma',    rotulo: 'Trauma Central', classe: 'ficha-trauma-field',
+          dica: 'O evento que te assombra...', linha: 'baixo' },
+      ] },
+
+      { tipo: 'atributos', titulo: 'Atributos — 15 pontos (máx 4)' },
+
+      { tipo: 'recursos', titulo: 'Recursos',
+        medidorDaMesa: { id: 'tensao', pipsId: 'tensao-pips-ficha',
+                         inicio: 'Calma', fim: 'Tensão',
+                         legenda: 'C=Calma · A=Alerta · P=Perigo · T=Terror' } },
+
+      { tipo: 'pericias', titulo: 'Perícias',
+        aoLado: { id: 'vinculos-list', tituloHtml: 'Vínculos — Promessa &amp; Dívida' } },
+
+      { tipo: 'bloco', id: 'section-veiculo', titulo: 'Veículo', html: fracHtmlVeiculo },
+      { tipo: 'bloco', id: 'section-inventario', titulo: 'Inventário',
+        html: '<div id="inventario-list"></div>' },
+
+      { tipo: 'notas', titulo: 'Notas / Memórias', dica: 'Memórias, traumas...' },
+    ],
+
     temas: [
       { id: 'padrao', nome: 'Padrão'  },
       { id: 'ouro',   nome: 'Dourada' },

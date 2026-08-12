@@ -52,142 +52,14 @@
   <main class="main-content">
 
     <!-- FICHA -->
-    <div id="page-ficha" class="tema-padrao">
-      <div class="page-header">
-        <div><div class="page-title">Ficha do Personagem</div><div class="page-sub">FRACTURED · d20</div></div>
-        <div class="ficha-header-right">
-          <div class="tema-switch" id="tema-switch">
-            <button class="tema-btn active" data-tema="padrao"  onclick="setTemaFicha('padrao')">Padrão</button>
-            <button class="tema-btn"        data-tema="ouro"    onclick="setTemaFicha('ouro')">Dourada</button>
-            <button class="tema-btn"        data-tema="verde"   onclick="setTemaFicha('verde')">Verde</button>
-          </div>
-          <button class="btn-primary" style="width:auto;margin:0;padding:9px 20px" onclick="salvarFicha()">💾 Salvar</button>
-        </div>
-      </div>
-      <div class="section-card" id="section-identidade">
-        <div class="section-card-title">Identidade</div>
-        <div class="ficha-id-row">
-          <div class="ficha-avatar-frame">
-            <div class="ficha-avatar-shape"></div>
-            <div class="ficha-avatar-inner" onclick="document.getElementById('char-foto-input').click()">
-              <span id="char-foto-placeholder">🧑</span>
-              <img id="char-foto-img" style="display:none;width:100%;height:100%;object-fit:cover;border-radius:inherit">
-            </div>
-            <input type="file" id="char-foto-input" accept="image/*" style="display:none" onchange="uploadFotoPersonagem(this)">
-            <span class="ficha-avatar-hint">Clique para trocar</span>
-          </div>
-          <div class="ficha-id-fields">
-            <div class="grid-3">
-              <div class="field ficha-nome-field"><label>Nome</label><input type="text" id="f-nome" placeholder="..." oninput="autoSave()"></div>
-              <div class="field ficha-prof-field"><label>Profissão</label>
-                <select id="f-profissao" onchange="autoSave()"><option value="">Selecionar...</option></select>
-                <div id="profissao-info" class="profissao-info" style="display:none"></div>
-              </div>
-              <div class="field ficha-jogador-field"><label>Jogador</label><input type="text" id="f-jogador" placeholder="..." oninput="autoSave()"></div>
-            </div>
-            <div class="field ficha-trauma-field"><label>Trauma Central</label><input type="text" id="f-trauma" placeholder="O evento que te assombra..." oninput="autoSave()"></div>
-          </div>
-        </div>
-      </div>
-      <div class="section-card" id="section-atributos"><div class="section-card-title">Atributos — 15 pontos (máx 4)</div><div class="attr-grid" id="attr-grid"></div></div>
-      <div class="grid-recursos-tensao" id="section-recursos-tensao">
-        <div class="section-card">
-          <div class="section-card-title">Recursos</div>
-          <div class="recursos-wrap">
-            <div class="recurso-item">
-              <div class="recurso-pip-block">
-                <div class="pip-row"><span class="pip-label">Pontos de Vida</span><div class="pips" id="pip-pv"></div><span class="pip-val" id="pip-pv-val">0/20</span></div>
-                <div style="font-size:10px;color:var(--muted);margin-bottom:8px;padding-left:108px" id="pv-formula">RES × 4 = máx 20</div>
-              </div>
-              <div class="recurso-gauge">
-                <div class="recurso-gauge-head"><span class="recurso-gauge-icon" data-fic="vida" data-fic-size="16"></span><span class="recurso-gauge-label">Vida</span><span class="recurso-gauge-val" id="gauge-pv-val">0/20</span></div>
-                <div class="recurso-gauge-row">
-                  <button type="button" class="recurso-gauge-btn" onclick="ajustarRecurso('pv',-1)">−</button>
-                  <div class="recurso-gauge-track"><div class="recurso-gauge-fill" id="gauge-pv-fill"></div></div>
-                  <button type="button" class="recurso-gauge-btn" onclick="ajustarRecurso('pv',1)">+</button>
-                </div>
-                <span class="recurso-gauge-caption" id="gauge-pv-caption">RES × 4</span>
-              </div>
-            </div>
-            <div class="recurso-item">
-              <div class="recurso-pip-block">
-                <div class="pip-row"><span class="pip-label" title="Recurso do grupo — Cap. 10">Suprimentos · grupo</span><div class="pips" id="pip-sup"></div><span class="pip-val" id="pip-sup-val">0/10</span></div>
-              </div>
-              <div class="recurso-gauge">
-                <div class="recurso-gauge-head"><span class="recurso-gauge-icon" data-fic="suprimentos" data-fic-size="16"></span><span class="recurso-gauge-label" title="Recurso do grupo — Cap. 10">Suprimentos · grupo</span><span class="recurso-gauge-val" id="gauge-sup-val">0/10</span></div>
-                <div class="recurso-gauge-row">
-                  <button type="button" class="recurso-gauge-btn" onclick="ajustarRecurso('sup',-1)">−</button>
-                  <div class="recurso-gauge-track"><div class="recurso-gauge-fill" id="gauge-sup-fill"></div></div>
-                  <button type="button" class="recurso-gauge-btn" onclick="ajustarRecurso('sup',1)">+</button>
-                </div>
-                <span class="recurso-gauge-caption" id="gauge-sup-caption">Escasso</span>
-              </div>
-            </div>
-            <div class="recurso-item">
-              <div class="recurso-pip-block">
-                <div class="pip-row" style="margin-top:5px"><span class="pip-label">Humanidade</span><div class="pips" id="pip-hum"></div><span class="pip-val" id="pip-hum-val">10/10</span></div>
-              </div>
-              <div class="recurso-gauge">
-                <div class="recurso-gauge-head"><span class="recurso-gauge-icon" data-fic="humanidade" data-fic-size="16"></span><span class="recurso-gauge-label">Humanidade</span><span class="recurso-gauge-val" id="gauge-hum-val">10/10</span></div>
-                <div class="recurso-gauge-row">
-                  <button type="button" class="recurso-gauge-btn" onclick="ajustarRecurso('hum',-1)">−</button>
-                  <div class="recurso-gauge-track"><div class="recurso-gauge-fill" id="gauge-hum-fill"></div></div>
-                  <button type="button" class="recurso-gauge-btn" onclick="ajustarRecurso('hum',1)">+</button>
-                </div>
-                <span class="recurso-gauge-caption">O que resta de você</span>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="section-card">
-          <div class="section-card-title">Tensão</div>
-          <div class="tensao-row">
-            <span class="tensao-endlabel tensao-endlabel-start">Calma</span>
-            <div class="tensao-pips" id="tensao-pips-ficha"></div>
-            <span class="tensao-endlabel tensao-endlabel-end">Tensão</span>
-          </div>
-          <div class="tensao-legend" style="margin-top:6px;font-size:9px;color:var(--muted)">C=Calma · A=Alerta · P=Perigo · T=Terror</div>
-        </div>
-      </div>
-      <div class="grid-pericias-vinculos" id="section-pericias-vinculos">
-        <div class="section-card"><div class="section-card-title">Perícias</div><div id="pericias-dica" class="pericias-dica">1 da profissão + 1 por ponto positivo do Mod de CONHECIMENTO (mínimo 1)</div><div id="pericias-list" class="gap-12"></div></div>
-        <div class="section-card"><div class="section-card-title">Vínculos — Promessa &amp; Dívida</div><div id="vinculos-list"></div></div>
-      </div>
-      <div class="section-card" id="section-veiculo">
-        <div class="section-card-title">Veículo</div>
-        <div class="grid-2">
-          <div class="field"><label>Tipo</label>
-            <select id="f-veiculo-tipo" onchange="autoSave()">
-              <option value="">Nenhum</option><option>Bicicleta</option><option>Motocicleta</option>
-              <option>Sedan / Utilitário</option><option>Caminhonete / Pickup</option>
-              <option>Ônibus / Caminhão</option><option>Barco a Motor</option>
-            </select>
-          </div>
-          <div style="display:flex;gap:8px">
-            <div class="field" style="flex:1"><label>Integridade</label>
-              <div style="display:flex;gap:4px;align-items:center">
-                <input type="number" id="f-vti-a" min="0" max="20" placeholder="0" style="text-align:center" oninput="autoSave()">
-                <span style="color:var(--muted)">/</span>
-                <input type="number" id="f-vti-m" min="0" max="20" placeholder="0" style="text-align:center" oninput="autoSave()">
-              </div>
-            </div>
-            <div class="field" style="flex:1"><label>Combustível</label>
-              <div style="display:flex;gap:4px;align-items:center">
-                <input type="number" id="f-vcomb-a" min="0" max="20" placeholder="0" style="text-align:center" oninput="autoSave()">
-                <span style="color:var(--muted)">/</span>
-                <input type="number" id="f-vcomb-m" min="0" max="20" placeholder="0" style="text-align:center" oninput="autoSave()">
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="section-card" id="section-inventario">
-        <div class="section-card-title">Inventário</div>
-        <div id="inventario-list"></div>
-      </div>
-      <div class="section-card" id="section-notas"><div class="section-card-title">Notas / Memórias</div><textarea id="f-notas" placeholder="Memórias, traumas..." rows="4" oninput="autoSave()" class="textarea-bare"></textarea></div>
-      <div class="ficha-footer-seal" id="ficha-footer-seal"><span class="ficha-footer-line"></span><span class="ficha-footer-icon" data-fic="logo" data-fic-size="20"></span><span class="ficha-footer-line"></span></div>
-    </div>
+    <!-- A FICHA É MONTADA POR JAVASCRIPT.
+         Antes eram 136 linhas de HTML aqui dentro, escritas para o
+         Fractured. Com mais de um sistema não existe um HTML que sirva
+         aos dois — um tem Profissão e Veículo, o outro tem Rank e
+         Chakra. Agora o nucleo/ficha-motor.js monta a ficha a partir do
+         que o sistema da mesa declara em sistemas/<id>/sistema.js.
+         Os ids continuam exatamente os mesmos de antes. -->
+    <div id="page-ficha" class="tema-padrao"></div>
 
     <!-- SALA -->
     <div id="page-sala" style="display:none;flex-direction:column">
@@ -461,11 +333,13 @@
      módulo precisa do conteúdo e das regras antes de se declarar.
      Para adicionar um sistema novo, acrescente as três linhas dele
      aqui e mais nada no projeto muda. -->
-<script src="nucleo/registro.js?v=2"></script>
+<script src="nucleo/registro.js?v=3"></script>
+<script src="nucleo/ficha-motor.js?v=1"></script>
 <script src="sistemas/fractured/conteudo.js?v=3"></script>
 <script src="sistemas/fractured/regras.js?v=1"></script>
-<script src="sistemas/fractured/persistencia.js?v=1"></script>
-<script src="sistemas/fractured/sistema.js?v=2"></script>
+<script src="sistemas/fractured/persistencia.js?v=2"></script>
+<script src="sistemas/fractured/blocos.js?v=1"></script>
+<script src="sistemas/fractured/sistema.js?v=3"></script>
 
 <script src="supabase.js?v=10"></script>
 <script src="mesas.js?v=18"></script>
@@ -477,7 +351,7 @@
 <script src="arquivos.js?v=27"></script>
 <script src="ficha_custom.js?v=29"></script>
 <script src="musica.js?v=28"></script>
-<script src="app.js?v=42"></script>
+<script src="app.js?v=43"></script>
 <script src="mobile.js?v=2"></script>
 
 <script>
