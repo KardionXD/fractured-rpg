@@ -153,3 +153,196 @@ const ZONAS_AVDF = [
   { id: 'media',   nome: 'Média',   dist: '~30 m',  oque: 'Projéteis, técnicas de área, fio ninja. O alcance padrão.' },
   { id: 'longa',   nome: 'Longa',   dist: '~100 m', oque: 'Poucas técnicas chegam aqui. Senbon de precisão, olhos treinados.' },
 ];
+
+
+// ══════════════════════════════════════════════════════════════════
+//  LINHAGEM — KEKKEI GENKAI E KEKKEI TŌTA (Cap. 07)
+//
+//  "Duas naturezas moldadas simultaneamente produzem uma terceira,
+//  exclusiva de linhagem. Três ao mesmo tempo produzem um Kekkei Tōta,
+//  muito mais raro. Nenhuma pode ser treinada — ou você nasce com ela,
+//  ou recebe um transplante."
+//
+//  Repare que nem toda Kekkei Genkai é elemental. Bakuton e Shōton são
+//  linhagem própria, Enton deriva do Mangekyō, e as do corpo (Sharingan,
+//  Byakugan, Shikotsumyaku) vêm do clã, não de uma combinação. Por isso
+//  a ficha separa os TIPOS em vez de tratar tudo como "um elemento a
+//  mais" — foi exatamente esse o buraco da primeira versão.
+// ══════════════════════════════════════════════════════════════════
+
+const KEKKEI_GENKAI_AVDF = [
+  { id: 'hyoton',  nome: 'Hyōton',  trad: 'Gelo',       tipo: 'elemental',
+    composicao: ['suiton', 'futon'],  portadores: 'Clã Yuki — Haku' },
+  { id: 'mokuton', nome: 'Mokuton', trad: 'Madeira',    tipo: 'elemental',
+    composicao: ['suiton', 'doton'],  portadores: 'Hashirama Senju; Yamato (implante)' },
+  { id: 'yoton',   nome: 'Yōton',   trad: 'Lava',       tipo: 'elemental',
+    composicao: ['katon', 'doton'],   portadores: 'Mei Terumī, Rōshi, Han' },
+  { id: 'ranton',  nome: 'Ranton',  trad: 'Tempestade', tipo: 'elemental',
+    composicao: ['raiton', 'suiton'], portadores: 'Darui de Kumogakure' },
+  { id: 'jiton',   nome: 'Jiton',   trad: 'Magnetismo', tipo: 'elemental',
+    composicao: ['futon', 'doton'],   portadores: 'Terceiro Kazekage' },
+  { id: 'futton',  nome: 'Futton',  trad: 'Vapor',      tipo: 'elemental',
+    composicao: ['katon', 'suiton'],  portadores: 'Raro; associado a Kirigakure' },
+
+  { id: 'bakuton', nome: 'Bakuton', trad: 'Explosão',   tipo: 'propria',
+    composicao: null, portadores: 'Deidara de Iwagakure' },
+  { id: 'shoton',  nome: 'Shōton',  trad: 'Cristal',    tipo: 'propria',
+    composicao: null, portadores: 'Guren' },
+  { id: 'enton',   nome: 'Enton',   trad: 'Chama Negra', tipo: 'derivada',
+    composicao: null, portadores: 'Sasuke Uchiha — exige Amaterasu',
+    exige: 'Derivado do Mangekyō' },
+
+  { id: 'jinton',  nome: 'Jinton',  trad: 'Pó',         tipo: 'tota',
+    composicao: ['doton', 'futon', 'katon'], portadores: 'Mū e Ōnoki de Iwagakure' },
+];
+
+//  As linhagens que são do CORPO, não de elemento: dōjutsu e traços de
+//  esqueleto/sangue. Vêm do clã e por isso não estão na tabela do Cap. 07.
+//  Enquanto o Compêndio não estiver todo cadastrado, isto fica como uma
+//  lista de partida — dá para escrever qualquer outra à mão.
+const LINHAGENS_CORPO_AVDF = [
+  { id: 'sharingan',      nome: 'Sharingan',       cla: 'Uchiha',  tipo: 'dojutsu' },
+  { id: 'mangekyo',       nome: 'Mangekyō Sharingan', cla: 'Uchiha', tipo: 'dojutsu' },
+  { id: 'byakugan',       nome: 'Byakugan',        cla: 'Hyūga',   tipo: 'dojutsu' },
+  { id: 'ketsuryugan',    nome: 'Ketsuryūgan',     cla: 'Chinoike', tipo: 'dojutsu' },
+  { id: 'shikotsumyaku',  nome: 'Shikotsumyaku',   cla: 'Kaguya',  tipo: 'corpo' },
+];
+
+const KG_ORIGENS = [
+  { id: 'nascimento',  nome: 'De nascimento',
+    obs: 'A linhagem é sua por sangue.' },
+  { id: 'transplante', nome: 'Transplante',
+    obs: 'Cirurgia ilegal, com consequências permanentes (Cap. 28). Combine com o Mestre.' },
+];
+
+
+// ══════════════════════════════════════════════════════════════════
+//  CLÃS (Livro V — Compêndio dos Clãs)
+//
+//  Cada clã tem uma PASSIVA sempre ativa e uma PROGRESSÃO DE CINCO
+//  ESTÁGIOS. Cada estágio custa PT, exige um rank mínimo e — mais
+//  importante — exige um MARCO NARRATIVO: uma cena que aconteceu na
+//  mesa. "PT é só a contabilidade. Um marco bom acontece em cena e não
+//  em resumo, custa alguma coisa ao personagem, e envolve pelo menos um
+//  PNJ do clã com nome e opinião própria."
+//
+//  REGRA DO ESTÁGIO I GRATUITO: todo personagem começa a campanha com o
+//  Estágio I já desbloqueado, sem custo em PT. Não é conquista de
+//  campanha — é o rito de infância.
+//
+//  O catálogo abaixo está sendo preenchido a partir do Compêndio. O que
+//  está aqui foi transcrito do livro, não resumido.
+// ══════════════════════════════════════════════════════════════════
+
+const CLAS_AVDF = [
+  {
+    id: 'uchiha', nome: 'Uchiha', vila: 'Konohagakure', kanji: '団扇',
+    lema: 'O clã cujo amor, quando perdido, vira poder — e cuja glória sempre custou alguém.',
+    passiva: {
+      nome: 'Chama Interior',
+      efeito: 'Você domina Katon de graça mesmo que sua afinidade seja outra, aprende técnicas Katon por 1 PT a menos, e tem Vantagem em testes para reconhecer, identificar ou reproduzir de memória qualquer técnica, selo ou sequência de movimentos que já tenha visto executar.',
+    },
+    linhagem: 'sharingan',
+    estagios: [
+      { n: 'I',   nome: 'Iniciação', rank: 'genin',  pt: 0,
+        marco: 'Executar o Gōkakyū diante de um parente mais velho — o rito que marca a maioridade Uchiha.',
+        destrava: 'Gōkakyū e (opcional) o Sharingan de Um Tomoe: Ação Menor, 2 PC/rd, Vantagem em Percepção e contra genjutsu, +2 Defesa.' },
+      { n: 'II',  nome: 'Herança',  rank: 'genin',  pt: 6,
+        marco: 'Sobreviver a um combate em que você deveria ter morrido. O olho amadurece sob risco, não sob treino.',
+        destrava: 'Dois Tomoe. Previsão: o primeiro ataque de cada inimigo em cada rodada tem Desvantagem, e você ganha +3 em Esquiva.' },
+      { n: 'III', nome: 'Maestria', rank: 'chunin', pt: 8,
+        marco: 'Escolher entre lealdade ao clã e à vila, numa cena onde as duas se excluem.',
+        destrava: 'Três Tomoe. Cópia de técnicas, hipnose por contato visual, Vantagem para interromper jutsus.' },
+      { n: 'IV',  nome: 'Segredo',  rank: 'jonin',  pt: 12,
+        marco: 'Perder alguém que você amava — e ser, de algum modo, responsável. Não é negociável.',
+        destrava: 'Mangekyō Sharingan. Uma técnica à escolha: Amaterasu, Tsukuyomi, Susanoo ou Kamui.' },
+      { n: 'V',   nome: 'Legado',   rank: 'anbu',   pt: 18,
+        marco: 'Marco de História: transplantar os olhos Mangekyō de um irmão de sangue.',
+        destrava: 'Mangekyō Eterno. Remove a Cegueira acumulada e destrava uma segunda técnica Mangekyō.' },
+    ],
+    regraOpcional: {
+      nome: 'O rito e o olho são coisas diferentes',
+      texto: 'O Uchiha começa conhecendo o Gōkakyū e portando a Passiva; o Sharingan fica bloqueado até um momento narrativo à altura (perigo de morte, perda, virada emocional). Enquanto bloqueado: um jutsu comum extra e +1 PT por missão. O despertar não custa PT e não exige o marco do Estágio II — o despertar é o marco. Recomendada para campanhas que começam no rank Genin.',
+    },
+
+    //  Técnicas que ninguém fora do clã aprende. Cada uma pertence a um
+    //  Estágio e só fica disponível quando aquele Estágio é destravado.
+    tecnicas: [
+      { nome: 'Gōkakyū no Jutsu',      rk: 'D', pc: 2,  est: 'I',
+        efeito: 'O rito do clã. Esfera flamejante numa zona a Curta/Média: 1d6+NIN a todos, atingidos ficam Queimando.' },
+      { nome: 'Hōsenka: Tsumabeni',    rk: 'C', pc: 4,  est: 'I',
+        efeito: 'Rajada de chamas com shurikens escondidos. 2d6+NIN entre três alvos; quem esquiva do fogo enfrenta um projétil (1d6+TAI) inesquivável.' },
+      { nome: 'Uchiha Gaeshi',         rk: 'C', pc: 4,  est: 'II',
+        efeito: 'Reação. Desvia um ataque físico com a lâmina e o devolve: anula o dano e causa 2d6+TAI ao atacante. Exige Sharingan e estar armado.' },
+      { nome: 'Katon: Ryūka no Jutsu', rk: 'C', pc: 4,  est: 'II',
+        efeito: 'Chama que percorre um fio ninja. Contra alvo Preso por fio, acerta automaticamente e é crítico.' },
+      { nome: 'Sharingan: Kopī (Cópia)', rk: 'C', pc: 4, est: 'III',
+        efeito: 'Após ver uma técnica executada até o fim, aprenda-a ignorando o Selo do Mestre, pagando PT normal. Não ignora o Selo de Sangue.' },
+      { nome: 'Magen: Sharingan',      rk: 'B', pc: 7,  est: 'III',
+        efeito: 'Genjutsu por contato visual, Ação Menor, profundidade 2. Pode plantar uma ordem que o alvo executa na rodada seguinte.' },
+      { nome: 'Katon: Gōryūka no Jutsu', rk: 'A', pc: 11, est: 'III',
+        efeito: 'Vários dragões de fogo: 5d6+NIN, até três alvos ou uma zona. Com outro Uchiha, +2d6 por participante.' },
+      { nome: 'Amaterasu',             rk: 'S', pc: 16, est: 'IV', cegueira: 1,
+        efeito: 'Chamas negras onde o olho mira, acerto automático. 8d6 no impacto e 3d6/rd até consumir. Cada uso: 1d6 e sangramento ocular.' },
+      { nome: 'Tsukuyomi',             rk: 'S', pc: 16, est: 'IV', cegueira: 1,
+        efeito: 'Genjutsu absoluto, contato visual, GEN +5. 72h subjetivas num segundo real; o alvo fica inconsciente e sofre Trauma Craniano.' },
+      { nome: 'Susanoo',               rk: 'S', pc: '16+6/rd', est: 'IV', cegueira: 1,
+        efeito: 'Avatar de chakra. Estágios: costelas (red. 10) → torso (red. 20, 6d6) → armadura (red. 30, 8d6) → Completo (invocação Colossal).' },
+      { nome: 'Enton: Kagutsuchi',     rk: 'S', pc: 16, est: 'V', cegueira: 1,
+        efeito: 'Molda o Amaterasu em lanças, redes, armadura sobre o Susanoo. Requer conhecer Amaterasu.' },
+      { nome: 'Izanagi',               rk: 'S', pc: 16, est: 'V', kinjutsu: true,
+        efeito: 'Por 3 rodadas tudo o que acontece com você vira ilusão: anule dano ou morte retroativamente. O olho usado fica cego. Uso único por olho.' },
+    ],
+
+    //  A trava que impede o Sharingan de dominar a campanha. Fica na
+    //  ficha porque o livro pede que o jogador diga o número em voz alta
+    //  ao gastar — e para isso ele precisa estar visível.
+    trilhaPropria: {
+      id: 'cegueira', nome: 'Cegueira', max: 20,
+      dica: 'Cada uso de técnica Mangekyō acumula 1. A cada 5 pontos, −1 em todo teste visual e −1 de Defesa, cumulativos. Aos 20, cegueira permanente. Só o Mangekyō Eterno reverte.',
+    },
+  },
+];
+
+//  Sem clã é uma escolha legítima do livro, não a ausência de uma.
+const NINJA_COMUM = {
+  id: 'comum', nome: 'Ninja Comum', vila: '—',
+  lema: 'Sem linhagem, sem teto: Naruto, Sakura, Rock Lee e Guy começaram aqui.',
+  passiva: {
+    nome: 'Sem Amarras',
+    efeito: '+3 pontos de atributo na criação (limite +4), uma perícia treinada extra, um jutsu comum extra e um talento à escolha (valor 6 PT). Aprende jutsus fora da natureza afim por 1 PT a menos. No rank Chūnin, ganha uma segunda perícia Especialista de graça.',
+  },
+  linhagem: null,
+  estagios: [],
+};
+
+function claAvdf(id) {
+  if (id === 'comum') return NINJA_COMUM;
+  return CLAS_AVDF.find(c => c.id === id) || null;
+}
+
+function kekkeiGenkaiAvdf(id) {
+  return KEKKEI_GENKAI_AVDF.find(k => k.id === id)
+      || LINHAGENS_CORPO_AVDF.find(k => k.id === id) || null;
+}
+
+
+// ══════════════════════════════════════════════════════════════════
+//  PONTOS DE TREINO (PT)
+//
+//  A moeda da progressão. Compra técnica, compra estágio de clã,
+//  compra talento. O rank não sobe com PT — sobe por decisão da mesa.
+// ══════════════════════════════════════════════════════════════════
+
+const PT_CUSTOS_AVDF = [
+  { o: 'Técnica rank E', pt: 1 }, { o: 'Técnica rank D', pt: 2 },
+  { o: 'Técnica rank C', pt: 4 }, { o: 'Técnica rank B', pt: 8 },
+  { o: 'Técnica rank A', pt: 14 }, { o: 'Técnica rank S', pt: 24 },
+  { o: 'Hiden do próprio clã', pt: -2, obs: 'desconto sobre o custo do rank' },
+  { o: 'Segunda natureza', pt: 8, obs: 'exige rank Chūnin e treino dedicado' },
+];
+
+//  Categorias e acessos, para os campos da técnica na ficha (Cap. 08 e 09).
+const TECNICA_CATEGORIAS = ['Ofensiva', 'Defensiva', 'Suplementar', 'Controle', 'Sensorial', 'Sustentada'];
+const TECNICA_ACESSOS    = ['Livre', 'Restrito', 'Hiden', 'Kekkei Genkai', 'Kinjutsu', 'Ōgi'];
+const TECNICA_ALCANCES   = ['—', 'Contato', 'Curta', 'Média', 'Longa', 'Extrema'];

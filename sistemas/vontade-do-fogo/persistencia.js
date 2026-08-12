@@ -32,10 +32,21 @@ function avdfDeDados(dados) {
     idade:     m.idade || '',
     ninjaway:  m.ninjaway || '',
     naturezas: Array.isArray(b.naturezas) ? b.naturezas : [],
-    cla:         b.cla || '',
-    cla_estagio: b.claEstagio || '1',
-    passivas:    b.passivas || '',
-    tecnicas:    b.tecnicas || '',
+
+    // Linhagem
+    kg:        b.kg || '',
+    kg_origem: b.kgOrigem || 'nascimento',
+    kg_outra:  b.kgOutra || '',
+
+    // Clã e progressão
+    cla:          b.cla || '',
+    cla_estagios: Array.isArray(b.claEstagios) ? b.claEstagios : [],
+    trilhas:      b.trilhas || {},      // ex.: { cegueira: 3 }
+    pt:           _an(d.pt),
+
+    // Técnicas: até oito, cada uma com os campos do livro
+    tecnicas: Array.isArray(b.tecnicas) ? b.tecnicas : [],
+
     pericias:  Array.isArray(d.pericias) ? d.pericias : [],
   };
 }
@@ -59,12 +70,19 @@ function avdfParaDados(linha) {
     campos: {
       vila: r.vila || '', idade: r.idade || '', ninjaway: r.ninjaway || '',
     },
+    pt: _an(r.pt),
     blocos: {
-      naturezas:   Array.isArray(r.naturezas) ? r.naturezas : [],
+      naturezas: Array.isArray(r.naturezas) ? r.naturezas : [],
+
+      kg:       r.kg || '',
+      kgOrigem: r.kg_origem || 'nascimento',
+      kgOutra:  r.kg_outra || '',
+
       cla:         r.cla || '',
-      claEstagio:  r.cla_estagio || '1',
-      passivas:    r.passivas || '',
-      tecnicas:    r.tecnicas || '',
+      claEstagios: Array.isArray(r.cla_estagios) ? r.cla_estagios : [],
+      trilhas:     r.trilhas || {},
+
+      tecnicas: Array.isArray(r.tecnicas) ? r.tecnicas : [],
     },
   };
 }

@@ -204,6 +204,14 @@ function fichaMotorHtml() {
   return partes.join('\n      ');
 }
 
+//  `#page-ficha` é uma caixa flex, e nela quem não tem `order` recebe 0 e
+//  vai para a frente de todos. As seções do Fractured têm ordem fixa no
+//  CSS; as de qualquer outro sistema não teriam, e apareceriam de cabeça
+//  para baixo. Aqui cada seção recebe a posição em que foi declarada.
+function _fmNumerarSecoes(alvo) {
+  [...alvo.children].forEach((el, i) => el.style.setProperty('--ordem', i + 1));
+}
+
 //  Desenha a ficha dentro do #page-ficha e converte os ícones da marca
 //  (o script do app.html só converte os que existem quando a página
 //  carrega; estes nascem depois).
@@ -211,7 +219,15 @@ function fichaMotorMontar() {
   const alvo = document.getElementById('page-ficha');
   if (!alvo) return;
   alvo.innerHTML = fichaMotorHtml();
+  _fmNumerarSecoes(alvo);
   alvo.querySelectorAll('[data-fic]').forEach(el => {
     el.innerHTML = fracIcon(el.dataset.fic, { size: parseInt(el.dataset.ficSize) || 18 });
   });
+  //  Alguns blocos precisam de um ajuste depois de existirem na tela —
+  //  a trilha do clã, a linhagem, a lista de técnicas disponíveis. O
+  //  motor não sabe o que são; só avisa o sistema que a ficha está de pé.
+  if (typeof S().ficha.aoMontar === 'function') {
+    try { S().ficha.aoMontar(); }
+    catch (e) { console.error('[ficha] o sistema falhou ao ajustar os blocos:', e); }
+  }
 }

@@ -158,11 +158,14 @@ registrarSistema({
       { tipo: 'pericias', titulo: 'Perícias',
         aoLado: { id: 'vinculos-list', titulo: 'Vínculos' } },
 
+      { tipo: 'bloco', id: 'section-linhagem', titulo: 'Linhagem — Kekkei Genkai',
+        html: avdfHtmlLinhagem },
+
+      { tipo: 'bloco', id: 'section-cla', titulo: 'Clã, Passiva e Progressão',
+        html: avdfHtmlCla },
+
       { tipo: 'bloco', id: 'section-tecnicas', titulo: 'Técnicas Conhecidas',
         html: avdfHtmlTecnicas },
-
-      { tipo: 'bloco', id: 'section-cla', titulo: 'Clã e Passivas',
-        html: avdfHtmlCla },
 
       { tipo: 'notas', titulo: 'História & Vínculos', dica: 'De onde veio, por quem luta...' },
     ],
@@ -171,6 +174,16 @@ registrarSistema({
     //  dois números que a mesa mais consulta em combate. O núcleo chama
     //  este gancho depois de refazer os recursos derivados.
     aoMudarAtributo: avdfAtualizarDerivados,
+
+    //  Chamado depois que a ficha é desenhada e depois que os dados são
+    //  aplicados: é aqui que a trilha do clã, a linhagem e a lista de
+    //  técnicas disponíveis se ajustam ao que a pessoa escolheu.
+    aoMontar: () => {
+      if (typeof avdfAoTrocarRank === 'function') avdfAoTrocarRank();
+      if (typeof avdfAoTrocarCla  === 'function') avdfAoTrocarCla();
+      if (typeof avdfAoTrocarKG   === 'function') avdfAoTrocarKG();
+      if (typeof avdfAtualizarTecnicasDisponiveis === 'function') avdfAtualizarTecnicasDisponiveis();
+    },
 
     //  Sem `colunasLegado`: este sistema nunca teve colunas próprias na
     //  tabela. Nasce lendo e gravando só na coluna `dados`.

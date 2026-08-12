@@ -2716,17 +2716,40 @@ h1,h2,h3 { letter-spacing: .04em; }
    ══════════════════════════════════════════════════════════ */
 #page-ficha { display: flex; flex-direction: column; }
 
-/* Ordem-base (igual à ordem no DOM) — existe pra que os temas dourada/verde
-   possam reordenar só o Inventário via `order` sem depender de mover nós no DOM.
-   Não usar `style="order"` inline nesses elementos: inline sempre vence a
-   cascata e quebraria o override de tema abaixo. */
-#section-identidade        { order: 1; }
-#section-atributos         { order: 2; }
-#section-recursos-tensao   { order: 3; }
-#section-pericias-vinculos { order: 5; }
-#section-veiculo           { order: 6; }
-#section-inventario        { order: 7; }
-#section-notas             { order: 8; }
+/* Ordem-base — existe pra que os temas dourada/verde possam reordenar só o
+   Inventário via `order`, sem mover nós no DOM.
+
+   ATENÇÃO: numa caixa flex, quem NÃO tem `order` recebe 0 — e vai para a
+   frente de todo mundo. Enquanto só existia o Fractured isso não aparecia,
+   porque todas as seções estavam listadas aqui. Com A Vontade do Fogo, as
+   seções dela (Rank, Linhagem, Clã, Técnicas) caíam em `order: 0` e subiam
+   para o topo da ficha, antes da Identidade.
+
+   A regra abaixo dá a ordem do DOM a QUALQUER seção — de qualquer sistema —
+   pela variável que o motor da ficha escreve em cada uma. As linhas do
+   Fractured continuam existindo porque os temas dependem delas, e vencem
+   por virem depois com a mesma especificidade.
+
+   Não usar `style="order"` inline: inline sempre vence a cascata e quebraria
+   o override de tema. Por isso a variável, e não a propriedade. */
+#page-ficha > *            { order: var(--ordem, 0); }
+
+/* As linhas que existiam aqui (#section-identidade { order: 1 } e as outras
+   seis) eram a ordem do Fractured escrita à mão. Sumiram porque o motor já
+   numera cada seção na ordem em que o sistema a declarou — e porque elas,
+   presas a ids, embaralhavam a ficha de qualquer outro sistema que usasse
+   os mesmos ids de seção.
+
+   Os temas Dourada e Verde continuam reordenando o Inventário logo abaixo:
+   `order: 4` empata com Recursos, e o empate é desfeito pela ordem do DOM. */
+
+/* O selo aparece no ALTO das fichas Dourada e Verde — logo abaixo do título,
+   como um ornamento de abertura. Isso acontecia porque ele não tinha `order`
+   e caía em 0; com a numeração automática ele desceria para o rodapé, que é
+   o que o nome dele diz. Mantido onde sempre esteve, agora de propósito e por
+   escrito: mudar a cara dessas duas fichas não era o assunto desta entrega. */
+#page-ficha.tema-ouro  #ficha-footer-seal,
+#page-ficha.tema-verde #ficha-footer-seal { order: 1; }   /* empata com o cabeçalho; o DOM desempata */
 
 .ficha-id-row { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
 .ficha-avatar-frame { display: flex; flex-direction: column; align-items: center; gap: 6px; flex-shrink: 0; position: relative; }
@@ -4140,4 +4163,87 @@ button.ocupado::after {
 @media (max-width: 420px) {
   .avdf-alvo-val { font-size: 26px; }
   .avdf-alvo-sub { font-size: 8.5px; }
+}
+
+
+/* ══════════════════════════════════════════════════════════
+   A VONTADE DO FOGO — LINHAGEM, CLÃ E TÉCNICAS
+══════════════════════════════════════════════════════════ */
+
+/* A passiva do clã fica sempre visível: ela está ativa o tempo todo e
+   é o que faz um membro ser reconhecível sem usar técnica nenhuma. */
+.avdf-passiva {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-left: 3px solid var(--gold); border-radius: 8px;
+  padding: 10px 12px; margin-top: 10px;
+}
+.avdf-passiva-rot {
+  font-size: 9px; font-weight: 700; letter-spacing: 2px;
+  color: var(--gold-text); text-transform: uppercase; margin-bottom: 4px;
+}
+.avdf-passiva-txt { font-size: 12px; line-height: 1.45; color: var(--text); }
+
+/* A trilha de cinco estágios. Os fechados ficam apagados — são as metas
+   que ainda faltam, e o jogador precisa vê-las para persegui-las. */
+.avdf-trilha { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.avdf-estagio {
+  display: flex; gap: 10px; align-items: flex-start;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px 12px; cursor: pointer;
+  opacity: .55; transition: opacity .15s, border-color .15s;
+}
+.avdf-estagio.aberto { opacity: 1; border-color: var(--gold-dim); }
+.avdf-estagio input { accent-color: var(--gold); margin-top: 3px; flex-shrink: 0; }
+.avdf-estagio-corpo { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.avdf-estagio-topo {
+  display: flex; justify-content: space-between; align-items: baseline;
+  gap: 10px; flex-wrap: wrap;
+}
+.avdf-estagio-n {
+  font-size: 11px; font-weight: 800; letter-spacing: 1.5px;
+  color: var(--gold-text); text-transform: uppercase;
+}
+.avdf-estagio-custo { font-size: 10px; color: var(--muted); white-space: nowrap; }
+.avdf-estagio-marco { font-size: 11px; color: var(--muted); line-height: 1.4; }
+.avdf-estagio-destrava { font-size: 11.5px; color: var(--text); line-height: 1.4; }
+
+.avdf-regra-opcional, .avdf-trilha-propria {
+  background: rgba(192,57,43,.07); border: 1px solid var(--red-dim);
+  border-radius: 8px; padding: 10px 12px; margin-top: 10px;
+  font-size: 11.5px; line-height: 1.45; color: var(--muted);
+}
+.avdf-regra-rot {
+  font-size: 9px; font-weight: 700; letter-spacing: 2px;
+  color: var(--red); text-transform: uppercase; margin-bottom: 4px;
+}
+
+/* Técnicas: nome e rank em cima, os campos do livro embaixo. */
+.avdf-tecnicas { display: flex; flex-direction: column; gap: 8px; }
+.avdf-tecnica {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 9px 10px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.avdf-tec-linha1 { display: flex; gap: 6px; align-items: center; }
+/* A regra genérica abaixo (`.avdf-tecnica select`) tem especificidade
+   maior e engolia estas duas — o campo do nome sumia e o seletor de rank
+   ocupava a linha toda. Por isso vão qualificadas. */
+.avdf-tecnica .avdf-tec-nome { flex: 1 1 auto; min-width: 0; width: auto; font-weight: 600; }
+.avdf-tecnica .avdf-tec-rank { flex: 0 0 118px; width: 118px; }
+.avdf-tec-linha2 {
+  display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 5px;
+}
+.avdf-tecnica input, .avdf-tecnica select {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 5px;
+  color: var(--text); padding: 6px 7px; font-size: 11.5px; outline: none;
+  min-width: 0; width: 100%; box-sizing: border-box;
+}
+.avdf-tecnica input:focus, .avdf-tecnica select:focus { border-color: var(--accent); }
+.avdf-tec-efeito { font-size: 11.5px; }
+
+@media (max-width: 768px) {
+  .avdf-tec-linha2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .avdf-tecnica .avdf-tec-rank { flex: 0 0 96px; width: 96px; }
+  .avdf-estagio-topo { flex-direction: column; gap: 1px; }
+  .avdf-tecnica input, .avdf-tecnica select { font-size: 16px; padding: 8px; }
 }
