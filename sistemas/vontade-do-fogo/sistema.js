@@ -33,7 +33,27 @@ registrarSistema({
   modificador: avdfModificador,     // o valor JÁ é o bônus
   sinal: n => (n > 0 ? `+${n}` : n < 0 ? `−${Math.abs(n)}` : '±0'),
 
-  criacao: { conjunto: [4, 3, 2, 1, 1, 0], maxInicial: 4, pontos: 12 },
+  criacao: {
+    conjunto: [4, 3, 2, 1, 1, 0], maxInicial: 4, pontos: 12,
+    //  Os passos do livro, na ordem do livro. É esta lista que o modo
+    //  CRIAÇÃO da ficha percorre — mudar a criação é mudar aqui, não
+    //  mexer em tela nenhuma.
+    passos: [
+      { id: 'conceito',    nome: 'Conceito' },
+      { id: 'vila',        nome: 'Vila e Origem' },
+      { id: 'atributos',   nome: 'Atributos' },
+      { id: 'cla',         nome: 'Clã ou Ninja Comum' },
+      { id: 'natureza',    nome: 'Natureza' },
+      { id: 'pericias',    nome: 'Perícias' },
+      { id: 'tecnicas',    nome: 'Técnicas iniciais' },
+      { id: 'derivados',   nome: 'Valores derivados' },
+      { id: 'equipamento', nome: 'Equipamento' },
+      { id: 'alma',        nome: 'Ninja Way e Fardo' },
+    ],
+    origens: ORIGENS_AVDF,
+    kit: KIT_SHINOBI_AVDF,
+    dinheiroInicial: { nome: 'Ryō', valor: RYO_INICIAL },
+  },
 
   // ── PROGRESSÃO — O RANK ─────────────────────────────────────────
   //  O conceito que o Fractured não tem. O rank limita o atributo
@@ -79,14 +99,57 @@ registrarSistema({
   ],
 
   // ── PERÍCIAS ────────────────────────────────────────────────────
+  //  Perícia aqui não é caixa marcada: é graduação. Quatro graus, bônus
+  //  crescente, e os dois últimos só a partir de um rank.
   pericias: {
     catalogo: PERICIAS_AVDF,
+    graduada: true,
+    graus: GRAUS_PERICIA_AVDF,
+    bonusDe: avdfBonusPericia,
+    proximoGrau: avdfProximoGrauPericia,
     bonusTreino: 2,
     quantas: avdfPericiasPermitidas,
     explicacao: 'Três perícias treinadas na criação — cada uma vale +2 no teste',
     porCategoria: periciasAvdfPorCategoria,
     atributoDe: atributoDaPericiaAvdf,
   },
+
+  // ── PROGRESSÃO POR PT ───────────────────────────────────────────
+  //  PT é moeda: entra, sai, e a ficha tem que saber dizer de onde veio
+  //  cada ponto. PC (custo de uso) e PT (custo de aprender) são coisas
+  //  diferentes e não se misturam em lugar nenhum.
+  pt: {
+    nome: 'Pontos de Treino', sigla: 'PT',
+    custos: PT_CUSTOS_AVDF,
+    fontes: PT_FONTES_AVDF,           // de onde o PT entra, para o histórico
+    descontos: descontosDeAprendizado,
+    pode: podeAprenderAvdf,           // as travas que preço nenhum resolve
+    selos: SELOS_AVDF,                // rank S e Ōgi exigem os três
+    custoAtributo: avdfCustoAtributo,
+    custoJutsu: avdfCustoJutsu,
+    promocao: PROMOCAO_RANK_AVDF,
+  },
+
+  //  Os limites que o rank impõe, com a frase já pronta — nenhuma tela
+  //  escreve "máximo +5" por conta própria.
+  limites: {
+    atributo: avdfLimiteAtributo,
+    jutsu:    avdfLimiteJutsu,
+    permiteJutsu: avdfJutsuPermitido,
+    alcanca:  avdfRankAlcanca,
+  },
+
+  //  O estado do personagem — exaustão e condições — e o que ele faz
+  //  com os números. Uma função só, consultada por todo mundo.
+  estado: {
+    exaustao: { tabela: EXAUSTAO_AVDF, max: EXAUSTAO_MAX, de: exaustaoAvdf },
+    condicoes: CONDICOES_AVDF,
+    automaticas: condicoesAutomaticasAvdf,
+    ferimentos: FERIMENTOS_AVDF,
+    efeitos: avdfEfeitosAtivos,
+  },
+
+  talentos: { catalogo: TALENTOS_AVDF, custo: PT_CUSTOS_AVDF.talento },
 
   arquetipos: { nome: 'Clã', catalogo: [], buscar: () => null },   // fase 9
 
@@ -99,6 +162,7 @@ registrarSistema({
     ] },
     situacoes: false,      // aqui a circunstância vira Vantagem, não bônus
     vantagem: true,
+    circunstancias: { vantagem: VANTAGEM_AVDF, desvantagem: DESVANTAGEM_AVDF },
     dificuldades: [
       { v:  8, n: 'Fácil'         }, { v: 12, n: 'Média'  },
       { v: 16, n: 'Difícil'       }, { v: 20, n: 'Muito difícil' },

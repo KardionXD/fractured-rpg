@@ -104,23 +104,10 @@ const NATUREZAS_AVDF = [
   { id: 'doton',  nome: 'Doton',  trad: 'Terra', cor: '#a07a4e' },
 ];
 
-// ── CONDIÇÕES (Fast Play, cap. 5) ─────────────────────────────────
-//  As dez da tabela do livro, mais Morrendo — que não está na tabela
-//  de condições, mas é o estado a 0 PV e o combate precisa marcá-lo.
-
-const CONDICOES_AVDF = [
-  { nome: 'Atordoado',   icone: '💫', efeito: 'Perde a Ação Principal. Mantém movimento e Reação. Sai no fim do próximo turno.' },
-  { nome: 'Preso',       icone: '🔒', efeito: 'Não se move. Ataques contra você têm Vantagem. Não pode Esquivar.' },
-  { nome: 'Caído',       icone: '🡇', efeito: 'Desvantagem nos seus ataques. Corpo a corpo contra você tem Vantagem; à distância, Desvantagem.' },
-  { nome: 'Cego',        icone: '🌑', efeito: 'Desvantagem em tudo que dependa de visão — e imune a ilusões visuais.' },
-  { nome: 'Selado',      icone: '🚫', efeito: 'Não usa chakra: sem técnicas, sem Substituição. Teste de CTR no fim de cada turno.' },
-  { nome: 'Envenenado',  icone: '🧪', efeito: '1d6 no fim de cada turno e Desvantagem em testes de COR.' },
-  { nome: 'Queimando',   icone: '🔥', efeito: '1d6 no fim de cada turno. Ação Principal para apagar, ou água.' },
-  { nome: 'Sob Ilusão',  icone: '🌀', efeito: 'Percebe uma realidade falsa e age conforme ela. Sai com teste de ESP, ajuda de aliado ou dor.' },
-  { nome: 'Ferido',      icone: '🩸', efeito: 'Automático abaixo de metade dos PV. Desvantagem em testes de COR.' },
-  { nome: 'Sem Chakra',  icone: '💤', efeito: '0 PC. Sem técnicas. Desvantagem em CTR e NIN. Defesa −2.' },
-  { nome: 'Morrendo',    icone: '☠', efeito: 'A 0 PV: inconsciente. Teste de Morte d20+COR CD 10 no início do turno. 3 sucessos estabiliza, 3 falhas mata.' },
-];
+// ── CONDIÇÕES ──────────────────────────────────────────
+//  Moraram aqui até a remodelação da ficha. Agora estão em dados.js,
+//  junto das outras tabelas de regra, com os efeitos mecânicos que a
+//  ficha aplica sozinha.
 
 // ── VÍNCULO DE EQUIPE / KIZUNA (Cap. 05) ──────────────────────────
 //  O medidor coletivo da mesa, de 0 a 10. Começa em 2 numa campanha
@@ -327,20 +314,10 @@ function kekkeiGenkaiAvdf(id) {
 }
 
 
-// ══════════════════════════════════════════════════════════════════
-//  PONTOS DE TREINO (PT)
-//
-//  A moeda da progressão. Compra técnica, compra estágio de clã,
-//  compra talento. O rank não sobe com PT — sobe por decisão da mesa.
-// ══════════════════════════════════════════════════════════════════
-
-const PT_CUSTOS_AVDF = [
-  { o: 'Técnica rank E', pt: 1 }, { o: 'Técnica rank D', pt: 2 },
-  { o: 'Técnica rank C', pt: 4 }, { o: 'Técnica rank B', pt: 8 },
-  { o: 'Técnica rank A', pt: 14 }, { o: 'Técnica rank S', pt: 24 },
-  { o: 'Hiden do próprio clã', pt: -2, obs: 'desconto sobre o custo do rank' },
-  { o: 'Segunda natureza', pt: 8, obs: 'exige rank Chūnin e treino dedicado' },
-];
+// ── PONTOS DE TREINO (PT) ────────────────────────────────
+//  A tabela de custos mora em dados.js. Ficava aqui numa versão
+//  resumida e já desatualizada — o estágio de clã custava 8 fixo, e
+//  o valor certo é a escala 6/8/12/18 do Compêndio.
 
 //  Categorias e acessos, para os campos da técnica na ficha (Cap. 08 e 09).
 const TECNICA_CATEGORIAS = ['Ofensiva', 'Defensiva', 'Suplementar', 'Controle', 'Sensorial', 'Sustentada'];

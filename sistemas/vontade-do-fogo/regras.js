@@ -32,7 +32,10 @@ function avdfRank(attrOuFicha) {
 // ── VIDA ──────────────────────────────────────────────────────────
 //  25 + (CORPO × 3) + bônus de rank.
 function avdfVida(attr) {
-  return 25 + (avdfModificador(attr?.cor) * 3) + avdfRank(attr).pv;
+  const base = 25 + (avdfModificador(attr?.cor) * 3) + avdfRank(attr).pv;
+  //  Exaustão 4 corta o PV máximo pela metade. É a única coisa no
+  //  sistema que mexe no teto de vida, e quem sabe disso é a tabela.
+  return avdfEfeitosAtivos(attr?.estado).pvMaxMetade ? Math.floor(base / 2) : base;
 }
 function avdfVidaTexto(attr) {
   const r = avdfRank(attr);
@@ -53,7 +56,7 @@ function avdfChakraTexto(attr) {
 // ── DEFESA E RESILIÊNCIA ──────────────────────────────────────────
 //  Defesa é o alvo passivo de um ataque; Resiliência é o alvo de
 //  genjutsu. Igualar já é acertar.
-function avdfDefesa(attr)      { return 10 + avdfModificador(attr?.cor); }
+function avdfDefesa(attr)      { return 10 + avdfModificador(attr?.cor) + avdfEfeitosAtivos(attr?.estado).defesa; }
 function avdfResiliencia(attr) { return 10 + avdfModificador(attr?.esp); }
 
 // ── INICIATIVA ────────────────────────────────────────────────────
@@ -66,7 +69,141 @@ function avdfIniciativa(attr) {
 // ── PERÍCIAS ──────────────────────────────────────────────────────
 //  Três treinadas na criação, +2 cada. (O Fractured dá +3 e o número
 //  depende do Mod de CONHECIMENTO — outra regra, outro sistema.)
-function avdfPericiasPermitidas() { return 3; }
+function avdfPericiasPermitidas() { return PERICIAS_TREINADAS_NA_CRIACAO; }
+
+//  Perícia não é caixinha marcada: é graduação. O bônus sai da tabela,
+//  nunca de um número escrito na tela.
+function avdfBonusPericia(grau) {
+  return grauPericiaAvdf(grau).bonus;
+}
+
+//  Quanto custa subir uma perícia de onde ela está para o próximo grau,
+//  e se o rank já permite. Devolve null quando não há próximo grau.
+//  O custo é o do degrau, direto da tabela — nada de subtrair um total
+//  do outro, porque "3 / +6 / +12" já são valores por degrau.
+function avdfProximoGrauPericia(grauAtual, rankId) {
+  const g = grauPericiaAvdf(grauAtual);
+  const prox = GRAUS_PERICIA_AVDF.find(x => x.id === g.id + 1);
+  if (!prox) return null;
+  return {
+    grau: prox,
+    pt: prox.pt,
+    permitido: avdfRankAlcanca(rankId, prox.rankMin),
+    exige: prox.rankMin ? rankAvdf(prox.rankMin).nome : null,
+  };
+}
+
+// ── COMPRAR COM PT ────────────────────────────────────────────────
+//  Uma função só responde "quanto custa e posso?", para nenhuma tela
+//  precisar saber a resposta. Devolve sempre a conta aberta: base,
+//  modificadores e total.
+function avdfCustoAtributo(deValor, rankId) {
+  const alvo = (parseInt(deValor, 10) || 0) + 1;
+  const teto = rankAvdf(rankId).attrMax;
+  const pt = PT_CUSTOS_AVDF.atributo[alvo];
+  if (pt == null) return { pode: false, porque: `Atributo +${alvo} não é comprável com PT.` };
+  if (alvo > teto) return { pode: false, pt, porque: avdfLimiteAtributo(rankId).aviso };
+  return { pode: true, pt, alvo };
+}
+
+function avdfCustoJutsu(rankJutsu, ctx) {
+  const trava = podeAprenderAvdf({ ...ctx, rankJutsu });
+  const base = PT_CUSTOS_AVDF.jutsu[rankJutsu] ?? null;
+  if (base == null) return { pode: false, porque: `Rank de jutsu desconhecido: ${rankJutsu}.` };
+  const mods = descontosDeAprendizado(ctx);
+  //  PISO DE 1 PT — SUPOSIÇÃO, NÃO REGRA DO LIVRO.
+  //  Um jutsu rank E custa 1 PT e a natureza afim tira 1. O livro não
+  //  diz se isso dá 0 (aprende de graça) ou continua em 1. Adotei 1
+  //  porque "de graça" faria todo jutsu E da sua afinidade entrar sem
+  //  custo nenhum — mas isto está anotado para o autor decidir, e o
+  //  único lugar a mudar é esta linha.
+  const total = Math.max(1, base + mods.reduce((a, m) => a + m.pt, 0));
+  if (!trava.pode) return { pode: false, base, mods, total, porque: trava.porque };
+  if (ctx?.rankPersonagem && !avdfJutsuPermitido(ctx.rankPersonagem, rankJutsu)) {
+    return { pode: false, base, mods, total, porque: avdfLimiteJutsu(ctx.rankPersonagem).aviso };
+  }
+  return { pode: true, base, mods, total };
+}
+
+// ── O QUE O RANK PERMITE ──────────────────────────────────────────
+//  "O sistema usa ranks como espinha dorsal: eles limitam atributos,
+//  definem quanto chakra você tem e controlam quais técnicas estão ao
+//  seu alcance." O rank não é uma etiqueta — é um teto, e a ficha
+//  precisa dizer o teto em voz alta antes de o jogador bater nele.
+
+const _ORDEM_RANK_AVDF = RANKS_AVDF.map(r => r.id);
+
+function avdfRankAlcanca(rankId, rankMinimo) {
+  if (!rankMinimo) return true;
+  return _ORDEM_RANK_AVDF.indexOf(rankId || 'genin') >= _ORDEM_RANK_AVDF.indexOf(rankMinimo);
+}
+
+//  Teto de atributo. A mensagem sai pronta daqui para a ficha só
+//  mostrar — sem frase montada dentro de nenhuma tela.
+function avdfLimiteAtributo(rankId) {
+  const r = rankAvdf(rankId);
+  return {
+    max: r.attrMax,
+    aviso: `Seu Rank atual (${r.nome}) permite no máximo +${r.attrMax} neste atributo.`,
+  };
+}
+
+//  Teto de rank de jutsu.
+function avdfLimiteJutsu(rankId) {
+  const r = rankAvdf(rankId);
+  return {
+    max: r.jutsuMax,
+    aviso: `Seu Rank atual (${r.nome}) permite aprender técnicas até o rank ${r.jutsuMax}.`,
+  };
+}
+
+function avdfJutsuPermitido(rankId, rankJutsu) {
+  const ordem = JUTSU_RANKS_AVDF.map(j => j.id);
+  const teto = ordem.indexOf(rankAvdf(rankId).jutsuMax);
+  const alvo = ordem.indexOf(rankJutsu);
+  return alvo === -1 || alvo <= teto;
+}
+
+// ── O QUE O ESTADO DO PERSONAGEM FAZ COM AS ROLAGENS ───────────────
+//  Exaustão e condições não são anotação: elas mudam número. Esta é a
+//  única função que sabe fazer essa conta, e é dela que a rolagem, a
+//  Defesa e o PV máximo tiram o que aplicar.
+//
+//  `estado` é opcional em tudo. Sem ele, tudo devolve zero e o
+//  comportamento é exatamente o de antes.
+function avdfEfeitosAtivos(estado) {
+  const fora = {
+    testes: 0, defesa: 0,
+    desvantagemAtaque: false, desvantagemVisao: false, desvantagemCOR: false,
+    semChakra: false, semMovimentoLivre: false, pvMaxMetade: false,
+    inconsciente: false, morte: false,
+    porque: [],
+  };
+  if (!estado) return fora;
+
+  const ex = exaustaoAvdf(estado.exaustao);
+  if (ex && ex.n > 0) {
+    fora.testes += ex.testes || 0;
+    ['semMovimentoLivre', 'desvantagemAtaque', 'pvMaxMetade', 'inconsciente', 'morte']
+      .forEach(k => { if (ex[k]) fora[k] = true; });
+    fora.porque.push({ de: `Exaustão ${ex.n}`, testes: ex.testes || 0 });
+  }
+
+  const marcadas = new Set([
+    ...(estado.condicoes || []),
+    ...condicoesAutomaticasAvdf(estado),
+  ]);
+  marcadas.forEach(id => {
+    const c = CONDICOES_AVDF.find(x => x.id === id);
+    if (!c) return;
+    if (c.defesa) fora.defesa += c.defesa;
+    ['desvantagemAtaque', 'desvantagemVisao', 'desvantagemCOR', 'semChakra',
+     'semMovimentoLivre', 'inconsciente'].forEach(k => { if (c[k]) fora[k] = true; });
+    fora.porque.push({ de: c.nome, testes: 0, defesa: c.defesa || 0 });
+  });
+
+  return fora;
+}
 
 // ── LEITURA DO RESULTADO ──────────────────────────────────────────
 //  Quatro faixas, e quase nenhuma rolagem termina em "nada acontece".
@@ -87,13 +224,26 @@ function avdfInterpretar(total, cd, dado) {
 //  maior; com Desvantagem, com o menor. Não é um bônus — é uma mudança
 //  no dado, e as duas se cancelam.
 function avdfMontarRolagem(ctx) {
-  const doisDados = !!(ctx.vantagem ^ ctx.desvantagem);   // uma cancela a outra
+  //  Exaustão e condições entram aqui — não como lembrete na tela para
+  //  o jogador baixar o número na mão. Sem `ctx.estado`, `efeitos` é
+  //  tudo zero e a conta é a mesma de sempre.
+  const efeitos = avdfEfeitosAtivos(ctx.estado);
+  const desvantagem = !!ctx.desvantagem
+    || (ctx.tipo === 'ataque' && efeitos.desvantagemAtaque)
+    || (ctx.atributo === 'cor' && efeitos.desvantagemCOR)
+    || (ctx.dependeDeVisao && efeitos.desvantagemVisao);
+
+  const doisDados = !!(ctx.vantagem ^ desvantagem);       // uma cancela a outra
   return {
     dados: [{
       faces: ctx.faces ?? 20,
       qtd:   doisDados ? 2 : 1,
       manter: !doisDados ? 'todos' : (ctx.vantagem ? 'maior' : 'menor'),
     }],
-    bonus: (ctx.modAtrib || 0) + (ctx.modPericia || 0) + (ctx.modCustom || 0),
+    bonus: (ctx.modAtrib || 0) + (ctx.modPericia || 0) + (ctx.modCustom || 0)
+         + efeitos.testes,
+    //  Para a ficha poder mostrar \"−2 por Exaustão 2\" em vez de um
+    //  número que apareceu do nada.
+    origens: efeitos.porque,
   };
 }
