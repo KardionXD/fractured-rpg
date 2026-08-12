@@ -12,9 +12,67 @@ let currentProfile = null;
 let fichaId = null;
 let isMaster = false;
 
-let pvAtual = 0, pvMax = 20;
-let supAtual = 0;
-let humAtual = 10;
+// ── OS RECURSOS DO PERSONAGEM ─────────────────────
+//  Eram três variáveis com nome fixo: pvAtual, supAtual, humAtual.
+//  Servia enquanto só existisse o Fractured. A Vontade do Fogo tem
+//  Vida, Chakra e Vontade do Fogo — mesma quantidade, outros nomes,
+//  outras regras. Agora o estado é um mapa por id, e quais ids existem
+//  quem diz é o sistema da mesa.
+const REC = {};        // { pv: 12, sup: 4, hum: 8 } — valores ATUAIS
+const RECMAX = {};     // { pv: 20, sup: 10, hum: 10 } — máximos calculados
+
+//  O máximo de um recurso: fixo, ou recalculado a partir dos atributos.
+//
+//  Com a ficha EM BRANCO (nenhum atributo preenchido) a fórmula não diz
+//  nada de útil — no Fractured, RES vazia daria 4 PV, e a pessoa abriria
+//  a ficha nova com quatro bolinhas sem entender por quê. Nesse caso
+//  vale o máximo declarado pelo sistema, que é o número de referência.
+//  Assim que o primeiro atributo é digitado, a fórmula assume.
+function recMax(id, attr) {
+  const r = (S().recursos || []).find(x => x.id === id);
+  if (!r) return 0;
+  if (!r.maxDerivado) return r.max || 0;
+  const a = attr || _attrDaTela();
+  const temAlgo = (S().atributos || []).some(x => (parseInt(a[x.id], 10) || 0) !== 0);
+  return temAlgo ? derivado(r.maxDerivado, a) : (r.max || derivado(r.maxDerivado, a));
+}
+
+//  Lê os atributos direto da tela. Usado quando um recurso depende
+//  deles (a Vida sai do Corpo, o Chakra sai do Espírito).
+function _attrDaTela() {
+  const a = {};
+  (S().atributos || []).forEach(x => {
+    a[x.id] = parseInt(document.getElementById('a-' + x.id)?.value, 10) || 0;
+  });
+  const rank = document.getElementById('f-rank');
+  if (rank) a.rank = rank.value;
+  return a;
+}
+
+//  Redesenha as bolinhas de um recurso.
+function pintarRecurso(id) {
+  const r = (S().recursos || []).find(x => x.id === id);
+  if (!r) return;
+  RECMAX[id] = recMax(id);
+  // Se o máximo encolheu (baixou RESISTÊNCIA, trocou de rank), o valor
+  // atual não pode continuar acima dele — a ficha mostraria 21/15.
+  if ((REC[id] ?? 0) > RECMAX[id]) REC[id] = RECMAX[id];
+  buildPips('pip-' + id, RECMAX[id], REC[id] ?? 0, r.cor || 'roxo',
+            (i, cid, total, valId) => onRecursoClick(id, i, cid, total, valId),
+            'pip-' + id + '-val');
+}
+
+function pintarTodosOsRecursos() {
+  (S().recursos || []).forEach(r => pintarRecurso(r.id));
+}
+
+//  Zera/reinicia os recursos conforme o sistema (uns começam cheios).
+function zerarRecursos() {
+  (S().recursos || []).forEach(r => {
+    RECMAX[r.id] = recMax(r.id);
+    REC[r.id] = r.comecaCheio ? RECMAX[r.id] : 0;
+  });
+}
 let tensaoFicha = 0;
 let tensaoSala = 0;
 
@@ -83,9 +141,8 @@ async function init() {
 
   buildAttrGrid();
   buildProfissoes();
-  buildPips('pip-pv', pvMax, pvAtual, 'roxo', onPVClick, 'pip-pv-val');
-  buildPips('pip-sup', 10, supAtual, 'dourado', onSupClick, 'pip-sup-val');
-  buildPips('pip-hum', 10, humAtual, 'roxo2', onHumClick, 'pip-hum-val');
+  zerarRecursos();
+  pintarTodosOsRecursos();
   buildTensaoPips('tensao-pips-ficha', tensaoFicha, true);
   buildPericias();
   buildVinculos();
@@ -201,13 +258,22 @@ function onAttrInput(id) {
   const val = document.getElementById('a-' + id).value;
   document.getElementById('m-' + id).value = calcMod(val);
   atualizarContadorPontos();
-  if (id === 'res') {
-    const attr = { res: parseInt(val) || 0 };
-    pvMax = derivado('pv_max', attr);
-    document.getElementById('pv-formula').textContent = derivadoTexto('pv_max', attr);
-    buildPips('pip-pv', pvMax, pvAtual, 'roxo', onPVClick, 'pip-pv-val');
-  }
-  if (id === 'con') atualizarDicaPericias();  // nº de perícias sai do Mod de CON
+  // Qualquer recurso cujo máximo saia de um atributo se refaz aqui.
+  // Antes isto era `if (id === 'res')` — a regra do Fractured cravada
+  // no núcleo. Agora vale para a Vida do Corpo, o Chakra do Espírito,
+  // e para o que o próximo sistema inventar.
+  const attr = _attrDaTela();
+  (S().recursos || []).forEach(r => {
+    if (!r.maxDerivado) return;
+    RECMAX[r.id] = derivado(r.maxDerivado, attr);
+    if (r.formulaId) {
+      const el = document.getElementById(r.formulaId);
+      if (el) el.textContent = derivadoTexto(r.maxDerivado, attr);
+    }
+    pintarRecurso(r.id);
+  });
+  if (typeof S().ficha.aoMudarAtributo === 'function') S().ficha.aoMudarAtributo(attr);
+  atualizarDicaPericias();  // nº de perícias sai do Mod de CON
   atualizarRotulosAtributo();                // o rolador mostra o mod novo
   autoSave();
 }
@@ -242,42 +308,45 @@ function buildPips(containerId, total, active, color, onClick, valId) {
   _syncGauge(containerId.replace('pip-', ''), active, total);
 }
 
-function onPVClick(i, cid, total, valId) {
+//  Um clique só, para qualquer recurso. Antes eram três funções
+//  praticamente iguais — onPVClick, onSupClick, onHumClick.
+function onRecursoClick(id, i, cid, total, valId) {
   const pips = document.querySelectorAll(`#${cid} .pip`);
   const cur = [...pips].filter(p => p.classList.contains('on')).length;
-  pvAtual = (i + 1 === cur) ? i : i + 1;
-  pips.forEach((p, j) => p.classList.toggle('on', j < pvAtual));
-  document.getElementById(valId).textContent = `${pvAtual}/${total}`;
-  _syncGauge('pv', pvAtual, total);
+  REC[id] = (i + 1 === cur) ? i : i + 1;
+  pips.forEach((p, j) => p.classList.toggle('on', j < REC[id]));
+  const el = document.getElementById(valId);
+  if (el) el.textContent = `${REC[id]}/${total}`;
+  _syncGauge(id, REC[id], total);
+  const r = (S().recursos || []).find(x => x.id === id);
+  if (r?.daMesa) publicarSuprimentos();   // recurso do grupo: a mesa inteira vê
   autoSave();
 }
 
-// Cap. 10: "Suprimentos NÃO são individuais — são do grupo inteiro, e cada
-// gasto é uma decisão coletiva." A trilha é uma só para a mesa, igual à Tensão.
-function onSupClick(i, cid, total, valId) {
-  const pips = document.querySelectorAll(`#${cid} .pip`);
-  const cur = [...pips].filter(p => p.classList.contains('on')).length;
-  supAtual = (i + 1 === cur) ? i : i + 1;
-  pips.forEach((p, j) => p.classList.toggle('on', j < supAtual));
-  document.getElementById(valId).textContent = `${supAtual}/${total}`;
-  _syncGauge('sup', supAtual, total);
-  publicarSuprimentos();
-  autoSave();
+// Qual recurso é do grupo? Quem diz é o sistema (`daMesa: true`).
+// No Fractured são os Suprimentos, Cap. 10: "NÃO são individuais — são do
+// grupo inteiro, e cada gasto é uma decisão coletiva."
+function _recursoDaMesa() {
+  return (S().recursos || []).find(r => r.daMesa);
 }
 
 // Empurra o valor do grupo para a mesa inteira.
 async function publicarSuprimentos() {
+  const r = _recursoDaMesa();
+  if (!r) return;
   try {
     if (typeof mesaId === 'function' && mesaId()) {
-      await publicarSala('suprimentos', { valor: supAtual });
+      await publicarSala('suprimentos', { valor: REC[r.id] });
     }
   } catch (e) {}
 }
 
 // Redesenha a trilha com um valor que veio de outro jogador.
 function aplicarSuprimentosSala(valor) {
-  supAtual = Math.max(0, Math.min(10, parseInt(valor) || 0));
-  buildPips('pip-sup', 10, supAtual, 'dourado', onSupClick, 'pip-sup-val');
+  const r = _recursoDaMesa();
+  if (!r) return;
+  REC[r.id] = Math.max(0, Math.min(recMax(r.id), parseInt(valor) || 0));
+  pintarRecurso(r.id);
 }
 
 async function carregarSuprimentosSala() {
@@ -293,28 +362,15 @@ async function carregarSuprimentosSala() {
   } catch (e) {}
 }
 
-function onHumClick(i, cid, total, valId) {
-  const pips = document.querySelectorAll(`#${cid} .pip`);
-  const cur = [...pips].filter(p => p.classList.contains('on')).length;
-  humAtual = (i + 1 === cur) ? i : i + 1;
-  pips.forEach((p, j) => p.classList.toggle('on', j < humAtual));
-  document.getElementById(valId).textContent = `${humAtual}/${total}`;
-  _syncGauge('hum', humAtual, total);
-  autoSave();
-}
-
 // Botões +/− da barra de recursos (temas dourada/verde) — os pips continuam
 // sendo a fonte de verdade, isso só empurra o valor e redesenha os dois.
 function ajustarRecurso(tipo, delta) {
-  const cfg = {
-    pv:  { get: () => pvAtual,  set: v => pvAtual = v,  max: pvMax, cid: 'pip-pv',  valId: 'pip-pv-val',  color: 'roxo',    click: onPVClick  },
-    sup: { get: () => supAtual, set: v => supAtual = v, max: 10,    cid: 'pip-sup', valId: 'pip-sup-val', color: 'dourado', click: onSupClick },
-    hum: { get: () => humAtual, set: v => humAtual = v, max: 10,    cid: 'pip-hum', valId: 'pip-hum-val', color: 'roxo2',   click: onHumClick },
-  }[tipo];
-  if (!cfg) return;
-  cfg.set(Math.max(0, Math.min(cfg.max, cfg.get() + delta)));
-  buildPips(cfg.cid, cfg.max, cfg.get(), cfg.color, cfg.click, cfg.valId);
-  if (tipo === 'sup') publicarSuprimentos();  // recurso do grupo
+  const r = (S().recursos || []).find(x => x.id === tipo);
+  if (!r) return;
+  const max = recMax(tipo);
+  REC[tipo] = Math.max(0, Math.min(max, (REC[tipo] ?? 0) + delta));
+  pintarRecurso(tipo);
+  if (r.daMesa) publicarSuprimentos();
   autoSave();
 }
 
@@ -409,10 +465,10 @@ function buildPericias() {
       </div>
       <div class="pericia-atrib-wrap">
         <span class="pericia-atrib-label">ATRIB</span>
-        <input type="text" class="pericia-atrib-input" id="p-atrib-${i}" placeholder="FOR" maxlength="3"
+        <input type="text" class="pericia-atrib-input" id="p-atrib-${i}" placeholder="${S().atributos[0].sigla}" maxlength="3"
           oninput="this.value=this.value.toUpperCase();autoSave()">
       </div>
-      <button class="pericia-roll-btn" onclick="rolarPericiaFicha(${i})" title="Rolar 1d20 + atributo + 3 (perícia)">${fracIcon('d20', { size: 14 })}</button>
+      <button class="pericia-roll-btn" onclick="rolarPericiaFicha(${i})" title="Rolar 1d20 + atributo + ${S().pericias.bonusTreino} (perícia)">${fracIcon('d20', { size: 14 })}</button>
     `;
     list.appendChild(div);
   }
@@ -426,19 +482,22 @@ function periciasPermitidas() {
   return S().pericias.quantas({ con });
 }
 
+//  A frase que explica quantas perícias a pessoa tem direito.
+//  No Fractured o número depende do Mod de CONHECIMENTO e a frase muda
+//  conforme o valor. Em A Vontade do Fogo são três, fixas — e a frase é
+//  sempre a mesma. Quem sabe disso é o sistema; o núcleo só pergunta se
+//  ele quer explicar de um jeito próprio (`dicaViva`) ou se basta a
+//  explicação declarada.
 function atualizarDicaPericias() {
   const el = document.getElementById('pericias-dica');
   if (!el) return;
-  const con = parseInt(document.getElementById('a-con')?.value) || 0;
-  const mod = con ? modAtrib(con) : 0;
-  const n = periciasPermitidas();
-  if (!con) {
-    el.textContent = '1 da profissão + 1 por ponto positivo do Mod de CONHECIMENTO (mínimo 1)';
+  const cfg = S().pericias;
+  if (typeof cfg.dicaViva === 'function') {
+    const attr = _attrDaTela();
+    el.textContent = cfg.dicaViva(attr, cfg.quantas(attr));
     return;
   }
-  el.textContent = mod > 0
-    ? `${n} perícias — 1 da profissão + ${mod} pelo Mod de CON (+${mod})`
-    : `${n} perícias — 1 da profissão + 1 (mínimo; Mod de CON ${mod})`;
+  el.textContent = cfg.explicacao || '';
 }
 
 // ── PROFISSÕES ───────────────────────────────────
@@ -634,9 +693,9 @@ function coletarFicha() {
     attr_soc:   parseInt(document.getElementById('a-soc')?.value) || 0,
     attr_con:   parseInt(document.getElementById('a-con')?.value) || 0,
     attr_agi:   parseInt(document.getElementById('a-agi')?.value) || 0,
-    pv_atual:   pvAtual,
-    suprimentos: supAtual,
-    humanidade: humAtual,
+    pv_atual:   REC.pv ?? 0,
+    suprimentos: REC.sup ?? 0,
+    humanidade: REC.hum ?? 10,
     tensao:     tensaoFicha,
     veiculo_tipo:       document.getElementById('f-veiculo-tipo')?.value || '',
     veiculo_ti_atual:   parseInt(document.getElementById('f-vti-a')?.value) || 0,
@@ -675,18 +734,25 @@ function aplicarFicha(d) {
   atualizarDicaPericias();
   atualizarRotulosAtributo();
 
-  pvAtual  = d.pv_atual || 0;
-  pvMax    = derivado('pv_max', atributosDe(d));
-  // Suprimentos são do grupo: o valor da mesa manda. O da ficha é só o ponto
-  // de partida enquanto a mesa ainda não publicou nenhum.
-  supAtual = d.suprimentos || 0;
-  humAtual = d.humanidade ?? 10;
+  // Os recursos vêm do sistema. No Fractured são PV, Suprimentos e
+  // Humanidade; em A Vontade do Fogo, Vida, Chakra e Vontade do Fogo.
+  // Suprimentos são do grupo: o valor da mesa manda depois; o da ficha é
+  // só o ponto de partida enquanto a mesa não publicou nenhum.
+  const _campoDoRecurso = { pv: 'pv_atual', sup: 'suprimentos', hum: 'humanidade',
+                            pc: 'pc_atual', pvf: 'pvf_atual', exa: 'exa_atual' };
+  (S().recursos || []).forEach(r => {
+    RECMAX[r.id] = recMax(r.id, atributosDe(d));
+    const bruto = d[_campoDoRecurso[r.id] || (r.id + '_atual')];
+    REC[r.id] = bruto ?? (r.comecaCheio ? RECMAX[r.id] : 0);
+  });
   tensaoFicha = d.tensao || 0;
 
-  document.getElementById('pv-formula').textContent = `RES (${d.attr_res || 0}) × 4 = máx ${pvMax}`;
-  buildPips('pip-pv',  pvMax, pvAtual,  'roxo',    onPVClick,  'pip-pv-val');
-  buildPips('pip-sup', 10,    supAtual, 'dourado', onSupClick, 'pip-sup-val');
-  buildPips('pip-hum', 10,    humAtual, 'roxo2',   onHumClick, 'pip-hum-val');
+  (S().recursos || []).forEach(r => {
+    if (!r.formulaId || !r.maxDerivado) return;
+    const el = document.getElementById(r.formulaId);
+    if (el) el.textContent = derivadoTexto(r.maxDerivado, atributosDe(d));
+  });
+  pintarTodosOsRecursos();
   buildTensaoPips('tensao-pips-ficha', tensaoFicha, true);
 
   if (Array.isArray(d.pericias)) {
@@ -787,17 +853,18 @@ async function apagarFicha() {
   if (error) return toast('Erro ao apagar ficha!', 'err');
 
   fichaId = null;
-  pvAtual = 0; supAtual = 0; humAtual = 10; tensaoFicha = 0; pvMax = 20;
+  zerarRecursos(); tensaoFicha = 0;
 
   document.querySelectorAll('#page-ficha input, #page-ficha textarea').forEach(el => el.value = '');
-  document.getElementById('f-profissao').value = '';
-  document.getElementById('f-veiculo-tipo').value = '';
+  document.querySelectorAll('#page-ficha select').forEach(el => el.selectedIndex = 0);
 
-  buildPips('pip-pv', 20, 0, 'roxo', onPVClick, 'pip-pv-val');
-  buildPips('pip-sup', 10, 0, 'dourado', onSupClick, 'pip-sup-val');
-  buildPips('pip-hum', 10, 10, 'roxo2', onHumClick, 'pip-hum-val');
+  pintarTodosOsRecursos();
   buildTensaoPips('tensao-pips-ficha', 0, true);
-  document.getElementById('pv-formula').textContent = 'RES × 4 = máx 20';
+  (S().recursos || []).forEach(r => {
+    if (!r.formulaId) return;
+    const el = document.getElementById(r.formulaId);
+    if (el) el.textContent = r.formulaTexto || '';
+  });
   buildInventario([{}]);
   buildVinculos([{}]);
 
@@ -1310,13 +1377,25 @@ function rolarFormula() {
   }
   const modCustom = parseInt(document.getElementById('roll-bonus-custom')?.value) || 0;
 
-  // Ajudas: cada ajudante dá +2 (máx 3 ajudantes = +6)
+  // Ajudas: quanto cada ajudante vale e quantos cabem sai do sistema.
+  const cfgAj    = S().rolagem.ajudantes;
   const ajudas   = parseInt(document.getElementById('roll-ajudas')?.value) || 0;
-  const modAjuda = Math.min(3, ajudas) * 2;
+  const modAjuda = cfgAj ? Math.min(cfgAj.max, ajudas) * cfgAj.por : 0;
 
-  const dado  = Math.floor(Math.random() * faces) + 1;
-  const bonus = modAtrib + modPer + modSit + modAjuda + modCustom;
-  const total = dado + bonus;
+  // Vantagem/Desvantagem: só existe em sistemas que declaram. −1, 0 ou +1.
+  const vantagem = parseInt(document.getElementById('roll-vantagem')?.value) || 0;
+
+  // O sistema monta a rolagem; o núcleo só executa.
+  const plano = S().rolagem.montar({
+    faces, modAtrib, modPericia: modPer, modSituacao: modSit,
+    modAjuda, modCustom,
+    vantagem: vantagem > 0, desvantagem: vantagem < 0,
+  });
+  const r     = rolarPlano(plano);
+  const dado  = r.principal;
+  const bonus = r.bonus;
+  const total = r.total;
+  const grau  = interpretarRolagem(total, dif, dado);
 
   const atribText  = atribId
     ? `${atribId.toUpperCase()} ${modAtrib >= 0 ? '+' : '\u2212'}${Math.abs(modAtrib)}`
@@ -1324,6 +1403,8 @@ function rolarFormula() {
   const perText    = document.getElementById('roll-pericia')?.selectedOptions[0]?.text || '';
   const sitText    = situacaoTexto();
   const ajudaText  = ajudas > 0 ? `${ajudas} ajudante(s) (+${modAjuda})` : '';
+  const vantText   = vantagem > 0 ? `▲ Vantagem (${r.valores.join(', ')})`
+                   : vantagem < 0 ? `▼ Desvantagem (${r.valores.join(', ')})` : '';
   const customText = modCustom !== 0 ? `manual (${modCustom>0?'+':''}${modCustom})` : '';
 
   mostrarAnimacaoDado(faces, dado, faces === 20 && dado === 20, faces === 20 && dado === 1);
@@ -1334,9 +1415,12 @@ function rolarFormula() {
     total,
     dif,
     oculto: rolagemOculta(),
+    sistema: sistemaId(),
+    grau,                                  // como o SISTEMA leu o resultado
+    dados: r.valores.length > 1 ? r.valores : undefined,   // Vantagem mostra os dois
     label: [atribText,
       perText !== 'Sem perícia (+0)' ? perText : '',
-      sitText,
+      sitText, vantText,
       ajudaText, customText
     ].filter(Boolean).join(' · ')
   });
@@ -1802,6 +1886,23 @@ function renderMapaBestiarioQuick() {
 
 // Hook no realtime para processar tokens
 const _origAppend = typeof appendFeedMsg !== 'undefined' ? appendFeedMsg : null;
+// Como o resultado da rolagem aparece no feed.
+//
+// A partir da fase 8 a própria rolagem carrega o `grau` — quem leu o
+// número foi o sistema que a produziu. Mensagens antigas (e as de
+// sistemas que não declaram leitura) caem na regra de sempre: total
+// maior ou igual à dificuldade é sucesso. É isso que faz o histórico
+// continuar legível depois da mudança.
+function _grauDaRolagem(c) {
+  if (!c.dif && !c.grau) return '';
+  const g = c.grau || (c.dif == null ? null : (c.total >= c.dif
+    ? { texto: '✓ SUCESSO', cor: 'var(--green)' }
+    : { texto: '✗ FALHA',   cor: 'var(--red)'   }));
+  if (!g) return '';
+  const dif = c.dif ? ` (dif. ${c.dif})` : '';
+  return `<span style="font-size:12px;color:${g.cor}"> — ${esc(g.texto)}${dif}</span>`;
+}
+
 function appendFeedMsg(msg) {
   if (msg.tipo === 'tokens') {
     processarMsgTokens(msg);
@@ -1845,7 +1946,7 @@ function appendFeedMsg(msg) {
       </div>
       <div class="feed-msg-content">
         <span class="roll-total">${c.total}</span>
-        ${c.dif ? `<span style="font-size:12px;color:${c.total >= c.dif ? 'var(--green)' : 'var(--red)'}"> — ${c.total >= c.dif ? '✓ SUCESSO' : '✗ FALHA'} (dif. ${c.dif})</span>` : ''}
+        ${_grauDaRolagem(c)}
         ${isCrit  ? ' <span style="color:var(--gold)">⭐ CRÍTICO!</span>'       : ''}
         ${isFalha ? ' <span style="color:var(--red)">💀 FALHA CRÍTICA!</span>' : ''}
       </div>

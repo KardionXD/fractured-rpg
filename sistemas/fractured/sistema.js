@@ -45,6 +45,7 @@ registrarSistema({
   //  legenda de Suprimentos muda com o valor).
   recursos: [
     { id: 'pv',  nome: 'Pontos de Vida', rotuloCurto: 'PV', max: 20, estilo: 'pips', cor: 'roxo',
+      maxDerivado: 'pv_max',   // o máximo sai da RESISTÊNCIA, não é fixo
       icone: 'vida', nomeMedidor: 'Vida', legenda: 'RES × 4',
       legendaId: 'gauge-pv-caption',
       formulaId: 'pv-formula', formulaTexto: 'RES × 4 = máx 20' },
@@ -71,7 +72,16 @@ registrarSistema({
     catalogo: PERICIAS,
     bonusTreino: 3,
     quantas: fracPericiasPermitidas,
-    explicacao: '1 da profissão + 1 por ponto positivo do Mod de CONHECIMENTO',
+    explicacao: '1 da profissão + 1 por ponto positivo do Mod de CONHECIMENTO (mínimo 1)',
+    //  Aqui o número muda com o CONHECIMENTO, então a frase acompanha.
+    dicaViva: (attr, n) => {
+      const con = parseInt(attr?.con, 10) || 0;
+      if (!con) return '1 da profissão + 1 por ponto positivo do Mod de CONHECIMENTO (mínimo 1)';
+      const mod = fracModificador(con);
+      return mod > 0
+        ? `${n} perícias — 1 da profissão + ${mod} pelo Mod de CON (+${mod})`
+        : `${n} perícias — 1 da profissão + 1 (mínimo; Mod de CON ${mod})`;
+    },
     porCategoria: periciasPorCategoria,
     atributoDe: atributoDaPericia,
   },
@@ -82,14 +92,34 @@ registrarSistema({
 
   // ── ROLAGEM ─────────────────────────────────────────────────────
   rolagem: {
+    titulo: 'Rolagem — dado + modificadores',
+    pericia: { rotulo: 'Perícia', opcoes: [
+      { v: 0, t: 'Sem perícia (+0)' },
+      { v: 3, t: 'Com perícia (+3)' },
+    ] },
+    situacoes: true,          // o bloco de situações marcáveis
+    vantagem: false,          // o Fractured não tem Vantagem/Desvantagem
+    dificuldades: [
+      { v:  8, n: 'Fácil'    }, { v: 11, n: 'Moderado' },
+      { v: 14, n: 'Difícil'  }, { v: 17, n: 'Severo'   },
+      { v: 20, n: 'Extremo'  },
+    ],
+    ajudantes: { rotulo: 'Ajudantes', dica: '(+2 cada, máx 3)', por: 2, max: 3 },
+    modManual: { rotulo: 'Modificador manual', dica: '(criaturas, +3 ou mais)' },
+
     montar: ctx => ({
       dados: [{ faces: ctx.faces ?? 20, qtd: 1 }],
       bonus: (ctx.modAtrib || 0) + (ctx.modPericia || 0) + (ctx.modSituacao || 0)
            + (ctx.modAjuda || 0) + (ctx.modCustom || 0),
     }),
+
+    //  O Fractured é binário: bateu a dificuldade ou não. O 20 e o 1 no
+    //  d20 já têm tratamento próprio no feed (crítico e falha crítica).
     interpretar: (total, dif) =>
-      (dif == null) ? { grau: 'livre' }
-                    : { grau: total >= dif ? 'sucesso' : 'falha' },
+      (dif == null) ? null
+                    : (total >= dif
+                        ? { chave: 'sucesso', texto: '✓ SUCESSO', cor: 'var(--green)' }
+                        : { chave: 'falha',   texto: '✗ FALHA',   cor: 'var(--red)'   }),
     modificadores: SITUACOES,
   },
 

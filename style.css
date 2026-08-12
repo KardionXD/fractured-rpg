@@ -4098,3 +4098,46 @@ button.ocupado::after {
 @supports not (background: color-mix(in srgb, red 10%, transparent)) {
   .sistema-cartao.ativo { background: rgba(255,255,255,.06); }
 }
+
+
+/* ══════════════════════════════════════════════════════════
+   A VONTADE DO FOGO — peças que só este sistema tem
+   Ficam aqui porque não existem em mais nenhum lugar do site.
+══════════════════════════════════════════════════════════ */
+
+/* Naturezas de chakra: fichinhas marcáveis, cada uma na sua cor. */
+.avdf-naturezas { display: flex; flex-wrap: wrap; gap: 6px; }
+.avdf-natureza {
+  display: flex; align-items: center; gap: 6px;
+  border: 1px solid var(--border); border-radius: 999px;
+  padding: 7px 13px; font-size: 12px; color: var(--muted);
+  cursor: pointer; min-height: 36px;
+  transition: border-color .15s, color .15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.avdf-natureza:hover { border-color: var(--cor-nat); }
+.avdf-natureza input { accent-color: var(--cor-nat); margin: 0; }
+.avdf-natureza:has(input:checked) {
+  border-color: var(--cor-nat); color: var(--cor-nat); font-weight: 600;
+}
+/* Safari antigo não tem `:has` — sem ele o marcador ainda mostra o estado. */
+
+/* Defesa e Resiliência: os dois números que a mesa mais consulta em
+   combate. Grandes, lado a lado, sem precisar procurar. */
+.avdf-alvos { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.avdf-alvo {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 12px 8px;
+}
+.avdf-alvo-rot {
+  font-size: 9px; font-weight: 700; letter-spacing: 2px;
+  color: var(--gold-text); text-transform: uppercase;
+}
+.avdf-alvo-val { font-size: 30px; font-weight: 800; color: var(--text); line-height: 1.1; }
+.avdf-alvo-sub { font-size: 9px; color: var(--muted); text-align: center; }
+
+@media (max-width: 420px) {
+  .avdf-alvo-val { font-size: 26px; }
+  .avdf-alvo-sub { font-size: 8.5px; }
+}

@@ -186,10 +186,13 @@ function updateMobileRollCard(msg) {
     el.innerHTML = `<span class="mobile-sheet-roll-label">🕶 O mestre rolou dados ocultos...</span>`;
     return;
   }
-  const sucesso = c.dif ? (c.total >= c.dif) : null;
+  // O mesmo grau que o feed usa — quem leu o número foi o sistema.
+  const g = c.grau || (c.dif == null ? null : (c.total >= c.dif
+    ? { texto: 'SUCESSO', cor: 'var(--green)' }
+    : { texto: 'FALHA',   cor: 'var(--red)'   }));
   el.innerHTML = `
     <span class="mobile-sheet-roll-label">${fracIcon('d20', { size: 13 })}${esc(msg.username)} rolou 1d${c.dado}${c.label ? ' + ' + esc(c.label) : ''}</span>
-    <span><span class="mobile-sheet-roll-total">${c.total}</span>${sucesso !== null ? `<span class="mobile-sheet-roll-status" style="color:${sucesso ? 'var(--green)' : 'var(--red)'}">${sucesso ? 'SUCESSO' : 'FALHA'}</span>` : ''}</span>
+    <span><span class="mobile-sheet-roll-total">${c.total}</span>${g ? `<span class="mobile-sheet-roll-status" style="color:${g.cor}">${esc((g.texto || '').replace(/^[✓✗]\s*/, ''))}</span>` : ''}</span>
   `;
 }
 
@@ -523,6 +526,11 @@ function buildTensaoPanel(c) {
   setTimeout(()=>buildTensaoPips('tensao-pips-sala',tensaoSala,false),50);
 }
 
+//  Atalho para a configuração de rolagem do sistema da mesa. O painel de
+//  dados é montado a partir dela: quais atributos existem, quanto vale
+//  uma perícia, que dificuldades a mesa usa, se há Vantagem/Desvantagem.
+function R() { return S().rolagem; }
+
 function buildDadosPanel(c) {
   c.innerHTML = `
     <div style="padding:10px;display:flex;flex-direction:column;gap:10px;height:100%;overflow-y:auto">
@@ -545,7 +553,7 @@ function buildDadosPanel(c) {
         </div>
       </div>
       <div class="roll-formula" style="margin:0">
-        <div class="roll-formula-title">Rolagem — dado + modificadores</div>
+        <div class="roll-formula-title">${R().titulo}</div>
         <div class="formula-grid">
           <label class="formula-label">Dado</label>
           <select id="roll-dado" class="formula-select">
@@ -560,26 +568,25 @@ function buildDadosPanel(c) {
           <label class="formula-label">Atributo</label>
           <select id="roll-atrib" class="formula-select" onchange="atualizarRotulosAtributo()">
             <option value="" selected>— nenhum —</option>
-            <option value="for">FOR</option>
-            <option value="res">RES</option>
-            <option value="com">COM</option>
-            <option value="soc">SOC</option>
-            <option value="con">CON</option>
-            <option value="agi">AGI</option>
+            ${S().atributos.map(a => `<option value="${a.id}">${a.sigla}</option>`).join('\n            ')}
           </select>
-          <label class="formula-label">Perícia</label>
-          <select id="roll-pericia" class="formula-select"><option value="0">Sem perícia (+0)</option><option value="3">Com perícia (+3)</option></select>
-          <label class="formula-label">Situação</label>
-          ${situacaoHTML()}
+          <label class="formula-label">${R().pericia.rotulo}</label>
+          <select id="roll-pericia" class="formula-select">${R().pericia.opcoes.map(o => `<option value="${o.v}">${o.t}</option>`).join('')}</select>
+          ${R().situacoes ? `<label class="formula-label">Situação</label>
+          ${situacaoHTML()}` : ''}
+          ${R().vantagem ? `<label class="formula-label">Vantagem</label>
+          <div style="display:flex;gap:5px;align-items:center">
+            <select id="roll-vantagem" class="formula-select" style="flex:1">
+              <option value="0" selected>— normal (1d20) —</option>
+              <option value="1">▲ Vantagem — 2d20, fica com o maior</option>
+              <option value="-1">▼ Desvantagem — 2d20, fica com o menor</option>
+            </select>
+          </div>` : ''}
           <label class="formula-label">Dificuldade</label>
           <div style="display:flex;gap:5px;align-items:center">
             <select id="roll-dif" class="formula-select" style="flex:1" onchange="document.getElementById('roll-dif-val').style.display=(this.value==='custom')?'block':'none'">
               <option value="" selected>— livre (sem dificuldade) —</option>
-              <option value="8">8 — Fácil</option>
-              <option value="11">11 — Moderado</option>
-              <option value="14">14 — Difícil</option>
-              <option value="17">17 — Severo</option>
-              <option value="20">20 — Extremo</option>
+              ${R().dificuldades.map(x => `<option value="${x.v}">${x.v} — ${x.n}</option>`).join('\n              ')}
               <option value="custom">✏️ Personalizado</option>
             </select>
             <input type="number" id="roll-dif-val" value="11" min="1" max="30" style="display:none;width:54px;text-align:center;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:4px;font-size:13px;font-weight:700">
@@ -590,16 +597,16 @@ function buildDadosPanel(c) {
               oninput="document.getElementById('roll-dif-val').value=this.value||11">
           </div>
 
-          <label class="formula-label">Ajudantes <span style="color:var(--muted);font-size:9px">(+2 cada, máx 3)</span></label>
+          ${R().ajudantes ? `<label class="formula-label">${R().ajudantes.rotulo} <span style="color:var(--muted);font-size:9px">${R().ajudantes.dica}</span></label>
           <div style="display:flex;align-items:center;gap:6px">
             <button class="ct-pv-btn" onclick="let e=document.getElementById('roll-ajudas');e.value=Math.max(0,parseInt(e.value||0)-1)">−</button>
-            <input type="number" id="roll-ajudas" value="0" min="0" max="3"
+            <input type="number" id="roll-ajudas" value="0" min="0" max="${R().ajudantes.max}"
               style="width:44px;text-align:center;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:4px;font-size:13px;font-weight:700">
-            <button class="ct-pv-btn" onclick="let e=document.getElementById('roll-ajudas');e.value=Math.min(3,parseInt(e.value||0)+1)">+</button>
+            <button class="ct-pv-btn" onclick="let e=document.getElementById('roll-ajudas');e.value=Math.min(${R().ajudantes.max},parseInt(e.value||0)+1)">+</button>
             <span style="font-size:10px;color:var(--muted)" id="ajuda-label">0 ajudante(s)</span>
-          </div>
+          </div>` : ''}
 
-          <label class="formula-label">Modificador manual <span style="color:var(--muted);font-size:9px">(criaturas, +3 ou mais)</span></label>
+          <label class="formula-label">${R().modManual.rotulo} <span style="color:var(--muted);font-size:9px">${R().modManual.dica}</span></label>
           <div style="display:flex;align-items:center;gap:6px">
             <button class="ct-pv-btn" onclick="let e=document.getElementById('roll-bonus-custom');e.value=parseInt(e.value||0)-1">−</button>
             <input type="number" id="roll-bonus-custom" value="0"
