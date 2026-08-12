@@ -245,6 +245,13 @@ async function salvarNPC() {
     notas:       document.getElementById('npc-f-notas')?.value.trim() || null,
   };
 
+  // Escrita dupla, igual à da ficha: as colunas continuam mandando e o
+  // formato livre vai junto, pronto para quando outro sistema entrar.
+  if (typeof S().npc?.paraDados === 'function') {
+    try { payload.dados = S().npc.paraDados(payload); }
+    catch (e) { console.error('[npc] não consegui montar o formato novo:', e); }
+  }
+
   // Upload imagem se houver
   const imgInput = document.getElementById('npc-img-input');
   if (imgInput?.files[0]) {
@@ -260,11 +267,19 @@ async function salvarNPC() {
     payload.img_url = npcEditando.img_url;
   }
 
-  let error;
-  if (npcEditando) {
-    ({ error } = await db.from('npcs_mestre').update(payload).eq('id', npcEditando.id));
-  } else {
-    ({ error } = await db.from('npcs_mestre').insert({ ...payload, mesa_id: mesaId() }));
+  const gravar = async () => {
+    if (npcEditando) return db.from('npcs_mestre').update(payload).eq('id', npcEditando.id);
+    return db.from('npcs_mestre').insert({ ...payload, mesa_id: mesaId() });
+  };
+
+  let { error } = await gravar();
+
+  // Mesma rede de segurança da ficha: se a coluna `dados` ainda não
+  // existe (migração 002 não rodada), grava sem ela em vez de falhar.
+  if (error && erroDeColunaAusente(error, 'dados')) {
+    console.warn('[npc] a coluna `dados` ainda não existe — gravando só no formato antigo.');
+    delete payload.dados;
+    ({ error } = await gravar());
   }
 
   if (error) { toast('Erro ao salvar NPC: ' + error.message, 'err'); return; }

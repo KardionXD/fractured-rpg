@@ -690,7 +690,10 @@ async function carregarFicha() {
 
   if (data) {
     fichaId = data.id;
-    aplicarFicha(data);
+    aplicarFicha(fichaLida(data));
+    // Ficha gravada antes desta versão não tem o formato novo. Preenche
+    // sozinha, em segundo plano, sem travar a tela nem avisar ninguém.
+    fichaMigrarEmSilencio(data);
   }
 }
 
@@ -713,13 +716,29 @@ async function salvarFicha(silencioso = false) {
   }
   dados.mesa_id = mesaId();
 
+  // Escrita dupla: além das colunas de sempre, a ficha vai também no
+  // formato livre da coluna `dados`. As colunas continuam sendo a
+  // verdade — é isso que permite voltar atrás sem perder nada.
+  fichaConferirIdaEVolta(dados);
+  dados = fichaComDados(dados);
+
   // upsert (em vez de decidir insert/update pelo fichaId em memória) evita criar
   // fichas duplicadas quando a mesma ficha é editada em duas abas/dispositivos
   // ao mesmo tempo. Exige um UNIQUE(user_id, mesa_id) no banco — ver aviso no chat.
-  const { data, error } = await db.from('fichas')
+  let { data, error } = await db.from('fichas')
     .upsert(dados, { onConflict: 'user_id,mesa_id' })
     .select()
     .single();
+
+  // Se o banco recusou porque a coluna `dados` ainda não existe (a
+  // migração 002 não foi rodada), tenta de novo sem ela. Assim a ordem
+  // entre subir o site e rodar o SQL deixa de importar.
+  if (error && fichaTratarErro(error)) {
+    delete dados.dados;
+    ({ data, error } = await db.from('fichas')
+      .upsert(dados, { onConflict: 'user_id,mesa_id' })
+      .select().single());
+  }
 
   if (data) fichaId = data.id;
 
@@ -1507,11 +1526,12 @@ async function carregarPlayers(mostrarTodos = false, silencioso = false) {
   }
 
   const ids = profiles.map(p => p.id);
-  const { data: fichas } = await db
+  const { data: _fichasLinhas } = await db
     .from('fichas')
     .select('*')
     .eq('mesa_id', mesaId())
     .in('user_id', ids);
+  const fichas = (_fichasLinhas || []).map(fichaLida);
 
   // Separa quem tem e quem não tem ficha
   const comFicha    = profiles.filter(p => fichas?.find(f => f.user_id === p.id));
@@ -1622,7 +1642,8 @@ async function apagarFichaPlayer(userId, nome) {
 }
 
 async function verFichaCompleta(userId) {
-  const { data: ficha } = await db.from('fichas').select('*').eq('user_id', userId).eq('mesa_id', mesaId()).maybeSingle();
+  const { data: _fLinha } = await db.from('fichas').select('*').eq('user_id', userId).eq('mesa_id', mesaId()).maybeSingle();
+  const ficha = fichaLida(_fLinha);   // Fractured: nada muda. Sistema novo: vem de `dados`.
   if (ficha?.dados_custom && MESA?.ficha_template?.secoes?.length) {
     // Ficha do modelo customizado da mesa
     let html = '';

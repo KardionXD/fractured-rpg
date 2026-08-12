@@ -95,3 +95,126 @@ function derivadoTexto(id, attr) {
 function rolarIniciativa(attr) {
   return S().combate.iniciativa(attr || {});
 }
+
+
+// ══════════════════════════════════════════════════════════════════
+//  A FICHA NO BANCO — ESCRITA DUPLA E LEITURA EM CASCATA
+//
+//  A tabela `fichas` nasceu com 22 colunas do Fractured. Para caber
+//  outro sistema ela ganhou uma coluna `dados` (jsonb), livre.
+//
+//  A troca não pode ser de uma vez: enquanto houver alguém com o site
+//  aberto na versão antiga, quem grava é o código antigo, e ele só
+//  conhece as colunas. Por isso, nesta fase:
+//
+//    · GRAVAR  → escreve nos DOIS lugares, sempre.
+//    · LER     → para o Fractured, as colunas mandam (é o formato que
+//                todo cliente sabe escrever). Para um sistema novo,
+//                que não tem colunas, lê de `dados`.
+//
+//  Quando a ficha declarativa entrar (fase 5) e as colunas pararem de
+//  ser escritas, basta tirar o `colunasLegado: true` do módulo — e a
+//  leitura passa a vir de `dados` sem mais nenhuma mudança.
+// ══════════════════════════════════════════════════════════════════
+
+//  A coluna `dados` só existe depois que a migração 002 for rodada no
+//  Supabase. Se alguém subir o site antes de rodar o SQL, gravar com o
+//  campo faria o salvamento FALHAR — e o jogador perderia a ficha sem
+//  entender por quê. Este sinalizador desliga o formato novo assim que
+//  o banco disser que a coluna não existe: o site volta a gravar só nas
+//  colunas antigas, como antes, e continua funcionando.
+let _semColunaDados = false;
+
+//  O banco reclamou de coluna inexistente? (PostgREST 204 / Postgres 42703)
+function erroDeColunaAusente(erro, coluna) {
+  if (!erro) return false;
+  const txt = `${erro.code || ''} ${erro.message || ''} ${erro.details || ''}`.toLowerCase();
+  return (erro.code === 'PGRST204' || erro.code === '42703' ||
+          txt.includes('does not exist') || txt.includes('não existe'))
+      && txt.includes(coluna);
+}
+
+//  Acrescenta `dados` à linha que vai para o banco, sem tirar nada.
+function fichaComDados(linha) {
+  if (_semColunaDados) return linha;
+  const f = S().ficha || {};
+  if (typeof f.paraDados !== 'function') return linha;
+  try {
+    return { ...linha, dados: f.paraDados(linha) };
+  } catch (e) {
+    // Um erro aqui NÃO pode impedir o salvamento. Grava sem `dados`;
+    // a próxima gravação tenta de novo.
+    console.error('[ficha] não consegui montar o formato novo:', e);
+    return linha;
+  }
+}
+
+//  Chamado quando a gravação falha. Se o motivo foi a coluna não existir,
+//  desliga o formato novo e manda tentar de novo sem ele.
+function fichaTratarErro(erro) {
+  if (!erroDeColunaAusente(erro, 'dados')) return false;
+  _semColunaDados = true;
+  console.warn('[ficha] a coluna `dados` ainda não existe no banco — ' +
+               'gravando só no formato antigo. Rode migracao/002-ficha-dados.sql ' +
+               'no Supabase para ligar o formato novo.');
+  return true;   // vale a pena tentar de novo sem o campo
+}
+
+//  A linha do banco, já no formato que a tela espera.
+function fichaLida(linha) {
+  if (!linha) return linha;
+  const f = S().ficha || {};
+  if (f.colunasLegado) return linha;              // Fractured: colunas mandam
+  if (!linha.dados || !linha.dados.v) return linha;
+  if (typeof f.deDados !== 'function') return linha;
+  try {
+    return { ...linha, ...f.deDados(linha.dados) };
+  } catch (e) {
+    console.error('[ficha] não consegui ler o formato novo:', e);
+    return linha;
+  }
+}
+
+//  Ficha antiga (gravada antes desta fase) não tem `dados`. Em vez de
+//  pedir para a pessoa "salvar de novo", preenchemos em silêncio no
+//  primeiro acesso. Ela não percebe, e na fase 5 já está tudo pronto.
+async function fichaMigrarEmSilencio(linha) {
+  if (_semColunaDados) return;
+  if (!linha || !linha.id) return;
+  if (linha.dados && linha.dados.v) return;       // já migrada
+  const f = S().ficha || {};
+  if (typeof f.paraDados !== 'function') return;
+  try {
+    const dados = f.paraDados(linha);
+    const { error } = await db.from('fichas').update({ dados }).eq('id', linha.id);
+    if (error) { fichaTratarErro(error); return; }
+    console.info('[ficha] formato novo preenchido para a ficha', linha.id);
+  } catch (e) {
+    // Falhar aqui é inofensivo: a próxima gravação normal resolve.
+    console.warn('[ficha] não deu para preencher o formato novo agora:', e?.message || e);
+  }
+}
+
+//  Conferência de ida e volta. Roda uma vez por sessão, no primeiro
+//  salvamento: passa a ficha pelas duas traduções e avisa se algum
+//  campo não voltou igual. É o alarme que pega um erro de tradução
+//  ANTES de ele virar dado perdido.
+let _fichaConferida = false;
+function fichaConferirIdaEVolta(linha) {
+  if (_fichaConferida) return;
+  _fichaConferida = true;
+  const f = S().ficha || {};
+  if (typeof f.paraDados !== 'function' || typeof f.deDados !== 'function') return;
+  try {
+    const volta = f.deDados(f.paraDados(linha));
+    const difs = Object.keys(volta).filter(k =>
+      JSON.stringify(volta[k]) !== JSON.stringify(linha[k] ?? volta[k]));
+    if (difs.length) {
+      console.warn('[ficha] ida e volta não bateu nos campos:', difs,
+                   '\nIsso não perdeu nada (as colunas continuam sendo gravadas),',
+                   'mas é um erro de tradução que precisa ser corrigido.');
+    }
+  } catch (e) {
+    console.warn('[ficha] não consegui conferir a ida e volta:', e?.message || e);
+  }
+}

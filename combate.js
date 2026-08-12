@@ -259,7 +259,8 @@ function adicionarInimigoCT(inimigo) {
 // Adicionar ficha de player ao CT e mapa
 async function adicionarPlayerCT(userId) {
   if (!isMaster) return;
-  const { data: ficha } = await db.from('fichas').select('*').eq('user_id', userId).eq('mesa_id', mesaId()).maybeSingle();
+  const { data: _fLinha } = await db.from('fichas').select('*').eq('user_id', userId).eq('mesa_id', mesaId()).maybeSingle();
+  const ficha = fichaLida(_fLinha);   // Fractured: nada muda. Sistema novo: vem de `dados`.
   const { data: profile } = await db.from('profiles').select('username').eq('id', userId).single();
   if (!ficha) return toast('Esse player não tem ficha ainda.', 'err');
 
@@ -289,7 +290,8 @@ async function adicionarPlayerCT(userId) {
 
 // Player adiciona o próprio personagem
 async function adicionarMeuPersonagem() {
-  const { data: ficha } = await db.from('fichas').select('*').eq('user_id', currentUser.id).eq('mesa_id', mesaId()).maybeSingle();
+  const { data: _fLinha } = await db.from('fichas').select('*').eq('user_id', currentUser.id).eq('mesa_id', mesaId()).maybeSingle();
+  const ficha = fichaLida(_fLinha);   // Fractured: nada muda. Sistema novo: vem de `dados`.
   if (!ficha) return toast('Você ainda não criou sua ficha!', 'err');
 
   const pvMax = derivado('pv_max', atributosDe(ficha));
@@ -606,7 +608,8 @@ async function renderPlayersParaCT() {
   console.log('profiles:', profiles, 'error:', pe);
   if (!profiles?.length) { lista.innerHTML='<div style="font-size:10px;color:var(--muted);padding:4px">Sem players</div>'; return; }
   // Busca todas as fichas e filtra localmente (evita erro 400 com muitos IDs no .in())
-  const { data: fichas, error: fe } = await db.from('fichas').select('*').eq('mesa_id', mesaId());
+  const { data: _fichasLinhas, error: fe } = await db.from('fichas').select('*').eq('mesa_id', mesaId());
+  const fichas = (_fichasLinhas || []).map(fichaLida);
   console.log('fichas:', fichas?.length, 'error:', fe);
   lista.innerHTML='';
   let count = 0;
@@ -643,7 +646,8 @@ async function renderPlayersParaCT() {
 // Mapa movido para mapa.js
 
 async function adicionarPlayerSomenteCT(userId) {
-  const { data: ficha } = await db.from('fichas').select('*').eq('user_id', userId).eq('mesa_id', mesaId()).maybeSingle();
+  const { data: _fLinha } = await db.from('fichas').select('*').eq('user_id', userId).eq('mesa_id', mesaId()).maybeSingle();
+  const ficha = fichaLida(_fLinha);   // Fractured: nada muda. Sistema novo: vem de `dados`.
   const { data: profile } = await db.from('profiles').select('username').eq('id', userId).single();
   if (!ficha) return toast('Esse player não tem ficha ainda.', 'err');
   const pvMax = derivado('pv_max', atributosDe(ficha));
@@ -665,7 +669,8 @@ async function adicionarPlayerSomenteCT(userId) {
 }
 
 async function adicionarPlayerSomenteMapa(userId) {
-  const { data: ficha } = await db.from('fichas').select('*').eq('user_id', userId).eq('mesa_id', mesaId()).maybeSingle();
+  const { data: _fLinha } = await db.from('fichas').select('*').eq('user_id', userId).eq('mesa_id', mesaId()).maybeSingle();
+  const ficha = fichaLida(_fLinha);   // Fractured: nada muda. Sistema novo: vem de `dados`.
   const { data: profile } = await db.from('profiles').select('username').eq('id', userId).single();
   if (!ficha) return toast('Esse player não tem ficha ainda.', 'err');
   const pvMax = derivado('pv_max', atributosDe(ficha));

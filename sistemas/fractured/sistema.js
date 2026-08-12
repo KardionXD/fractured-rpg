@@ -103,5 +103,26 @@ registrarSistema({
       { id: 'ouro',   nome: 'Dourada' },
       { id: 'verde',  nome: 'Verde'   },
     ],
+
+    // ── COMO ESTA FICHA VAI PARA O BANCO ──────────────────────────
+    //  O Fractured é o único sistema com colunas próprias na tabela
+    //  (attr_for, pv_atual, veiculo_comb_max…). `colunasLegado: true`
+    //  avisa o núcleo disto: enquanto for verdade, as COLUNAS mandam
+    //  na leitura e a coluna `dados` é escrita em paralelo.
+    //
+    //  Um sistema novo não declara `colunasLegado` — ele nasce lendo
+    //  e gravando só em `dados`, sem herdar dívida nenhuma.
+    colunasLegado: true,
+    paraDados: fracParaDados,
+    deDados:   fracDeDados,
+  },
+
+  // ── NPCs DO MESTRE ────────────────────────────────────────────────
+  //  Mesma história da ficha: a tabela `npcs_mestre` tem colunas de
+  //  atributo do Fractured e ganhou uma coluna `dados` livre.
+  npc: {
+    colunasLegado: true,
+    paraDados: fracNpcParaDados,
+    deDados:   fracNpcDeDados,
   },
 });
