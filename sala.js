@@ -793,12 +793,19 @@ function buildMapaPanel(c) {
       <div class="mapa-toolbar" style="flex-shrink:0;padding:3px 8px;border-top:none;gap:5px">
         <button class="btn-ghost" onclick="adicionarMeuPersonagem()" style="font-size:10px;padding:3px 7px">🧑 Entrar</button>
         ${masterBtns}
-        <div style="display:flex;align-items:center;gap:3px;font-size:10px;color:var(--muted);margin-left:auto">
-          <span>1cel=</span>
-          <input type="number" value="1.5" min="0.5" max="10" step="0.5" onchange="metrosPorCelula=parseFloat(this.value)||1.5"
+        ${(() => {
+          // A escala do mapa vem do sistema da mesa. Um sistema que mede
+          // em zonas (A Vontade do Fogo) declara `medida: 'zonas'` e este
+          // campo simplesmente não aparece — não faz sentido lá.
+          const mp = S().mapa || {};
+          if (mp.medida !== 'metros') return '';
+          return `<div style="display:flex;align-items:center;gap:3px;font-size:10px;color:var(--muted);margin-left:auto">
+          <span>${mp.rotulo || '1cel='}</span>
+          <input type="number" value="${MAP.metrosCell ?? mp.porCelula ?? 1.5}" min="${mp.min ?? 0.5}" max="${mp.max ?? 10}" step="${mp.passo ?? 0.5}" onchange="mapaSetEscala(this.value)"
             style="width:36px;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:2px;font-size:10px;text-align:center">
-          <span>m</span>
-        </div>
+          <span>${mp.unidade || 'm'}</span>
+        </div>`;
+        })()}
       </div>
       <div style="flex:1;overflow:hidden;position:relative;min-height:0">
         <button class="mapa-ferramentas-btn" onclick="mapaToggleFerramentas()"

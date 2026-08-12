@@ -242,3 +242,20 @@ function periciasPorCategoria() {
   PERICIAS_ORDEM.forEach(c => { out[c] = PERICIAS.filter(p => p.cat === c); });
   return out;
 }
+
+// ── CONDIÇÕES ─────────────────────────────────────
+//  Cap. 07 do Livro Base. São exatamente as do livro: "Atordoado" e
+//  "Envenenado", que já estiveram no código, não existem em nenhum dos
+//  três livros do Fractured.
+//  (Este bloco morava em combate.js. Veio para cá porque cada sistema
+//  tem as suas — A Vontade do Fogo tem onze, e outras.)
+
+const CONDICOES = [
+  { nome: 'Caído',        icone: '🡇', efeito: '−2 nas defesas. Levantar gasta o Movimento.' },
+  { nome: 'Agarrado',     icone: '🤝', efeito: 'Só pode tentar escapar.' },
+  { nome: 'Sangrando',    icone: '🩸', efeito: '−1 PV no início de cada rodada até receber curativo.' },
+  { nome: 'Em Chamas',    icone: '🔥', efeito: 'Dano de fogo por rodada. Apagar: 1 ação + teste de AGI ≥ 11.' },
+  { nome: 'Surpreso',     icone: '❕', efeito: 'Defende com −5.' },
+  { nome: 'Imobilizado',  icone: '🔒', efeito: 'Não rola defesa e não reduz dano.' },
+  { nome: 'Inconsciente', icone: '💤', efeito: 'Não rola defesa e não reduz dano.' },
+];

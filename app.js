@@ -67,6 +67,12 @@ async function init() {
   // de tudo que preenche a ficha — buildAttrGrid, buildPips e o resto
   // procuram por elementos que ainda não existiriam.
   fichaMotorMontar();
+  // O mapa também tem escolhas que dependem do sistema (a medida).
+  if (typeof mapaAplicarSistema === 'function') mapaAplicarSistema();
+  // A grade de atributos do formulário de NPC nasce aqui também, e não
+  // só quando o formulário abre: assim o modal nunca aparece vazio, por
+  // qualquer caminho que alguém venha a usar para mostrá-lo.
+  if (typeof npcBuildAttrGrid === 'function') npcBuildAttrGrid();
   // Os botões de tema nascem junto com a ficha; o tema salvo foi
   // aplicado antes deles existirem, então marcamos de novo.
   if (typeof setTemaFicha === 'function') {
@@ -1635,10 +1641,7 @@ async function carregarPlayers(mostrarTodos = false, silencioso = false) {
           </div>
         </div>
         <div style="font-size:10px;color:var(--muted);margin-top:4px">
-          ${['FOR','RES','COM','SOC','CON','AGI'].map((a,i) => {
-            const keys = ['attr_for','attr_res','attr_com','attr_soc','attr_con','attr_agi'];
-            return `${a}:${ficha[keys[i]]||0}`;
-          }).join(' · ')}
+          ${S().atributos.map(a => `${a.sigla}:${ficha['attr_' + a.id] || 0}`).join(' · ')}
         </div>
         <div style="margin-top:8px;font-size:10px;color:var(--muted)">
           <strong style="color:var(--text)">Trauma:</strong> ${ficha.trauma || '—'}

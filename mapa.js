@@ -41,7 +41,7 @@ let MAP = {
   rulerType:   null,  // null | 'linha' | 'circulo' | 'cone' | 'quadrado'
   rulerStart:  null,
   rulerEnd:    null,
-  metrosCell:  1.5,
+  metrosCell:  1.5,          // sobrescrito pelo sistema da mesa em mapaAplicarSistema()
 
   // Rastro
   trailTok:    null,
@@ -1403,3 +1403,27 @@ async function criarTokenCustom() {
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) mapaResetDrag();
 });
+
+// ══════════════════════════════════════════════════
+//  A MEDIDA DO MAPA VEM DO SISTEMA
+//
+//  O Fractured mede em metros numa grade (1 célula = 1,5 m). A Vontade
+//  do Fogo mede em ZONAS e diz que não existe fita métrica. Não dá para
+//  cravar "metros" no mapa e esperar que sirva aos dois.
+//
+//  Chamado quando a mesa abre, depois que MESA já existe.
+// ══════════════════════════════════════════════════
+function mapaAplicarSistema() {
+  const m = S().mapa || {};
+  if (typeof m.porCelula === 'number') MAP.metrosCell = m.porCelula;
+}
+
+//  Trocado pelo campo da barra de ferramentas. Antes esse campo gravava
+//  numa variável solta (`metrosPorCelula`) que ninguém lia — mexer nele
+//  não mudava a régua. Agora muda de verdade e redesenha.
+function mapaSetEscala(valor) {
+  const m = S().mapa || {};
+  const v = parseFloat(valor);
+  MAP.metrosCell = Number.isFinite(v) && v > 0 ? v : (m.porCelula || 1.5);
+  if (typeof mapaDraw === 'function') mapaDraw();
+}

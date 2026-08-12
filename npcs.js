@@ -12,6 +12,32 @@ let cenaAtiva    = null;
 let cenaRealtimeSub = null;
 
 // ── CÁLCULO AUTOMÁTICO NPC ────────────────────────
+// ══════════════════════════════════════════════════
+//  A GRADE DE ATRIBUTOS DO NPC
+//
+//  Eram os seis do Fractured escritos à mão no app.html. Agora saem do
+//  sistema da mesa — mesmos ids (`npc-a-<id>`, `npc-m-<id>`), então o
+//  resto do arquivo não mudou.
+// ══════════════════════════════════════════════════
+function npcBuildAttrGrid() {
+  const grid = document.getElementById('npc-attr-grid');
+  const tit  = document.getElementById('npc-attr-titulo');
+  if (!grid) return;
+  const s = S();
+  if (tit) tit.textContent = (s.ficha?.secoes || [])
+    .find(x => x.tipo === 'atributos')?.titulo?.replace(/^Atributos\s*—\s*/, 'Atributos — distribua ')
+    || 'Atributos';
+  grid.innerHTML = s.atributos.map(a => `
+      <div class="attr-card">
+        <div class="attr-abbr">${a.sigla}</div><div class="attr-name">${a.nome}</div>
+        <div class="attr-inputs">
+          <input type="number" class="attr-val" id="npc-a-${a.id}" min="${a.min}" max="${a.max}" placeholder="0" oninput="npcCalcAttr()">
+          <input type="text" class="attr-mod" id="npc-m-${a.id}" readonly placeholder="±0">
+        </div>
+        <div class="attr-sub"><span>VALOR</span><span>MOD</span></div>
+      </div>`).join('');
+}
+
 function npcCalcAttr() {
   S().atributos.forEach(a => {
     const val = parseInt(document.getElementById('npc-a-' + a.id)?.value) || 0;
@@ -155,6 +181,9 @@ function abrirFormNPC(npc = null) {
   const modal = document.getElementById('modal-npc');
   if (!modal) return;
 
+  // Os campos de atributo nascem aqui, do sistema da mesa.
+  npcBuildAttrGrid();
+
   // Populate pasta datalist with existing folders
   const dl = document.getElementById('npc-pastas-list');
   if (dl) {
@@ -164,11 +193,11 @@ function abrirFormNPC(npc = null) {
 
   document.getElementById('npc-form-titulo').textContent = npc ? 'Editar NPC' : 'Criar NPC';
 
-  // Reset all attr fields first
-  ['for','res','com','soc','con','agi'].forEach(a => {
-    const el = document.getElementById('npc-a-'+a);
+  // Limpa os campos de atributo (quais são, quem diz é o sistema)
+  S().atributos.forEach(a => {
+    const el = document.getElementById('npc-a-' + a.id);
     if (el) el.value = '';
-    const mel = document.getElementById('npc-m-'+a);
+    const mel = document.getElementById('npc-m-' + a.id);
     if (mel) mel.value = '±0';
   });
   document.getElementById('npc-f-nome').value      = npc?.nome || '';
@@ -180,11 +209,13 @@ function abrirFormNPC(npc = null) {
   document.getElementById('npc-f-fraqueza').value  = npc?.fraqueza || '';
   document.getElementById('npc-f-notas').value     = npc?.notas || '';
 
-  // Atributos
-  const attrMap = { for:'for_', res:'res', com:'com', soc:'soc', con:'con', agi:'agi' };
-  Object.entries(attrMap).forEach(([k, dbKey]) => {
-    const el = document.getElementById('npc-a-'+k);
-    if (el) el.value = npc?.[dbKey] ?? 1;
+  // Atributos gravados. No banco, "for" virou `for_` (palavra reservada
+  // em SQL); os demais têm o mesmo nome do id.
+  S().atributos.forEach(a => {
+    const el = document.getElementById('npc-a-' + a.id);
+    if (!el) return;
+    const doBanco = npc?.[a.id === 'for' ? 'for_' : a.id];
+    el.value = doBanco ?? 1;
   });
 
   // Imagem
@@ -240,6 +271,8 @@ async function salvarNPC() {
     soc:         getN('npc-a-soc'),
     con:         getN('npc-a-con'),
     agi:         getN('npc-a-agi'),
+    // (as colunas acima são do Fractured e continuam sendo gravadas;
+    //  o formato livre com os atributos do sistema vai em `dados`)
     habilidades: document.getElementById('npc-f-hab')?.value.trim() || null,
     fraqueza:    document.getElementById('npc-f-fraqueza')?.value.trim() || null,
     notas:       document.getElementById('npc-f-notas')?.value.trim() || null,
@@ -298,10 +331,7 @@ function verNPCCompleto(id) {
   const npc = npcList.find(n => n.id === id);
   if (!npc) return;
 
-  const attrs = [
-    ['FOR', npc.for_], ['RES', npc.res], ['COM', npc.com],
-    ['SOC', npc.soc], ['CON', npc.con], ['AGI', npc.agi],
-  ];
+  const attrs = S().atributos.map(a => [a.sigla, npc[a.id === 'for' ? 'for_' : a.id]]);
   const attrsHtml = attrs.map(([label, v]) => `
     <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 4px;text-align:center">
       <div style="font-size:9px;color:var(--muted);letter-spacing:1px">${label}</div>

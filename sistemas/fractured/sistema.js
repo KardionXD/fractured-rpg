@@ -44,7 +44,7 @@ registrarSistema({
   //  atualizam esses textos ao vivo (o PV muda quando RES muda; a
   //  legenda de Suprimentos muda com o valor).
   recursos: [
-    { id: 'pv',  nome: 'Pontos de Vida', max: 20, estilo: 'pips', cor: 'roxo',
+    { id: 'pv',  nome: 'Pontos de Vida', rotuloCurto: 'PV', max: 20, estilo: 'pips', cor: 'roxo',
       icone: 'vida', nomeMedidor: 'Vida', legenda: 'RES × 4',
       legendaId: 'gauge-pv-caption',
       formulaId: 'pv-formula', formulaTexto: 'RES × 4 = máx 20' },
@@ -97,11 +97,15 @@ registrarSistema({
   combate: {
     iniciativa: fracIniciativa,
     recursoVida: 'pv',
-    // as condições continuam em combate.js por enquanto; entram aqui na fase 6
+    condicoes: CONDICOES,      // as 7 do Cap. 07
   },
 
   // ── MAPA ────────────────────────────────────────────────────────
-  mapa: { medida: 'metros', porCelula: 1.5 },
+  //  O Fractured mede em metros, numa grade. A Vontade do Fogo mede em
+  //  ZONAS (Contato / Curta / Média / Longa) e diz textualmente que não
+  //  existe fita métrica — por isso a unidade é declarada, e não fixa.
+  mapa: { medida: 'metros', unidade: 'm', porCelula: 1.5,
+          rotulo: '1cel=', min: 0.5, max: 10, passo: 0.5 },
 
   // ── FICHA ───────────────────────────────────────────────────────
   //  Na fase 5 esta lista passa a gerar a ficha. Hoje ela só descreve

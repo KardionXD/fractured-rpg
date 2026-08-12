@@ -12,19 +12,20 @@ let TODOS_INIMIGOS = [];   // lista achatada p/ quick-add do mapa
 let _bestiarioCarregado = false;
 
 // ══════════════════════════════════════════════════
-//  CONDIÇÕES — Cap. 07 do Livro Base.
-//  São exatamente as do livro. "Atordoado" e "Envenenado", que estavam
-//  aqui antes, não existem em nenhum dos três livros.
+//  As CONDIÇÕES agora vêm do sistema da mesa. As do Fractured moraram
+//  aqui até a fase 6; estão em sistemas/fractured/conteudo.js. Cada
+//  sistema tem as suas — A Vontade do Fogo tem onze, e diferentes.
 // ══════════════════════════════════════════════════
-const CONDICOES = [
-  { nome: 'Caído',        icone: '🡇', efeito: '−2 nas defesas. Levantar gasta o Movimento.' },
-  { nome: 'Agarrado',     icone: '🤝', efeito: 'Só pode tentar escapar.' },
-  { nome: 'Sangrando',    icone: '🩸', efeito: '−1 PV no início de cada rodada até receber curativo.' },
-  { nome: 'Em Chamas',    icone: '🔥', efeito: 'Dano de fogo por rodada. Apagar: 1 ação + teste de AGI ≥ 11.' },
-  { nome: 'Surpreso',     icone: '❕', efeito: 'Defende com −5.' },
-  { nome: 'Imobilizado',  icone: '🔒', efeito: 'Não rola defesa e não reduz dano.' },
-  { nome: 'Inconsciente', icone: '💤', efeito: 'Não rola defesa e não reduz dano.' },
-];
+function condicoesDoSistema() { return S().combate.condicoes || []; }
+
+//  O rótulo da barra de vida no combate. "PV" no Fractured, "Vida" em
+//  A Vontade do Fogo, "HP" em outro. Sai do recurso que o sistema
+//  aponta como o de vida.
+function rotuloVida() {
+  const id = S().combate.recursoVida;
+  const r = (S().recursos || []).find(x => x.id === id);
+  return r?.rotuloCurto || 'PV';
+}
 
 async function carregarBestiario(force = false) {
   if (!isMaster || !mesaId()) return;
@@ -193,18 +194,18 @@ function renderCT() {
         ${c.pvMax && !ocultarPV ? `
         <div class="ct-bar-wrap"><div class="ct-bar" style="width:${pct}%;background:${barCol}"></div></div>
         <div class="ct-pv-row">
-          <span class="ct-pv-label">PV</span>
+          <span class="ct-pv-label">${rotuloVida()}</span>
           <button class="ct-pv-btn" onclick="alterarPV('${c.id}',-1)">−</button>
           <input type="number" class="ct-pv-input" value="${c.pvAtual}" min="0" max="${c.pvMax}" onchange="setPV('${c.id}',this.value)">
           <span class="ct-pv-sep">/${c.pvMax}</span>
           <button class="ct-pv-btn" onclick="alterarPV('${c.id}',1)">+</button>
           <button class="ct-pv-btn ct-pv-dmg" onclick="danoRapido('${c.id}')">⚔</button>
-        </div>` : c.pvMax&&ocultarPV ? `<div style="font-size:9px;color:var(--muted)">PV oculto</div>` : ''}
+        </div>` : c.pvMax&&ocultarPV ? `<div style="font-size:9px;color:var(--muted)">${rotuloVida()} oculto</div>` : ''}
         ${c.condicoes?.length ? `<div class="ct-condicoes">${c.condicoes.map(cn=>`<span class="ct-cond">${cn}</span>`).join('')}</div>` : ''}
         ${c.habilidades && isMaster ? `<details class="ct-detalhes"><summary>Habilidades</summary><ul>${c.habilidades.map(h=>`<li>${h}</li>`).join('')}</ul>${c.fraqueza?`<div class="ct-fraqueza">⚡ ${c.fraqueza}</div>`:''}</details>` : ''}
       </div>
       <div class="ct-acoes">
-        ${CONDICOES.map(cd => `<button class="ct-btn${c.condicoes?.includes(cd.nome)?' ct-btn-on':''}" onclick="toggleCond('${c.id}','${cd.nome}')" title="${cd.nome} — ${cd.efeito}">${cd.icone}</button>`).join('')}
+        ${condicoesDoSistema().map(cd => `<button class="ct-btn${c.condicoes?.includes(cd.nome)?' ct-btn-on':''}" onclick="toggleCond('${c.id}','${cd.nome}')" title="${cd.nome} — ${cd.efeito}">${cd.icone}</button>`).join('')}
         <button class="ct-btn ct-btn-red" onclick="removerComb('${c.id}')" title="Remover">✕</button>
       </div>
     `;

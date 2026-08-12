@@ -4054,3 +4054,47 @@ button.ocupado::after {
    − [campo] + "0 ajudante(s)". Em painel estreito o texto do fim
    passava da borda. Agora quebra para a linha de baixo. */
 .formula-grid > div { flex-wrap: wrap; }
+
+
+/* ══════════════════════════════════════════════════════════
+   ESCOLHA DO SISTEMA NA CRIAÇÃO DA MESA
+   Cada cartão pinta a própria cor a partir de `--cor-sistema`, que
+   vem da declaração do módulo. Um sistema novo aparece aqui com a
+   cara dele sem precisar de CSS novo.
+══════════════════════════════════════════════════════════ */
+.sistema-cartoes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.sistema-cartao {
+  display: flex; flex-direction: column; gap: 4px;
+  text-align: left;
+  background: rgba(0,0,0,.3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+  min-height: 44px;
+}
+.sistema-cartao:hover { border-color: var(--cor-sistema); }
+.sistema-cartao.ativo {
+  border-color: var(--cor-sistema);
+  background: color-mix(in srgb, var(--cor-sistema) 12%, transparent);
+}
+.sistema-cartao-nome {
+  font-size: 12px; font-weight: 800; letter-spacing: 1.5px;
+  color: var(--cor-sistema);
+}
+.sistema-cartao-resumo {
+  font-size: 10px; line-height: 1.35; color: var(--muted);
+}
+.sistema-cartao.ativo .sistema-cartao-resumo { color: var(--text); }
+
+/* Navegadores sem `color-mix` (Safari antigo) só perdem o fundo suave;
+   a borda colorida continua indicando o escolhido. */
+@supports not (background: color-mix(in srgb, red 10%, transparent)) {
+  .sistema-cartao.ativo { background: rgba(255,255,255,.06); }
+}

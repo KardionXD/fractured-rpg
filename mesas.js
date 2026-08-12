@@ -74,9 +74,21 @@ async function mesaCriar() {
   const nome = document.getElementById('mesa-nova-nome')?.value.trim();
   if (!nome) { toast('Dá um nome pra mesa!', 'err'); return; }
 
-  const { data: mesa, error } = await db.from('mesas').insert({
-    nome, codigo: _gerarCodigo(), master_id: currentUser.id,
-  }).select().single();
+  const sistema = _mesaSistemaEscolhido || 'fractured';
+  const base = { nome, codigo: _gerarCodigo(), master_id: currentUser.id };
+
+  let { data: mesa, error } = await db.from('mesas')
+    .insert({ ...base, sistema }).select().single();
+
+  // Se a coluna `sistema` ainda não existe (migração 001 não rodada),
+  // cria a mesa sem ela — o site trata mesa sem sistema como Fractured.
+  if (error && typeof erroDeColunaAusente === 'function'
+            && erroDeColunaAusente(error, 'sistema')) {
+    console.warn('[mesa] a coluna `sistema` ainda não existe — criando a mesa sem ela. ' +
+                 'Rode migracao/001-mesas-sistema.sql no Supabase.');
+    ({ data: mesa, error } = await db.from('mesas').insert(base).select().single());
+  }
+
   if (error) { toast('Erro ao criar mesa: ' + error.message, 'err'); return; }
 
   await db.from('mesa_membros').insert({ mesa_id: mesa.id, user_id: currentUser.id });
@@ -131,6 +143,45 @@ function mesaCopiarCodigo() {
     .catch(() => toast(`Código da mesa: ${MESA.codigo}`, 'ok'));
 }
 
+// ══════════════════════════════════════════════════
+//  ESCOLHA DO SISTEMA
+//
+//  Os cartões saem dos próprios módulos: nome, resumo e cor vêm da
+//  declaração em sistemas/<id>/sistema.js. Registrar um sistema novo
+//  faz um cartão novo aparecer aqui sem tocar nesta tela.
+//
+//  Com um sistema só registrado, a escolha não aparece — não existe
+//  escolha a fazer, e uma pergunta com uma resposta é só ruído. Ela
+//  surge sozinha quando o segundo sistema entrar.
+// ══════════════════════════════════════════════════
+let _mesaSistemaEscolhido = null;
+
+function _mesaHtmlEscolhaSistema() {
+  const lista = (typeof sistemasDisponiveis === 'function') ? sistemasDisponiveis() : [];
+  if (lista.length < 2) { _mesaSistemaEscolhido = lista[0]?.id || 'fractured'; return ''; }
+  _mesaSistemaEscolhido = lista[0].id;
+
+  const cartoes = lista.map((s, i) => `
+      <button type="button" class="sistema-cartao${i === 0 ? ' ativo' : ''}"
+              data-sistema="${esc(s.id)}" onclick="mesaEscolherSistema('${esc(s.id)}')"
+              style="--cor-sistema:${esc(s.cor || 'var(--gold)')}">
+        <span class="sistema-cartao-nome">${esc(s.nome)}</span>
+        <span class="sistema-cartao-resumo">${esc(s.resumo || '')}</span>
+      </button>`).join('');
+
+  return `
+          <div style="font-size:10px;color:var(--muted,#888);margin-bottom:6px">
+            Qual sistema esta campanha usa? <strong style="color:var(--text,#eee)">A escolha é permanente.</strong>
+          </div>
+          <div class="sistema-cartoes" id="mesa-sistemas">${cartoes}</div>`;
+}
+
+function mesaEscolherSistema(id) {
+  _mesaSistemaEscolhido = id;
+  document.querySelectorAll('#mesa-sistemas .sistema-cartao').forEach(b =>
+    b.classList.toggle('ativo', b.dataset.sistema === id));
+}
+
 // ── TELA DE SELEÇÃO ────────────────────────────────
 function _mesaMostrarTela() {
   let ov = document.getElementById('mesa-overlay');
@@ -162,6 +213,7 @@ function _mesaMostrarTela() {
 
         <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border,#333);border-radius:10px;padding:14px">
           <div style="font-size:11px;font-weight:700;color:var(--gold,#c9a84c);letter-spacing:1px;margin-bottom:8px">CRIAR NOVA MESA <span style="color:var(--muted,#888);font-weight:400">(você será o mestre)</span></div>
+          ${_mesaHtmlEscolhaSistema()}
           <div style="display:flex;gap:6px">
             <input id="mesa-nova-nome" maxlength="40" placeholder="Nome da campanha"
               style="flex:1;background:rgba(0,0,0,0.4);border:1px solid var(--border,#333);border-radius:6px;color:var(--text,#eee);padding:8px 10px;font-size:13px">
@@ -301,8 +353,10 @@ async function _mesaCarregarLista() {
   if (!el) return;
 
   // Mesas em que sou membro (inclui as que criei)
+  //  `mesas(*)` em vez da lista fixa de colunas: assim o `sistema` vem
+  //  junto sem precisar mexer aqui de novo a cada coluna nova.
   const { data: membros } = await db.from('mesa_membros')
-    .select('mesa_id, mesas(id, nome, codigo, master_id)')
+    .select('mesa_id, mesas(*)')
     .eq('user_id', currentUser.id);
 
   const mesas = (membros || []).map(m => m.mesas).filter(Boolean);
@@ -321,7 +375,7 @@ async function _mesaCarregarLista() {
       <span>${sou ? fracIcon('mestre', { size: 16 }) : fracIcon('d20', { size: 16 })}</span>
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:600;color:var(--text,#eee);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(m.nome)}</div>
-        <div style="font-size:10px;color:var(--muted,#888)">${sou ? 'Mestre · código ' + m.codigo : 'Player'}</div>
+        <div style="font-size:10px;color:var(--muted,#888)">${sou ? 'Mestre · código ' + m.codigo : 'Player'}${_mesaNomeSistema(m)}</div>
       </div>
       ${sou
         ? `<button class="ct-pv-btn" style="color:var(--red,#c0392b)" title="Deletar mesa" onclick="event.stopPropagation();mesaDeletar('${m.id}','${esc(m.nome)}')">✕</button>`
@@ -329,6 +383,17 @@ async function _mesaCarregarLista() {
     div.onclick = () => mesaSelecionarExistente(m.id);
     el.appendChild(div);
   });
+}
+
+//  " · A VONTADE DO FOGO" ao lado do papel, para a pessoa saber em que
+//  sistema está entrando antes de clicar. Com um sistema só, não escreve
+//  nada — seria repetir a mesma palavra em todas as linhas.
+function _mesaNomeSistema(mesa) {
+  if (typeof sistemasDisponiveis !== 'function') return '';
+  const lista = sistemasDisponiveis();
+  if (lista.length < 2) return '';
+  const s = lista.find(x => x.id === (mesa.sistema || 'fractured'));
+  return s ? ` · <span style="color:${esc(s.cor || 'var(--gold)')}">${esc(s.nome)}</span>` : '';
 }
 
 // ── BOTÃO NA TOPBAR ────────────────────────────────
