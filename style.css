@@ -4247,3 +4247,478 @@ button.ocupado::after {
   .avdf-estagio-topo { flex-direction: column; gap: 1px; }
   .avdf-tecnica input, .avdf-tecnica select { font-size: 16px; padding: 8px; }
 }
+
+/* ══════════════════════════════════════════════════════════════
+   FICHA EM ABAS  (núcleo — qualquer sistema que declare `ficha.abas`)
+
+   Uma ficha de RPG completa não cabe numa coluna só. Em combate,
+   ninguém rola a página até achar Defesa. As abas resolvem isso sem
+   custo: trocar de aba não redesenha nada, só mostra e esconde.
+
+   No celular a fileira rola na horizontal e cola no topo — o polegar
+   alcança, e o nome curto aparece no lugar do longo.
+   ══════════════════════════════════════════════════════════════ */
+
+.ficha-abas {
+  display: flex; gap: 4px;
+  margin: 0 0 16px;
+  padding: 4px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  position: sticky; top: 0; z-index: 30;
+}
+.ficha-abas::-webkit-scrollbar { display: none; }
+
+.ficha-aba {
+  flex: 1 1 auto;
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  min-height: 40px; padding: 8px 14px;
+  background: transparent; border: 1px solid transparent; border-radius: 8px;
+  color: var(--muted); font-family: inherit; font-size: 11.5px; font-weight: 700;
+  letter-spacing: .6px; text-transform: uppercase;
+  white-space: nowrap; cursor: pointer;
+  transition: background .16s, color .16s, border-color .16s;
+}
+.ficha-aba:hover { color: var(--text); background: rgba(255,255,255,.03); }
+.ficha-aba.active {
+  color: var(--f-accent, var(--gold));
+  background: var(--bg);
+  border-color: var(--border);
+}
+.ficha-aba .ficha-aba-icone { display: flex; opacity: .8; }
+.ficha-aba.active .ficha-aba-icone { opacity: 1; }
+.ficha-aba-curto { display: none; }
+
+.ficha-painel[hidden] { display: none; }
+.ficha-painel { animation: fichaPainelEntra .16s ease-out; }
+@keyframes fichaPainelEntra { from { opacity: .55; } to { opacity: 1; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .ficha-painel { animation: none; }
+}
+
+@media (max-width: 700px) {
+  .ficha-abas { border-radius: 10px; margin-bottom: 12px; gap: 2px; padding: 3px; }
+  .ficha-aba { flex: 0 0 auto; padding: 8px 11px; font-size: 10.5px; gap: 5px; min-height: 42px; }
+  /* Com pouco espaço, o nome curto substitui o longo. */
+  .ficha-aba .ficha-aba-nome { display: none; }
+  .ficha-aba .ficha-aba-curto { display: inline; }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   A VONTADE DO FOGO — A FICHA SHINOBI
+
+   Identidade própria (seu ponto 33): a base continua escura, mas o
+   acento é a brasa — o vermelho-fogo do sistema —, não o dourado do
+   Fractured. Os detalhes shinobi são poucos e discretos: o traço de
+   pincel embaixo do título de cada caixa e o losango do selo. Sem
+   moldura ornamentada, sem textura de pergaminho.
+
+   Tudo escopado em `#page-ficha`; nenhuma regra daqui alcança outra
+   tela nem o outro sistema.
+   ══════════════════════════════════════════════════════════════ */
+
+#page-ficha {
+  --f-accent:  #e0563f;   /* brasa */
+  --f-accent2: #f0a04b;   /* chama */
+  --f-chakra:  #4d9dd6;   /* azul de chakra */
+  --f-soft:    rgba(224,86,63,.13);
+  --f-line:    rgba(224,86,63,.32);
+}
+/* O Fractured mantém o dourado: as vars acima só valem onde o sistema
+   Shinobi está montado, e é ele quem põe a classe. */
+#page-ficha.tema-padrao:not(.sis-vontade-do-fogo) { --f-accent: var(--gold); }
+
+.sis-vontade-do-fogo .ficha-aba.active { color: var(--f-accent); }
+.sis-vontade-do-fogo .section-card-title { color: var(--f-accent); }
+.sis-vontade-do-fogo .section-card-title::after { background: var(--f-line); }
+
+/* ── ATRIBUTOS EM LINHA ─────────────────────────────────────── */
+.attr-grid.attr-grid-proprio { display: flex; flex-direction: column; gap: 6px; }
+.attr-grid.attr-grid-proprio .attr-card {
+  background: transparent; border: 0; padding: 0; min-height: 0;
+}
+.avdf-attr {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 9px; padding: 8px 10px;
+  transition: border-color .14s;
+}
+.avdf-attr:focus-within { border-color: var(--f-line); }
+.avdf-attr-id { flex: 1 1 auto; min-width: 0; display: flex; align-items: baseline; gap: 9px; }
+.avdf-attr-sigla {
+  font-size: 13px; font-weight: 800; letter-spacing: 1.5px;
+  color: var(--f-accent); flex: 0 0 auto; width: 34px;
+}
+.avdf-attr-nome {
+  font-size: 12px; color: var(--muted);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.avdf-attr-val {
+  flex: 0 0 66px; width: 66px;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 7px;
+  color: var(--text); font-size: 19px; font-weight: 800; text-align: center;
+  padding: 6px 4px; outline: none; font-family: var(--font);
+  -moz-appearance: textfield;
+}
+.avdf-attr-val::-webkit-outer-spin-button,
+.avdf-attr-val::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.avdf-attr-val:focus { border-color: var(--f-accent); }
+.avdf-attr-rolar {
+  flex: 0 0 auto;
+  width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;
+  background: var(--f-soft); border: 1px solid var(--f-line); border-radius: 8px;
+  color: var(--f-accent2); cursor: pointer; transition: background .14s;
+  -webkit-tap-highlight-color: transparent;
+}
+.avdf-attr-rolar:hover { background: rgba(224,86,63,.22); }
+.avdf-teto-alerta { color: var(--f-accent2); font-weight: 600; }
+.avdf-teto-ok { color: var(--muted); }
+
+/* ── STATUS: VIDA, CHAKRA, EXAUSTÃO, VONTADE ────────────────── */
+.avdf-status { display: flex; flex-direction: column; gap: 10px; }
+.avdf-status-medidores { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+.avdf-medidor {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 11px 12px;
+  display: flex; flex-direction: column; gap: 7px;
+}
+.avdf-medidor[data-rec="pv"]  { --m-cor: var(--f-accent); }
+.avdf-medidor[data-rec="pc"]  { --m-cor: var(--f-chakra); }
+.avdf-medidor-topo { display: flex; align-items: center; gap: 7px; }
+.avdf-medidor-icone { display: flex; color: var(--m-cor); }
+.avdf-medidor-nome {
+  font-size: 10px; font-weight: 700; letter-spacing: 1.6px;
+  text-transform: uppercase; color: var(--text);
+}
+.avdf-medidor-formula {
+  margin-left: auto; font-size: 9.5px; color: var(--muted);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.avdf-medidor-linha { display: flex; align-items: center; gap: 8px; }
+.avdf-medidor-btn {
+  width: 38px; height: 38px; flex: 0 0 38px;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text); font-size: 19px; line-height: 1; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.avdf-medidor-btn:hover { border-color: var(--m-cor); color: var(--m-cor); }
+.avdf-medidor-num { flex: 1 1 auto; text-align: center; }
+/* O par 23 / 28 do seu ponto 10: o atual grande, o máximo pequeno.
+   O texto inteiro é escrito pelo núcleo em `gauge-<id>-val`. */
+.avdf-medidor-atual {
+  font-size: 26px; font-weight: 800; color: var(--m-cor);
+  font-variant-numeric: tabular-nums; letter-spacing: -.5px;
+}
+.avdf-medidor-barra {
+  height: 5px; background: var(--surface3); border-radius: 3px; overflow: hidden;
+}
+.avdf-medidor-fill {
+  height: 100%; width: 0; background: var(--m-cor); border-radius: 3px;
+  transition: width .18s ease-out;
+}
+.avdf-medidor-legenda { font-size: 9.5px; color: var(--muted); }
+
+/* Exaustão */
+.avdf-exaustao {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 10px 12px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.avdf-exaustao-topo { display: flex; align-items: center; gap: 10px; }
+.avdf-exaustao-nome {
+  font-size: 10px; font-weight: 700; letter-spacing: 1.6px;
+  text-transform: uppercase; color: var(--text);
+}
+.avdf-exaustao-sel {
+  margin-left: auto; min-width: 150px;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 7px;
+  color: var(--text); padding: 7px 9px; font-size: 12px; outline: none;
+}
+.avdf-exaustao-efeito {
+  font-size: 11.5px; color: var(--f-accent2);
+  border-left: 2px solid var(--f-line); padding-left: 9px;
+}
+.avdf-exaustao-efeito.nenhum { color: var(--muted); border-left-color: var(--border); }
+.avdf-exaustao-efeito.grave  { color: var(--red); border-left-color: var(--red); font-weight: 600; }
+
+/* Vontade do Fogo */
+.avdf-vontade {
+  background: linear-gradient(180deg, rgba(224,86,63,.07), transparent 60%);
+  border: 1px solid var(--f-line); border-radius: 10px; padding: 11px 12px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.avdf-vontade-topo { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.avdf-vontade-nome {
+  font-size: 10px; font-weight: 700; letter-spacing: 1.6px;
+  text-transform: uppercase; color: var(--f-accent2);
+}
+.avdf-chamas { display: flex; gap: 5px; margin-left: auto; }
+.avdf-chama {
+  width: 34px; height: 34px; border-radius: 8px;
+  background: var(--f-soft); border: 1px solid var(--f-line);
+  font-size: 16px; line-height: 1; cursor: pointer;
+  transition: filter .14s, opacity .14s;
+  -webkit-tap-highlight-color: transparent;
+}
+.avdf-chama.apagada { filter: grayscale(1); opacity: .3; }
+.avdf-vontade-conta { font-size: 15px; font-weight: 800; color: var(--f-accent2); min-width: 16px; text-align: right; }
+.avdf-vontade-usos {
+  margin: 0; padding-left: 16px;
+  font-size: 11.5px; color: var(--muted); line-height: 1.65;
+}
+.avdf-vontade-usos li::marker { color: var(--f-accent); }
+.avdf-vontade-nota { font-size: 9.5px; color: var(--muted); }
+
+/* ── CONDIÇÕES ──────────────────────────────────────────────── */
+.avdf-condicoes { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 6px; }
+.avdf-cond {
+  display: flex; align-items: flex-start; gap: 8px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px 9px; cursor: pointer;
+  transition: border-color .14s, background .14s;
+}
+.avdf-cond:hover { border-color: var(--border2); }
+.avdf-cond:has(.avdf-cond-check:checked) { border-color: var(--f-line); background: var(--f-soft); }
+.avdf-cond.automatica { border-style: dashed; }
+.avdf-cond-check { margin-top: 2px; accent-color: var(--f-accent); flex: 0 0 auto; }
+.avdf-cond-check:disabled { cursor: not-allowed; }
+.avdf-cond-icone { font-size: 14px; line-height: 1.2; flex: 0 0 auto; }
+.avdf-cond-texto { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.avdf-cond-nome { font-size: 11.5px; font-weight: 700; color: var(--text); }
+.avdf-cond-efeito { font-size: 10.5px; color: var(--muted); line-height: 1.45; }
+.avdf-cond-resumo {
+  grid-column: 1/-1; font-size: 11px; color: var(--muted);
+  padding: 8px 10px; border: 1px dashed var(--border); border-radius: 8px;
+}
+.avdf-cond-resumo.ativo { color: var(--f-accent2); border-color: var(--f-line); border-style: solid; }
+
+/* ── PERÍCIAS GRADUADAS ─────────────────────────────────────── */
+.avdf-pericias-busca { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
+#avdf-pericia-busca {
+  flex: 1 1 200px; min-width: 0;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text); padding: 9px 11px; font-size: 12.5px; outline: none;
+}
+#avdf-pericia-busca:focus { border-color: var(--f-accent); }
+.avdf-pericias-so-treinadas {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; color: var(--muted); cursor: pointer; white-space: nowrap;
+}
+.avdf-pericias-so-treinadas input { accent-color: var(--f-accent); }
+
+.avdf-pericia-cat {
+  font-size: 8.5px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--muted); margin: 12px 0 5px; padding-bottom: 3px;
+  border-bottom: 1px solid var(--border);
+}
+.avdf-pericia-cat:first-of-type { margin-top: 2px; }
+.avdf-pericia {
+  display: flex; align-items: center; gap: 9px;
+  padding: 7px 9px; border-radius: 8px;
+  border: 1px solid transparent;
+  transition: background .14s, border-color .14s;
+}
+.avdf-pericia:hover { background: var(--surface2); }
+.avdf-pericia.treinada { background: var(--surface2); border-color: var(--border); }
+.avdf-pericia.acima-do-rank { border-color: var(--f-accent2); }
+.avdf-pericia-id { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.avdf-pericia-nome { font-size: 12.5px; font-weight: 600; color: var(--text); }
+.avdf-pericia.treinada .avdf-pericia-nome { color: var(--f-accent2); }
+.avdf-pericia-uso {
+  font-size: 10.5px; color: var(--muted); line-height: 1.4;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.avdf-pericia-attr {
+  flex: 0 0 auto; font-size: 9.5px; font-weight: 700; letter-spacing: 1px;
+  color: var(--muted); background: var(--surface3);
+  border: 1px solid var(--border); border-radius: 5px; padding: 3px 6px;
+  white-space: nowrap;
+}
+.avdf-pericia-grau {
+  flex: 0 0 150px; width: 150px;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 7px;
+  color: var(--text); padding: 7px 8px; font-size: 11.5px; outline: none;
+}
+.avdf-pericia-grau:focus { border-color: var(--f-accent); }
+.avdf-pericia-total {
+  flex: 0 0 44px; text-align: right;
+  font-size: 16px; font-weight: 800; color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.avdf-pericia.treinada .avdf-pericia-total { color: var(--f-accent); }
+.avdf-pericia-rolar {
+  flex: 0 0 auto; width: 34px; height: 34px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--f-soft); border: 1px solid var(--f-line); border-radius: 7px;
+  color: var(--f-accent2); cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.avdf-pericia-rolar:hover { background: rgba(224,86,63,.22); }
+.pericias-dica.acima { color: var(--f-accent2); }
+
+/* ── ORIGEM ─────────────────────────────────────────────────── */
+.avdf-origem { display: flex; flex-direction: column; gap: 10px; }
+.avdf-origem-info { display: flex; flex-direction: column; gap: 6px; }
+.avdf-origem-linha { display: flex; gap: 10px; font-size: 11.5px; line-height: 1.55; }
+.avdf-origem-rot {
+  flex: 0 0 62px; font-size: 9px; font-weight: 700; letter-spacing: 1.4px;
+  text-transform: uppercase; color: var(--muted); padding-top: 2px;
+}
+.avdf-origem-val { color: var(--text); }
+.avdf-origem-aplicada { color: var(--f-accent2); font-weight: 600; }
+
+/* ── VÍNCULOS NARRATIVOS ────────────────────────────────────── */
+.avdf-vinculos { display: flex; flex-direction: column; gap: 7px; }
+.avdf-vinculo { display: flex; align-items: center; gap: 8px; }
+.avdf-vinculo-n {
+  flex: 0 0 24px; width: 24px; height: 24px; border-radius: 50%;
+  background: var(--f-soft); border: 1px solid var(--f-line);
+  color: var(--f-accent2); font-size: 10px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+}
+.avdf-vinculo input {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 7px;
+  color: var(--text); padding: 8px 10px; font-size: 12px; outline: none;
+  min-width: 0;
+}
+.avdf-vinculo input:focus { border-color: var(--f-accent); }
+.avdf-vinculo-quem { flex: 0 0 170px; }
+.avdf-vinculo-desc { flex: 1 1 auto; }
+
+/* ── ALMA ───────────────────────────────────────────────────── */
+.avdf-alma { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.avdf-alma-campo { display: flex; flex-direction: column; gap: 5px; }
+.avdf-alma-campo label {
+  font-size: 9px; font-weight: 700; letter-spacing: 1.6px;
+  text-transform: uppercase; color: var(--f-accent);
+}
+.avdf-alma-campo textarea {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text); padding: 10px 11px; font-size: 12.5px; line-height: 1.6;
+  outline: none; resize: vertical; font-family: var(--font);
+}
+.avdf-alma-campo textarea:focus { border-color: var(--f-accent); }
+.avdf-alma-dica { font-size: 10px; color: var(--muted); }
+
+/* ── EQUIPAMENTO ────────────────────────────────────────────── */
+.avdf-equip { display: flex; flex-direction: column; gap: 10px; }
+.avdf-equip-sub {
+  font-size: 9px; font-weight: 700; letter-spacing: 1.6px; text-transform: uppercase;
+  color: var(--muted); display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap;
+}
+.avdf-equip-auto { font-size: 9.5px; font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--f-accent2); }
+.avdf-kit {
+  list-style: none; margin: 6px 0 0; padding: 0;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 4px;
+}
+.avdf-kit-item {
+  display: flex; gap: 7px; align-items: baseline;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 7px; padding: 6px 9px; font-size: 11.5px;
+}
+.avdf-kit-qtd { color: var(--f-accent); font-weight: 700; flex: 0 0 auto; }
+.avdf-kit-nome { color: var(--text); }
+.avdf-kit-det { color: var(--muted); font-size: 10px; margin-left: auto; }
+.avdf-equip-ryo { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.avdf-equip-ryo label {
+  font-size: 9px; font-weight: 700; letter-spacing: 1.6px;
+  text-transform: uppercase; color: var(--f-accent);
+}
+#f-ryo {
+  width: 130px; background: var(--bg); border: 1px solid var(--border);
+  border-radius: 7px; color: var(--text); padding: 8px 10px;
+  font-size: 14px; font-weight: 700; outline: none;
+}
+#f-ryo:focus { border-color: var(--f-accent); }
+.avdf-itens { display: flex; flex-direction: column; gap: 6px; }
+.avdf-item { display: flex; gap: 7px; }
+.avdf-item input {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 7px;
+  color: var(--text); padding: 8px 10px; font-size: 12px; outline: none; min-width: 0;
+}
+.avdf-item input:focus { border-color: var(--f-accent); }
+.avdf-item-qtd  { flex: 0 0 62px; text-align: center; }
+.avdf-item-nome { flex: 1 1 auto; }
+.avdf-item-obs  { flex: 1 1 auto; }
+
+.avdf-add {
+  align-self: flex-start;
+  background: transparent; border: 1px dashed var(--border2); border-radius: 8px;
+  color: var(--muted); padding: 8px 14px; font-size: 11px; font-weight: 600;
+  cursor: pointer; font-family: inherit; min-height: 40px;
+}
+.avdf-add:hover { border-color: var(--f-accent); color: var(--f-accent); }
+
+/* O medidor da mesa quando não tem faixas: uma régua numerada. */
+.tpip.liso.on {
+  background: var(--f-soft); border-color: var(--f-line); color: var(--f-accent2);
+}
+
+.avdf-nat-nota { font-size: 10px; color: var(--muted); margin-top: 7px; }
+
+/* ── MOBILE (seu ponto 34) ──────────────────────────────────── */
+@media (max-width: 760px) {
+  .avdf-status-medidores { grid-template-columns: 1fr; }
+  .avdf-alma { grid-template-columns: 1fr; }
+  .avdf-condicoes { grid-template-columns: 1fr; }
+
+  /* A perícia vira duas linhas: identidade em cima, controles embaixo,
+     com o botão de rolar alcançável pelo polegar. */
+  .avdf-pericia { flex-wrap: wrap; gap: 7px 8px; padding: 9px; }
+  .avdf-pericia-id { flex: 1 1 100%; }
+  .avdf-pericia-uso { white-space: normal; }
+  .avdf-pericia-grau { flex: 1 1 auto; width: auto; font-size: 16px; padding: 9px; }
+  .avdf-pericia-total { flex: 0 0 40px; }
+  .avdf-pericia-rolar { width: 42px; height: 42px; }
+
+  .avdf-attr-nome { display: none; }
+  .avdf-attr-val { flex: 0 0 76px; width: 76px; font-size: 20px; }
+  .avdf-attr-rolar { width: 44px; height: 44px; }
+
+  .avdf-vinculo { flex-wrap: wrap; }
+  .avdf-vinculo-quem { flex: 1 1 100%; }
+  .avdf-vinculo-desc { flex: 1 1 100%; }
+  .avdf-item { flex-wrap: wrap; }
+  .avdf-item-obs { flex: 1 1 100%; }
+
+  /* Nenhum campo com menos de 16px: abaixo disso o iOS dá zoom no foco
+     e a tela sai do lugar. */
+  .avdf-attr-val, .avdf-exaustao-sel, .avdf-vinculo input,
+  .avdf-item input, #f-ryo, #avdf-pericia-busca,
+  .avdf-alma-campo textarea { font-size: 16px; }
+}
+
+.avdf-medidor-max { font-size: 14px; font-weight: 600; color: var(--muted); }
+
+/* O grid de atributos, quando o sistema desenha o próprio cartão, é uma
+   pilha de linhas de largura cheia — não a grade de seis colunas do
+   Fractured, que deixava tudo espremido no meio. */
+.attr-grid.attr-grid-proprio { align-items: stretch; }
+.attr-grid.attr-grid-proprio .attr-card { width: 100%; display: block; }
+.avdf-conta { color: var(--f-accent, var(--gold)); font-variant-numeric: tabular-nums; }
+.avdf-conta.acima { color: var(--red); }
+
+/* Num grid, o item tem `min-width: auto` por padrão e não encolhe abaixo
+   do próprio conteúdo — a fórmula "25 + COR (3) × 3 + Genin (+0) = máx 34"
+   é uma linha só e empurrava a caixa inteira para fora da tela a 320px. */
+.avdf-status-medidores > * { min-width: 0; }
+.avdf-medidor, .avdf-medidor-topo, .avdf-medidor-linha { min-width: 0; }
+.avdf-medidor-formula { min-width: 0; flex: 0 1 auto; }
+.avdf-medidor-nome { flex: 0 0 auto; }
+
+@media (max-width: 400px) {
+  /* Espaço curto demais para o nome e a fórmula na mesma linha. */
+  .avdf-medidor-formula { display: none; }
+  .avdf-medidor-btn { width: 34px; height: 34px; flex: 0 0 34px; }
+}
+
+/* `hidden` tem que ganhar de qualquer `display` — a fileira de bolinhas
+   do Fractured (.pips { display: flex }) reaparecia dentro do medidor
+   numérico do Shinobi mesmo marcada como escondida. */
+#page-ficha [hidden] { display: none !important; }

@@ -9,7 +9,10 @@
 //  fase 9 — aqui ficam os campos livres, para a mesa já poder jogar.
 // ══════════════════════════════════════════════════════════════════
 
-//  Rank + Vila + Idade + Naturezas: a faixa de identidade shinobi.
+//  O Rank. Vila e Idade foram para a Identidade (é lá que se diz quem
+//  a pessoa é) e as Naturezas para a aba Técnicas (é lá que elas
+//  importam: natureza é o que você pode aprender). O que sobrou aqui é
+//  o rank e o que ele destrava — que é o assunto da aba Progressão.
 function avdfHtmlRank() {
   //  Genin nasce marcado: é onde uma campanha padrão começa. Estudante
   //  é o prólogo opcional, e deixá-lo como padrão faria toda ficha nova
@@ -17,31 +20,25 @@ function avdfHtmlRank() {
   const padrao = S().progressao?.padrao || 'genin';
   const ranks = RANKS_AVDF.map(r =>
     `<option value="${r.id}" title="${r.oque}"${r.id === padrao ? ' selected' : ''}>${r.nome}</option>`).join('');
+  return `<div class="field"><label>Rank</label>
+          <select id="f-rank" onchange="avdfAoTrocarRank()">${ranks}</select>
+          <div id="rank-info" class="profissao-info"></div>
+        </div>`;
+}
+
+//  As cinco naturezas. Ficam na aba Técnicas porque é lá que elas
+//  mandam: "jutsus de uma natureza que você não domina não podem ser
+//  aprendidos".
+function avdfHtmlNaturezas() {
   const nat = NATUREZAS_AVDF.map(n =>
     `<label class="avdf-natureza" style="--cor-nat:${n.cor}">
-              <input type="checkbox" id="f-nat-${n.id}" onchange="autoSave()">
-              <span>${n.nome} <span style="opacity:.65">(${n.trad})</span></span>
-            </label>`).join('\n            ');
-
-  return `<div class="grid-2">
-          <div class="field"><label>Rank</label>
-            <select id="f-rank" onchange="avdfAoTrocarRank()">${ranks}</select>
-            <div id="rank-info" class="profissao-info"></div>
-          </div>
-          <div style="display:flex;gap:8px">
-            <div class="field" style="flex:1"><label>Vila</label>
-              <input type="text" id="f-vila" placeholder="Konoha, Suna..." oninput="autoSave()">
-            </div>
-            <div class="field" style="flex:1"><label>Idade</label>
-              <input type="number" id="f-idade" min="0" max="120" placeholder="12" style="text-align:center" oninput="autoSave()">
-            </div>
-          </div>
+            <input type="checkbox" id="f-nat-${n.id}" onchange="autoSave()">
+            <span>${n.nome} <span style="opacity:.65">(${n.trad})</span></span>
+          </label>`).join('\n          ');
+  return `<div class="avdf-naturezas">
+          ${nat}
         </div>
-        <div class="field" style="margin-top:8px"><label>Naturezas de Chakra</label>
-          <div class="avdf-naturezas">
-            ${nat}
-          </div>
-        </div>`;
+        <div class="avdf-nat-nota">Afinidade natural, dominadas por treino e concedidas por Kekkei Genkai aparecem aqui juntas — a distinção entra na entrega seguinte.</div>`;
 }
 
 //  Defesa e Resiliência são valores que a mesa consulta o tempo todo
@@ -76,6 +73,10 @@ function avdfAoTrocarRank() {
       `PV ${r.pv >= 0 ? '+' : ''}${r.pv} · PC ${r.pc >= 0 ? '+' : ''}${r.pc}</span>`;
   }
   if (typeof avdfAtualizarDerivados === 'function') avdfAtualizarDerivados();
+  //  O rank é teto de perícia também: Especialista exige Chūnin, Mestre
+  //  exige Jōnin. Sem isto, o seletor continuaria oferecendo um grau
+  //  que a regra não permite.
+  if (typeof avdfAtualizarGrausPermitidos === 'function') avdfAtualizarGrausPermitidos();
   if (typeof autoSave === 'function') autoSave();
 }
 
@@ -86,6 +87,9 @@ function avdfAtualizarDerivados() {
   S().atributos.forEach(a => {
     attr[a.id] = parseInt(document.getElementById('a-' + a.id)?.value, 10) || 0;
   });
+  //  Sem o estado, Defesa ignorava o −2 de estar sem chakra e o PV
+  //  máximo ignorava a Exaustão 4. A regra existia e a tela não a via.
+  if (typeof avdfEstadoDaTela === 'function') attr.estado = avdfEstadoDaTela();
 
   const def = document.getElementById('avdf-defesa');
   const res = document.getElementById('avdf-resiliencia');

@@ -134,10 +134,12 @@ function _fmRecursos(s, sec) {
 // ── O MEDIDOR COMPARTILHADO DA MESA ───────────────────────────────
 //  Tensão no Fractured; Vínculo de Equipe em A Vontade do Fogo. A
 //  forma é a mesma: uma régua de 0 a 10 que a mesa inteira enxerga.
-function _fmMedidorMesa(s, cfg) {
+function _fmMedidorMesa(s, cfg, comId) {
   const rec = (s.recursosMesa || []).find(r => r.id === cfg.id);
   if (!rec) return '';
-  return `<div class="section-card">
+  //  Só a versão avulsa ganha id. Dentro da caixa de recursos ela é
+  //  parte do bloco do Fractured, cujo HTML tem que sair igual ao byte.
+  return `<div class="section-card"${comId ? ` id="section-medidor-${_e(rec.id)}"` : ''}>
           <div class="section-card-title">${_e(rec.nome)}</div>
           <div class="tensao-row">
             <span class="tensao-endlabel tensao-endlabel-start">${_e(cfg.inicio)}</span>
@@ -150,10 +152,18 @@ function _fmMedidorMesa(s, cfg) {
 
 // ── SEÇÃO: PERÍCIAS (com um bloco ao lado) ────────────────────────
 function _fmPericias(s, sec) {
-  const lado = sec.aoLado ? _fmBlocoSimples(sec.aoLado) : '';
+  //  O id só entra quando a caixa vai sozinha: a versão com `aoLado` é
+  //  a do Fractured, e o HTML dela tem que continuar saindo igual ao
+  //  byte para o teste de comparação seguir servindo de rede.
+  const idAttr = sec.aoLado ? '' : ' id="section-pericias"';
+  const caixa = `<div class="section-card"${idAttr}><div class="section-card-title">${_e(sec.titulo)}</div><div id="pericias-dica" class="pericias-dica">${_e(s.pericias.explicacao)}</div><div id="pericias-list" class="gap-12"></div></div>`;
+  //  Sem `aoLado`, a caixa vai sozinha. O grid de duas colunas existia
+  //  porque o Fractured põe Vínculos ao lado das perícias; forçá-lo num
+  //  sistema que não tem esse par deixava metade da largura vazia.
+  if (!sec.aoLado) return caixa;
   return `<div class="grid-pericias-vinculos" id="section-pericias-vinculos">
-        <div class="section-card"><div class="section-card-title">${_e(sec.titulo)}</div><div id="pericias-dica" class="pericias-dica">${_e(s.pericias.explicacao)}</div><div id="pericias-list" class="gap-12"></div></div>
-        ${lado}
+        ${caixa}
+        ${_fmBlocoSimples(sec.aoLado)}
       </div>`;
 }
 
@@ -182,24 +192,115 @@ function _fmBloco(s, sec) {
       </div>`;
 }
 
+// ── ABAS ──────────────────────────────────────────────────────────
+//  Um sistema pode declarar `ficha.abas`. Se declarar, cada seção diz em
+//  qual aba mora, e a ficha vira um caderno em vez de uma coluna de dois
+//  metros. Se NÃO declarar — o caso do Fractured —, nada disto acontece
+//  e o HTML sai exatamente como saía antes.
+//
+//  Por que isto está no núcleo e não dentro do módulo do Shinobi: abas
+//  não são regra de nenhum sistema. É organização de tela, e o terceiro
+//  sistema vai querer também.
+
+//  Qual aba estava aberta da última vez, por sistema — trocar de aba,
+//  salvar e voltar não pode jogar a pessoa de volta no começo.
+function _fmAbaSalva(s) {
+  const abas = s.ficha.abas || [];
+  let salva = null;
+  try { salva = localStorage.getItem('ficha_aba_' + sistemaId()); } catch (e) {}
+  return abas.some(a => a.id === salva) ? salva : (abas[0] && abas[0].id);
+}
+
+function _fmAbas(s) {
+  const abas = s.ficha.abas || [];
+  const atual = _fmAbaSalva(s);
+  const botoes = abas.map(a =>
+    `<button type="button" class="ficha-aba${a.id === atual ? ' active' : ''}" id="ficha-aba-btn-${a.id}"
+            role="tab" aria-selected="${a.id === atual}" aria-controls="ficha-painel-${a.id}"
+            onclick="fichaAbaIr('${a.id}')">` +
+    (a.icone ? `<span class="ficha-aba-icone" data-fic="${a.icone}" data-fic-size="15"></span>` : '') +
+    `<span class="ficha-aba-nome">${_e(a.nome)}</span>` +
+    (a.curto ? `<span class="ficha-aba-curto">${_e(a.curto)}</span>` : '') +
+    `</button>`
+  ).join('\n          ');
+  return `<nav class="ficha-abas" id="ficha-abas" role="tablist" aria-label="Seções da ficha">
+          ${botoes}
+        </nav>`;
+}
+
+//  Troca de aba. Não recria nada: só mostra e esconde — durante um
+//  combate, trocar de aba tem que ser instantâneo (seu ponto 35).
+function fichaAbaIr(id) {
+  document.querySelectorAll('#page-ficha .ficha-painel').forEach(p => {
+    const meu = p.dataset.aba === id;
+    p.classList.toggle('active', meu);
+    p.hidden = !meu;
+  });
+  document.querySelectorAll('#page-ficha .ficha-aba').forEach(b => {
+    const meu = b.id === 'ficha-aba-btn-' + id;
+    b.classList.toggle('active', meu);
+    b.setAttribute('aria-selected', meu ? 'true' : 'false');
+  });
+  try { localStorage.setItem('ficha_aba_' + sistemaId(), id); } catch (e) {}
+  //  A aba nova pode ter blocos que só se ajustam quando estão visíveis
+  //  (medir largura de uma barra dá 0 num elemento escondido).
+  if (typeof S().ficha.aoTrocarAba === 'function') {
+    try { S().ficha.aoTrocarAba(id); } catch (e) { console.error('[ficha] aba:', e); }
+  }
+}
+
 // ── O MONTADOR ────────────────────────────────────────────────────
+//  O medidor da mesa sozinho, sem os recursos do personagem ao lado.
+//  Serve para um sistema em que os dois não são a mesma caixa — o
+//  Vínculo de Equipe é do GRUPO, e mostrá-lo colado no Chakra de um
+//  personagem sugere que ele é dele.
+function _fmMedidorMesaSozinho(s, sec) {
+  return _fmMedidorMesa(s, sec.medidorDaMesa, true) || '';
+}
+
 const _FM_TIPOS = {
-  identidade: _fmIdentidade,
-  atributos:  _fmAtributos,
-  recursos:   _fmRecursos,
-  pericias:   _fmPericias,
-  notas:      _fmNotas,
-  bloco:      _fmBloco,
+  identidade:  _fmIdentidade,
+  atributos:   _fmAtributos,
+  recursos:    _fmRecursos,
+  medidorMesa: _fmMedidorMesaSozinho,
+  pericias:    _fmPericias,
+  notas:       _fmNotas,
+  bloco:       _fmBloco,
 };
+
+function _fmSecaoHtml(s, sec) {
+  const fn = _FM_TIPOS[sec.tipo];
+  if (!fn) { console.warn('[ficha] tipo de seção desconhecido:', sec.tipo); return null; }
+  return fn(s, sec);
+}
 
 function fichaMotorHtml() {
   const s = S();
+  const abas = s.ficha.abas || null;
   const partes = [_fmCabecalho(s)];
-  (s.ficha.secoes || []).forEach(sec => {
-    const fn = _FM_TIPOS[sec.tipo];
-    if (!fn) { console.warn('[ficha] tipo de seção desconhecido:', sec.tipo); return; }
-    partes.push(fn(s, sec));
-  });
+
+  if (!abas) {
+    //  Sem abas: a ficha de sempre, uma seção embaixo da outra.
+    (s.ficha.secoes || []).forEach(sec => {
+      const h = _fmSecaoHtml(s, sec);
+      if (h) partes.push(h);
+    });
+  } else {
+    partes.push(_fmAbas(s));
+    const atual = _fmAbaSalva(s);
+    abas.forEach(aba => {
+      const dentro = (s.ficha.secoes || [])
+        .filter(sec => (sec.aba || abas[0].id) === aba.id)
+        .map(sec => _fmSecaoHtml(s, sec))
+        .filter(Boolean);
+      partes.push(
+        `<div class="ficha-painel${aba.id === atual ? ' active' : ''}" id="ficha-painel-${aba.id}"` +
+        ` data-aba="${aba.id}" role="tabpanel" aria-labelledby="ficha-aba-btn-${aba.id}"` +
+        `${aba.id === atual ? '' : ' hidden'}>\n        ${dentro.join('\n        ')}\n      </div>`
+      );
+    });
+  }
+
   partes.push(_fmSelo());
   return partes.join('\n      ');
 }
@@ -218,6 +319,12 @@ function _fmNumerarSecoes(alvo) {
 function fichaMotorMontar() {
   const alvo = document.getElementById('page-ficha');
   if (!alvo) return;
+  //  Uma classe com o id do sistema, para o CSS de cada um poder pintar
+  //  a própria identidade sem apagar a do outro (`.sis-vontade-do-fogo`
+  //  troca o dourado do Fractured pela brasa do Shinobi).
+  [...alvo.classList].filter(c => c.startsWith('sis-')).forEach(c => alvo.classList.remove(c));
+  alvo.classList.add('sis-' + sistemaId());
+
   alvo.innerHTML = fichaMotorHtml();
   _fmNumerarSecoes(alvo);
   alvo.querySelectorAll('[data-fic]').forEach(el => {

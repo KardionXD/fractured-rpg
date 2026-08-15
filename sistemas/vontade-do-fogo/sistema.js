@@ -112,6 +112,10 @@ registrarSistema({
     explicacao: 'Três perícias treinadas na criação — cada uma vale +2 no teste',
     porCategoria: periciasAvdfPorCategoria,
     atributoDe: atributoDaPericiaAvdf,
+    //  Forma própria: as dezoito na ficha, cada uma com o seu grau.
+    montar:  avdfMontarPericias,
+    coletar: avdfColetarPericias,
+    aplicar: avdfAplicarPericias,
   },
 
   // ── PROGRESSÃO POR PT ───────────────────────────────────────────
@@ -198,56 +202,109 @@ registrarSistema({
     subtitulo: 'A VONTADE DO FOGO · d20',
     temas: [{ id: 'padrao', nome: 'Padrão' }],
 
-    secoes: [
-      { tipo: 'identidade', titulo: 'Identidade', campos: [
-        { id: 'f-nome',     rotulo: 'Nome',    classe: 'ficha-nome-field' },
-        { id: 'f-jogador',  rotulo: 'Jogador', classe: 'ficha-jogador-field' },
-        { id: 'f-ninjaway', rotulo: 'Ninja Way', classe: 'ficha-trauma-field',
-          dica: 'A frase que seu personagem não trai...', linha: 'baixo' },
-      ] },
-
-      { tipo: 'bloco', id: 'section-rank', titulo: 'Rank, Vila e Naturezas',
-        html: avdfHtmlRank },
-
-      { tipo: 'atributos', titulo: 'Atributos — conjunto +4 +3 +2 +1 +1 0 (máx +4 na criação)' },
-
-      { tipo: 'recursos', titulo: 'Status',
-        medidorDaMesa: { id: 'vinculo', pipsId: 'tensao-pips-ficha',
-                         inicio: 'Sozinho', fim: 'Time',
-                         legenda: 'Começa em 2 numa campanha nova · gasto em Ataque Combinado, Cobertura, Formação…' } },
-
-      { tipo: 'bloco', id: 'section-alvos', titulo: 'Defesa e Resiliência',
-        html: avdfHtmlAlvos },
-
-      { tipo: 'pericias', titulo: 'Perícias',
-        aoLado: { id: 'vinculos-list', titulo: 'Vínculos' } },
-
-      { tipo: 'bloco', id: 'section-linhagem', titulo: 'Linhagem — Kekkei Genkai',
-        html: avdfHtmlLinhagem },
-
-      { tipo: 'bloco', id: 'section-cla', titulo: 'Clã, Passiva e Progressão',
-        html: avdfHtmlCla },
-
-      { tipo: 'bloco', id: 'section-tecnicas', titulo: 'Técnicas Conhecidas',
-        html: avdfHtmlTecnicas },
-
-      { tipo: 'notas', titulo: 'História & Vínculos', dica: 'De onde veio, por quem luta...' },
+    //  ── AS ABAS ───────────────────────────────────────────────────
+    //  Uma ficha de shinobi completa não cabe numa coluna. Em combate,
+    //  ninguém rola dois metros de tela para achar a Defesa. Cada aba
+    //  responde a uma pergunta:
+    //    Resumo    — quem é este personagem
+    //    Combate   — o que eu preciso agora, nesta rodada
+    //    Técnicas  — o que eu sei fazer
+    //    Clã       — de onde vem meu poder e para onde ele cresce
+    //    Equip.    — o que eu carrego
+    //    História  — por que ele luta
+    abas: [
+      { id: 'resumo',   nome: 'Resumo',    curto: 'Resumo', icone: 'ficha'    },
+      { id: 'combate',  nome: 'Combate',   curto: 'Luta',   icone: 'combate'  },
+      { id: 'tecnicas', nome: 'Técnicas',  curto: 'Jutsus', icone: 'tensao'   },
+      { id: 'cla',      nome: 'Clã & Progressão', curto: 'Clã', icone: 'players' },
+      { id: 'equip',    nome: 'Equipamento', curto: 'Equip', icone: 'arquivos' },
+      { id: 'alma',     nome: 'História',  curto: 'Alma',   icone: 'notas'    },
     ],
 
-    //  Quando um atributo muda, Defesa e Resiliência mudam junto — os
-    //  dois números que a mesa mais consulta em combate. O núcleo chama
-    //  este gancho depois de refazer os recursos derivados.
-    aoMudarAtributo: avdfAtualizarDerivados,
+    secoes: [
+      // ── RESUMO ──────────────────────────────────────────────────
+      { aba: 'resumo', tipo: 'identidade', titulo: 'Identidade', campos: [
+        { id: 'f-nome',     rotulo: 'Nome',    classe: 'ficha-nome-field' },
+        { id: 'f-jogador',  rotulo: 'Jogador', classe: 'ficha-jogador-field' },
+        { id: 'f-vila',     rotulo: 'Vila',    dica: 'Konoha, Suna...' },
+        { id: 'f-idade',    rotulo: 'Idade',   dica: '12' },
+      ] },
 
-    //  Chamado depois que a ficha é desenhada e depois que os dados são
-    //  aplicados: é aqui que a trilha do clã, a linhagem e a lista de
-    //  técnicas disponíveis se ajustam ao que a pessoa escolheu.
-    aoMontar: () => {
-      if (typeof avdfAoTrocarRank === 'function') avdfAoTrocarRank();
-      if (typeof avdfAoTrocarCla  === 'function') avdfAoTrocarCla();
-      if (typeof avdfAoTrocarKG   === 'function') avdfAoTrocarKG();
-      if (typeof avdfAtualizarTecnicasDisponiveis === 'function') avdfAtualizarTecnicasDisponiveis();
+      { aba: 'resumo', tipo: 'bloco', id: 'section-origem', titulo: 'Origem',
+        html: avdfHtmlOrigem },
+
+      { aba: 'resumo', tipo: 'atributos',
+        titulo: 'Atributos — conjunto +4 +3 +2 +1 +1 0 (máx +4 na criação)' },
+
+      { aba: 'resumo', tipo: 'pericias', titulo: 'Perícias' },
+
+      // ── COMBATE ─────────────────────────────────────────────────
+      { aba: 'combate', tipo: 'bloco', id: 'section-status', titulo: 'Status',
+        html: avdfHtmlStatus },
+
+      { aba: 'combate', tipo: 'bloco', id: 'section-alvos', titulo: 'Defesa e Resiliência',
+        html: avdfHtmlAlvos },
+
+      { aba: 'combate', tipo: 'bloco', id: 'section-condicoes', titulo: 'Condições',
+        html: avdfHtmlCondicoes },
+
+      //  O Vínculo de Equipe é da MESA: um só para o grupo inteiro.
+      //  Fica aqui como consulta e como gasto — nunca como um medidor
+      //  particular deste personagem.
+      { aba: 'combate', tipo: 'medidorMesa', id: 'section-vinculo',
+        medidorDaMesa: { id: 'vinculo', pipsId: 'vinculo-pips-ficha',
+                         inicio: 'Sozinho', fim: 'Time',
+                         legenda: 'Compartilhado com a mesa inteira · começa em 2 numa campanha nova' } },
+
+      // ── TÉCNICAS ────────────────────────────────────────────────
+      { aba: 'tecnicas', tipo: 'bloco', id: 'section-naturezas', titulo: 'Naturezas de Chakra',
+        html: avdfHtmlNaturezas },
+
+      { aba: 'tecnicas', tipo: 'bloco', id: 'section-tecnicas', titulo: 'Técnicas Conhecidas',
+        html: avdfHtmlTecnicas },
+
+      // ── CLÃ E PROGRESSÃO ────────────────────────────────────────
+      { aba: 'cla', tipo: 'bloco', id: 'section-rank', titulo: 'Rank',
+        html: avdfHtmlRank },
+
+      { aba: 'cla', tipo: 'bloco', id: 'section-linhagem', titulo: 'Linhagem — Kekkei Genkai',
+        html: avdfHtmlLinhagem },
+
+      { aba: 'cla', tipo: 'bloco', id: 'section-cla', titulo: 'Clã, Passiva e Progressão',
+        html: avdfHtmlCla },
+
+      // ── EQUIPAMENTO ─────────────────────────────────────────────
+      { aba: 'equip', tipo: 'bloco', id: 'section-equip', titulo: 'Equipamento e Ryō',
+        html: avdfHtmlEquipamento },
+
+      // ── HISTÓRIA / ALMA ─────────────────────────────────────────
+      { aba: 'alma', tipo: 'bloco', id: 'section-alma', titulo: 'Ninja Way e Fardo',
+        html: avdfHtmlAlma },
+
+      { aba: 'alma', tipo: 'bloco', id: 'section-vinculos', titulo: 'Vínculos',
+        html: avdfHtmlVinculos },
+
+      { aba: 'alma', tipo: 'notas', titulo: 'História', dica: 'De onde veio, o que perdeu, o que quer...' },
+    ],
+
+    //  Atributo em linha: sigla, nome, valor e o dado. Sem VALOR e MOD
+    //  lado a lado — aqui os dois seriam o mesmo número.
+    cartaoAtributo: avdfCartaoAtributo,
+    formatoRecurso: avdfFormatoRecurso,
+    estado: avdfEstadoDaTela,
+    aoMudarRecurso: avdfAoMudarRecurso,
+    contadorAtributos: avdfContadorAtributos,
+
+    //  Quando um atributo muda, Defesa e Resiliência mudam junto — os
+    //  dois números que a mesa mais consulta em combate.
+    aoMudarAtributo: (attr) => {
+      avdfAtualizarDerivados(attr);
+      if (typeof avdfPintarPericias === 'function') avdfPintarPericias();
     },
+
+    aoMontar:  avdfFichaAoMontar,
+    aoAplicar: avdfAplicarCampos,
+    aoColetar: avdfColetarCampos,
 
     //  Sem `colunasLegado`: este sistema nunca teve colunas próprias na
     //  tabela. Nasce lendo e gravando só na coluna `dados`.

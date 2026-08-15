@@ -30,8 +30,22 @@ function avdfDeDados(dados) {
     rank:      d.progressao || 'genin',
     vila:      m.vila || '',
     idade:     m.idade || '',
+    origem:    m.origem || '',
     ninjaway:  m.ninjaway || '',
+    fardo:     m.fardo || '',
     naturezas: Array.isArray(b.naturezas) ? b.naturezas : [],
+
+    //  Estado: condições marcadas à mão (as automáticas a ficha deduz
+    //  sozinha e por isso não precisam ser guardadas).
+    condicoes: Array.isArray(b.condicoes) ? b.condicoes : [],
+
+    //  Equipamento e dinheiro.
+    ryo:   c.ryo != null ? _an(c.ryo) : RYO_INICIAL,
+    itens: Array.isArray(b.itens) ? b.itens : [],
+
+    //  Vínculos narrativos: Personagem + Descrição. NÃO é o Vínculo de
+    //  Equipe — aquele é da mesa e nunca da ficha.
+    vinculos: Array.isArray(b.vinculos) ? b.vinculos : [],
 
     // Linhagem
     kg:        b.kg || '',
@@ -64,11 +78,13 @@ function avdfParaDados(linha) {
     recursos: {
       pv:  _an(r.pv_atual),  pc:  _an(r.pc_atual),
       pvf: r.pvf_atual ?? 3, exa: _an(r.exa_atual),
+      ryo: r.ryo != null ? _an(r.ryo) : RYO_INICIAL,
     },
     progressao: r.rank || 'genin',      // o rank do personagem
     pericias:   Array.isArray(r.pericias) ? r.pericias : [],
     campos: {
-      vila: r.vila || '', idade: r.idade || '', ninjaway: r.ninjaway || '',
+      vila: r.vila || '', idade: r.idade || '', origem: r.origem || '',
+      ninjaway: r.ninjaway || '', fardo: r.fardo || '',
     },
     pt: _an(r.pt),
     blocos: {
@@ -83,6 +99,10 @@ function avdfParaDados(linha) {
       trilhas:     r.trilhas || {},
 
       tecnicas: Array.isArray(r.tecnicas) ? r.tecnicas : [],
+
+      condicoes: Array.isArray(r.condicoes) ? r.condicoes : [],
+      itens:     Array.isArray(r.itens) ? r.itens : [],
+      vinculos:  Array.isArray(r.vinculos) ? r.vinculos : [],
     },
   };
 }

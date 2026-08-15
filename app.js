@@ -46,6 +46,12 @@ function _attrDaTela() {
   });
   const rank = document.getElementById('f-rank');
   if (rank) a.rank = rank.value;
+  //  Alguns sistemas têm ESTADO que muda valor derivado: em A Vontade
+  //  do Fogo, Exaustão 4 corta o PV máximo pela metade e ficar sem
+  //  chakra tira 2 de Defesa. Quem sabe ler esse estado é o sistema.
+  if (typeof S().ficha?.estado === 'function') {
+    try { a.estado = S().ficha.estado(); } catch (e) {}
+  }
   return a;
 }
 
@@ -143,10 +149,13 @@ async function init() {
   buildProfissoes();
   zerarRecursos();
   pintarTodosOsRecursos();
-  buildTensaoPips('tensao-pips-ficha', tensaoFicha, true);
+  medidorDaMesaPintar(tensaoFicha, true);
   buildPericias();
-  buildVinculos();
-  buildInventario();
+  //  Vínculos e Inventário são caixas do Fractured. Numa ficha que não
+  //  as tem, `buildVinculos()` estourava em `list.innerHTML` e derrubava
+  //  o resto do init — inclusive o `carregarFicha()` logo abaixo.
+  if (document.getElementById('vinculos-list'))   buildVinculos();
+  if (document.getElementById('inventario-list')) buildInventario();
 
   await carregarFicha();
   await carregarNotas();
@@ -206,13 +215,13 @@ function ATTRS_() {
                                    min: a.min, max: a.max }));
 }
 
-function buildAttrGrid() {
-  const grid = document.getElementById('attr-grid');
-  grid.innerHTML = '';
-  ATTRS_().forEach(a => {
-    const card = document.createElement('div');
-    card.className = 'attr-card';
-    card.innerHTML = `
+//  O cartão padrão: VALOR e MOD lado a lado. Faz sentido no Fractured,
+//  onde o atributo vai de 1 a 5 e o bônus é `valor − 3` — dois números
+//  diferentes. Não faz sentido num sistema onde o valor JÁ é o bônus:
+//  ali as duas caixas mostram o mesmo número, e é ruído. Por isso o
+//  sistema pode declarar `ficha.cartaoAtributo` e desenhar o seu.
+function _cartaoAtributoPadrao(a) {
+  return `
       <button class="attr-roll-btn" onclick="rolarAtributoFicha('${a.id}')" title="Rolar 1d20 + ${a.abbr}">${fracIcon('d20', { size: 14 })}</button>
       <div class="attr-abbr">${a.abbr}</div>
       <div class="attr-name">${a.name}</div>
@@ -223,7 +232,26 @@ function buildAttrGrid() {
       </div>
       <div class="attr-sub"><span>VALOR</span><span>MOD</span></div>
     `;
+}
+
+function buildAttrGrid() {
+  const grid = document.getElementById('attr-grid');
+  if (!grid) return;
+  const feito = S().ficha?.cartaoAtributo;
+  grid.innerHTML = '';
+  grid.classList.toggle('attr-grid-proprio', typeof feito === 'function');
+  ATTRS_().forEach(a => {
+    const card = document.createElement('div');
+    card.className = 'attr-card';
+    card.innerHTML = typeof feito === 'function' ? feito(a) : _cartaoAtributoPadrao(a);
     grid.appendChild(card);
+  });
+  //  Os ícones da marca nascem como `data-fic` e são trocados pelo SVG
+  //  depois. O motor faz isso com o que já está na tela quando a ficha
+  //  é montada; estes cartões nascem depois dele, e ficavam sem ícone —
+  //  o botão de rolar aparecia como um retângulo vazio.
+  grid.querySelectorAll('[data-fic]').forEach(el => {
+    el.innerHTML = fracIcon(el.dataset.fic, { size: parseInt(el.dataset.ficSize) || 14 });
   });
 
   // Contador de pontos gastos
@@ -242,6 +270,10 @@ function atualizarContadorPontos() {
   if (!cont) return;
   let gasto = 0;
   ATTRS_().forEach(a => { gasto += parseInt(document.getElementById('a-' + a.id)?.value) || 0; });
+  //  O sistema pode ter mais a dizer do que "N pontos gastos" — o
+  //  Shinobi mostra o conjunto da criação e o teto do rank.
+  const proprio = S().ficha?.contadorAtributos;
+  if (typeof proprio === 'function') { cont.innerHTML = proprio(gasto, _attrDaTela()); return; }
   cont.innerHTML = `
     <span style="color:var(--muted);letter-spacing:1px">PONTOS DE ATRIBUTO</span>
     <span style="font-weight:700;color:var(--gold)">${gasto} ${gasto === 1 ? 'ponto gasto' : 'pontos gastos'}</span>`;
@@ -256,7 +288,7 @@ function calcMod(v) {
 
 function onAttrInput(id) {
   const val = document.getElementById('a-' + id).value;
-  document.getElementById('m-' + id).value = calcMod(val);
+  _porCampo('m-' + id, calcMod(val));   // a ficha Shinobi não tem campo MOD
   atualizarContadorPontos();
   // Qualquer recurso cujo máximo saia de um atributo se refaz aqui.
   // Antes isto era `if (id === 'res')` — a regra do Fractured cravada
@@ -286,7 +318,14 @@ function onAttrInput(id) {
 function _syncGauge(tipo, atual, total) {
   const valEl = document.getElementById(`gauge-${tipo}-val`);
   const fillEl = document.getElementById(`gauge-${tipo}-fill`);
-  if (valEl) valEl.textContent = `${atual}/${total}`;
+  //  Um sistema pode escrever esse par do seu jeito. A ficha Shinobi
+  //  mostra `23 / 28` com o máximo menor — o número que importa em
+  //  combate é o atual, e ele tem que ser o que a vista pega primeiro.
+  const fmt = S().ficha?.formatoRecurso;
+  if (valEl) {
+    if (typeof fmt === 'function') valEl.innerHTML = fmt(tipo, atual, total);
+    else valEl.textContent = `${atual}/${total}`;
+  }
   if (fillEl) fillEl.style.width = total > 0 ? `${Math.max(0, Math.min(100, (atual / total) * 100))}%` : '0%';
   if (tipo === 'sup') {
     const capEl = document.getElementById('gauge-sup-caption');
@@ -294,17 +333,26 @@ function _syncGauge(tipo, atual, total) {
   }
 }
 
+//  Desenha as bolinhas de um recurso. A fileira de bolinhas pode NÃO
+//  existir — a ficha Shinobi mostra Vida como número, porque 45 pontos
+//  de vida são 45 bolinhas e ninguém lê isso. Sem a fileira, o resto
+//  (o valor e a barra) continua sendo atualizado; antes a função saía
+//  na primeira linha e o número na tela congelava.
 function buildPips(containerId, total, active, color, onClick, valId) {
   const c = document.getElementById(containerId);
-  if (!c) return;
-  c.innerHTML = '';
-  for (let i = 0; i < total; i++) {
-    const pip = document.createElement('div');
-    pip.className = `pip ${color}` + (i < active ? ' on' : '');
-    pip.addEventListener('click', () => onClick(i, containerId, total, valId));
-    c.appendChild(pip);
+  if (c) {
+    c.innerHTML = '';
+    for (let i = 0; i < total; i++) {
+      const pip = document.createElement('div');
+      pip.className = `pip ${color}` + (i < active ? ' on' : '');
+      pip.addEventListener('click', () => onClick(i, containerId, total, valId));
+      c.appendChild(pip);
+    }
   }
-  if (valId) document.getElementById(valId).textContent = `${active}/${total}`;
+  if (valId) {
+    const el = document.getElementById(valId);
+    if (el) el.textContent = `${active}/${total}`;
+  }
   _syncGauge(containerId.replace('pip-', ''), active, total);
 }
 
@@ -320,6 +368,10 @@ function onRecursoClick(id, i, cid, total, valId) {
   _syncGauge(id, REC[id], total);
   const r = (S().recursos || []).find(x => x.id === id);
   if (r?.daMesa) publicarSuprimentos();   // recurso do grupo: a mesa inteira vê
+  //  Perder Vida ou zerar o Chakra pode ligar uma condição sozinha —
+  //  em A Vontade do Fogo, Ferido e Exausto de Chakra. Quem sabe disso
+  //  é o sistema.
+  if (typeof S().ficha.aoMudarRecurso === 'function') S().ficha.aoMudarRecurso(id);
   autoSave();
 }
 
@@ -371,27 +423,74 @@ function ajustarRecurso(tipo, delta) {
   REC[tipo] = Math.max(0, Math.min(max, (REC[tipo] ?? 0) + delta));
   pintarRecurso(tipo);
   if (r.daMesa) publicarSuprimentos();
+  if (typeof S().ficha.aoMudarRecurso === 'function') S().ficha.aoMudarRecurso(tipo);
   autoSave();
 }
 
-// ── TENSÃO PIPS ──────────────────────────────────
+// ── O MEDIDOR COMPARTILHADO DA MESA ──────────────
+//  Tensão no Fractured, Vínculo de Equipe em A Vontade do Fogo. Mesma
+//  régua de 0 a 10, mesma caixa na tela, regra oposta.
+//
+//  ISTO JÁ ESTEVE ERRADO, E ERA VISÍVEL: as bolinhas eram desenhadas a
+//  partir de TENSAO_TYPES — as iniciais de Calma, Alerta, Perigo e
+//  Terror. A ficha Shinobi mostrava o Vínculo de Equipe como
+//  `C C A A A P P P T T`. Estava desenhando a Tensão do Fractured com
+//  outro nome em cima.
+//
+//  Agora as bolinhas vêm do medidor declarado pelo sistema: com faixas,
+//  usa a inicial e a cor da faixa; sem faixas, é uma régua numerada.
+
+//  Qual recurso da mesa a ficha mostra, e em que elemento.
+function medidorDaMesaDaFicha() {
+  const s = S();
+  const sec = (s.ficha?.secoes || []).find(x => x.medidorDaMesa);
+  const cfg = sec?.medidorDaMesa;
+  if (!cfg) return null;
+  const rec = (s.recursosMesa || []).find(r => r.id === cfg.id);
+  return rec ? { rec, pipsId: cfg.pipsId } : null;
+}
+
+//  As bolinhas de um medidor: rótulo e classe de cor de cada uma.
+function _pipsDoMedidor(rec) {
+  const max = rec?.max ?? 10;
+  if (Array.isArray(rec?.faixas) && rec.faixas.length) {
+    //  As faixas do Fractured são cumulativas (`max` é o teto da faixa).
+    //  A classe de cor é a inicial em minúscula — `.tpip.c`, `.tpip.a`,
+    //  `.tpip.p`, `.tpip.t` no CSS —, exatamente como era antes.
+    return Array.from({ length: max }, (_, i) => {
+      const v = i + 1;
+      const f = rec.faixas.find(x => v <= x.max) || rec.faixas[rec.faixas.length - 1] || {};
+      const letra = (f.label || f.nome || String(v))[0];
+      return { texto: letra, classe: letra.toLowerCase() };
+    });
+  }
+  //  Sem faixas: régua numerada e uma cor só.
+  return Array.from({ length: max }, (_, i) => ({ texto: String(i + 1), classe: 'liso' }));
+}
+
 function buildTensaoPips(containerId, active, forFicha) {
   const targets = containerId === 'tensao-pips-sala'
     ? ['tensao-pips-sala', 'tensao-pips-sala-mobile']
     : [containerId];
 
+  //  Na ficha, o medidor é o que o sistema declarou; na sala, o mesmo
+  //  recurso, porque é ele que a mesa inteira compartilha.
+  const daFicha = medidorDaMesaDaFicha();
+  const rec = daFicha?.rec || (S().recursosMesa || [])[0];
+  const pips = _pipsDoMedidor(rec);
+
   targets.forEach(cid => {
     const c = document.getElementById(cid);
     if (!c) return;
     c.innerHTML = '';
-    TENSAO_TYPES.forEach((t, i) => {
+    pips.forEach((p, i) => {
       const pip = document.createElement('div');
-      pip.className = `tpip ${t.toLowerCase()}` + (i < active ? ' on' : '');
-      pip.textContent = t;
+      pip.className = `tpip ${p.classe}` + (i < active ? ' on' : '');
+      pip.textContent = p.texto;
       pip.addEventListener('click', () => {
         if (forFicha) {
           tensaoFicha = (i < tensaoFicha) ? i : i + 1;
-          buildTensaoPips('tensao-pips-ficha', tensaoFicha, true);
+          medidorDaMesaPintar(tensaoFicha, true);
           autoSave();
         } else if (isMaster) {
           alterarTensao(i + 1 > tensaoSala ? 1 : -1);
@@ -401,6 +500,15 @@ function buildTensaoPips(containerId, active, forFicha) {
     });
   });
   if (!forFicha) updateTensaoStatus();
+}
+
+//  Pinta o medidor da ficha, seja qual for o id que o sistema deu ao
+//  elemento. Sem o elemento (uma ficha que não mostra o medidor), não
+//  faz nada em vez de estourar.
+function medidorDaMesaPintar(active, forFicha) {
+  const m = medidorDaMesaDaFicha();
+  if (!m || !m.pipsId) return;
+  buildTensaoPips(m.pipsId, active, forFicha !== false);
 }
 
 function updateTensaoStatus() {
@@ -424,34 +532,78 @@ function updateTensaoStatus() {
 // e não rotula nenhuma como "de profissão" — os rótulos aqui são neutros.
 const PERICIAS_SLOTS = 5;
 
-// <datalist> com as 67 perícias oficiais, agrupadas como no livro.
+//  <datalist> com as perícias oficiais DO SISTEMA DA MESA, agrupadas
+//  como no livro dele.
+//
+//  Isto já esteve errado: a lista era montada a partir de
+//  `periciasPorCategoria()` e `PERICIAS_ORDEM`, que são as 67 perícias
+//  do Fractured. A ficha Shinobi sugeria "Força Bruta / FORÇA" —
+//  perícia de outro sistema, num campo que nem existe lá.
+//
+//  Agora quem responde é o sistema, e o datalist é REFEITO quando a
+//  mesa muda de sistema (por isso o `data-sistema`: sem ele, o primeiro
+//  sistema carregado ficaria valendo para sempre).
 function _periciasDatalist() {
-  if (document.getElementById('pericias-oficiais')) return;
+  const id = 'pericias-oficiais';
+  const antigo = document.getElementById(id);
+  if (antigo && antigo.dataset.sistema === sistemaId()) return;
+  if (antigo) antigo.remove();
+
+  const cfg = S().pericias || {};
   const dl = document.createElement('datalist');
-  dl.id = 'pericias-oficiais';
-  const grupos = periciasPorCategoria();
-  PERICIAS_ORDEM.forEach(cat => {
-    (grupos[cat] || []).forEach(p => {
+  dl.id = id;
+  dl.dataset.sistema = sistemaId();
+
+  const grupos = typeof cfg.porCategoria === 'function' ? cfg.porCategoria() : null;
+  if (grupos) {
+    Object.keys(grupos).forEach(cat => {
+      (grupos[cat] || []).forEach(p => {
+        const o = document.createElement('option');
+        o.value = p.nome;
+        //  O rótulo mostra o atributo quando a perícia aceita mais de um
+        //  ("ESP ou COR"), porque aí a categoria sozinha não informa nada.
+        o.label = String(p.attr || '').includes(' ') ? `${cat} · ${p.attr}` : cat;
+        dl.appendChild(o);
+      });
+    });
+  } else {
+    (cfg.catalogo || []).forEach(p => {
       const o = document.createElement('option');
-      o.value = p.nome;
-      o.label = cat === 'SOBREVIVÊNCIA' ? `Sobrevivência [${p.attr}]` : cat;
+      o.value = p.nome; o.label = p.cat || '';
       dl.appendChild(o);
     });
-  });
+  }
   document.body.appendChild(dl);
 }
 
-// Ao escolher uma perícia do catálogo, preenche o atributo sozinho.
+// Ao escolher uma perícia do catálogo, preenche o atributo sozinho —
+// com o atributo do sistema da mesa, não com o do Fractured.
 function onPericiaNome(i) {
   const nomeEl = document.getElementById(`p-nome-${i}`);
   const atrEl  = document.getElementById(`p-atrib-${i}`);
-  const attr = atributoDaPericia(nomeEl?.value);
+  const de = S().pericias?.atributoDe;
+  const attr = typeof de === 'function' ? de(nomeEl?.value) : '';
   if (attr && atrEl) atrEl.value = attr;
   autoSave();
 }
 
 function buildPericias() {
   const list = document.getElementById('pericias-list');
+  if (!list) return;
+
+  //  Um sistema pode ter forma própria de perícia. No Fractured são
+  //  cinco linhas em branco, porque são 67 perícias e o personagem usa
+  //  cinco. Em A Vontade do Fogo são dezoito, TODAS na ficha, cada uma
+  //  com um grau — não existe "escolher qual aparece".
+  if (typeof S().pericias?.montar === 'function') {
+    list.innerHTML = S().pericias.montar();
+    list.querySelectorAll('[data-fic]').forEach(el => {
+      el.innerHTML = fracIcon(el.dataset.fic, { size: parseInt(el.dataset.ficSize) || 14 });
+    });
+    atualizarDicaPericias();
+    return;
+  }
+
   list.innerHTML = '';
   _periciasDatalist();
   for (let i = 0; i < PERICIAS_SLOTS; i++) {
@@ -559,6 +711,7 @@ function buildVinculos(dados) {
   vinculosCount = Math.max(1, existentes.length);
 
   const list = document.getElementById('vinculos-list');
+  if (!list) return;      // ficha de outro sistema: não existe esta caixa
   list.innerHTML = '';
   for (let i = 0; i < vinculosCount; i++) {
     const v = existentes[i] || {};
@@ -674,10 +827,14 @@ function removerItem(i) {
 
 // ── SAVE / LOAD FICHA ─────────────────────────────
 function coletarFicha() {
-  const pericias = Array.from({ length: PERICIAS_SLOTS }, (_, i) => ({
-    nome: document.getElementById(`p-nome-${i}`)?.value || '',
-    atrib: document.getElementById(`p-atrib-${i}`)?.value || ''
-  }));
+  //  Quem sabe ler as perícias da tela é o sistema, quando ele tem
+  //  forma própria — um grau por perícia não cabe em {nome, atrib}.
+  const pericias = typeof S().pericias?.coletar === 'function'
+    ? S().pericias.coletar()
+    : Array.from({ length: PERICIAS_SLOTS }, (_, i) => ({
+        nome: document.getElementById(`p-nome-${i}`)?.value || '',
+        atrib: document.getElementById(`p-atrib-${i}`)?.value || ''
+      }));
   const vinculos = _coletarVinculosDoDOM();
   const itens = _coletarItensDoDOM();
 
@@ -706,29 +863,46 @@ function coletarFicha() {
     vinculos,
     itens,
     notas:      document.getElementById('f-notas')?.value || '',
-    updated_at: new Date().toISOString()
+    updated_at: new Date().toISOString(),
+
+    //  Os campos que só existem num sistema. SEM ISTO, tudo que a ficha
+    //  Shinobi tem de próprio — rank, vila, origem, naturezas, clã,
+    //  Kekkei Genkai, técnicas, PT, equipamento — era lido da tela por
+    //  ninguém e gravado como vazio. A ficha salvava e voltava em
+    //  branco, e o formato novo (`dados`) recebia um objeto oco.
+    ...(typeof S().ficha.aoColetar === 'function' ? S().ficha.aoColetar() : {}),
   };
+}
+
+//  Escreve num campo da ficha SE ele existir nesta ficha.
+//  Isto não é preciosismo: `f-profissao`, `f-trauma` e os quatro campos
+//  de Veículo só existem na ficha do Fractured. Na ficha Shinobi,
+//  `getElementById('f-profissao')` devolve null e a linha seguinte
+//  estourava — a ficha do jogador simplesmente não carregava, sem
+//  nenhuma mensagem. Era o mesmo tipo de erro que já tinha derrubado o
+//  salvamento antes: núcleo mexendo em campo que é de um sistema só.
+function _porCampo(id, valor) {
+  const el = document.getElementById(id);
+  if (el) el.value = valor;
 }
 
 function aplicarFicha(d) {
   if (!d) return;
-  document.getElementById('f-nome').value       = d.nome || '';
-  document.getElementById('f-jogador').value    = d.jogador || '';
-  document.getElementById('f-profissao').value  = d.profissao || '';
-  if (typeof mostrarProfissao === 'function') mostrarProfissao();
-  document.getElementById('f-trauma').value     = d.trauma || '';
-  document.getElementById('f-notas').value      = d.notas || '';
+  _porCampo('f-nome',    d.nome || '');
+  _porCampo('f-jogador', d.jogador || '');
+  _porCampo('f-notas',   d.notas || '');
   if (d.foto_url) aplicarFotoPersonagem(d.foto_url);
-  document.getElementById('f-veiculo-tipo').value = d.veiculo_tipo || '';
-  document.getElementById('f-vti-a').value    = d.veiculo_ti_atual || 0;
-  document.getElementById('f-vti-m').value    = d.veiculo_ti_max || 0;
-  document.getElementById('f-vcomb-a').value  = d.veiculo_comb_atual || 0;
-  document.getElementById('f-vcomb-m').value  = d.veiculo_comb_max || 0;
+
+  //  Os campos que só um sistema tem ficam com o sistema.
+  if (typeof S().ficha.aoAplicar === 'function') {
+    try { S().ficha.aoAplicar(d, _porCampo); }
+    catch (e) { console.error('[ficha] o sistema falhou ao aplicar os campos próprios:', e); }
+  }
 
   ATTRS_().forEach(a => {
     const val = d[`attr_${a.id}`] || 0;
-    document.getElementById(`a-${a.id}`).value = val;
-    document.getElementById(`m-${a.id}`).value = calcMod(val);
+    _porCampo(`a-${a.id}`, val);
+    _porCampo(`m-${a.id}`, calcMod(val));
   });
   atualizarContadorPontos();
   atualizarDicaPericias();
@@ -753,25 +927,33 @@ function aplicarFicha(d) {
     if (el) el.textContent = derivadoTexto(r.maxDerivado, atributosDe(d));
   });
   pintarTodosOsRecursos();
-  buildTensaoPips('tensao-pips-ficha', tensaoFicha, true);
+  medidorDaMesaPintar(tensaoFicha, true);
 
-  if (Array.isArray(d.pericias)) {
+  //  Perícias: quem sabe aplicá-las é o sistema, quando ele tem forma
+  //  própria (o Shinobi tem grau, o Fractured tem cinco linhas livres).
+  if (typeof S().pericias?.aplicar === 'function') {
+    S().pericias.aplicar(d.pericias || []);
+  } else if (Array.isArray(d.pericias)) {
     d.pericias.forEach((p, i) => {
-      const n = document.getElementById(`p-nome-${i}`);
-      const a = document.getElementById(`p-atrib-${i}`);
-      if (n) n.value = p.nome || '';
-      if (a) a.value = p.atrib || '';
+      _porCampo(`p-nome-${i}`,  p.nome || '');
+      _porCampo(`p-atrib-${i}`, p.atrib || '');
     });
   }
-  buildVinculos(Array.isArray(d.vinculos) && d.vinculos.length ? d.vinculos : [{}]);
 
-  // itens: migra fichas antigas que só tinham o campo "inventario" (texto livre)
-  if (Array.isArray(d.itens) && d.itens.length) {
-    buildInventario(d.itens);
-  } else if (d.inventario && String(d.inventario).trim()) {
-    buildInventario(String(d.inventario).split(' · ').map(nome => ({ nome: nome.trim() })));
-  } else {
-    buildInventario([{}]);
+  //  Vínculos e inventário do Fractured só existem na ficha do
+  //  Fractured. Sem os elementos, não há o que preencher.
+  if (document.getElementById('vinculos-list')) {
+    buildVinculos(Array.isArray(d.vinculos) && d.vinculos.length ? d.vinculos : [{}]);
+  }
+  if (document.getElementById('inventario-list')) {
+    // migra fichas antigas que só tinham "inventario" (texto livre)
+    if (Array.isArray(d.itens) && d.itens.length) {
+      buildInventario(d.itens);
+    } else if (d.inventario && String(d.inventario).trim()) {
+      buildInventario(String(d.inventario).split(' · ').map(nome => ({ nome: nome.trim() })));
+    } else {
+      buildInventario([{}]);
+    }
   }
 }
 
@@ -859,7 +1041,7 @@ async function apagarFicha() {
   document.querySelectorAll('#page-ficha select').forEach(el => el.selectedIndex = 0);
 
   pintarTodosOsRecursos();
-  buildTensaoPips('tensao-pips-ficha', 0, true);
+  medidorDaMesaPintar(0, true);
   (S().recursos || []).forEach(r => {
     if (!r.formulaId) return;
     const el = document.getElementById(r.formulaId);
@@ -1113,7 +1295,7 @@ function rolarDado(faces, qtd = 1) {
 // ══════════════════════════════════════════════════
 function rolarAtributoFicha(id) {
   const attr = ATTRS_().find(x => x.id === id);
-  const mod  = parseInt(document.getElementById('m-' + id)?.value) || 0;
+  const mod  = modDoAtributo(id);
   const dado = Math.floor(Math.random() * 20) + 1;
   const total = dado + mod;
   mostrarAnimacaoDado(20, dado, dado === 20, dado === 1);
@@ -1130,8 +1312,10 @@ function rolarPericiaFicha(i) {
   if (!nome) { toast('Preencha o nome da perícia primeiro.', 'err'); return; }
 
   const attr = ATTRS_().find(x => x.abbr === atrib);
-  const mod  = attr ? (parseInt(document.getElementById('m-' + attr.id)?.value) || 0) : 0;
-  const PERICIA_BONUS = 3;
+  const mod  = attr ? modDoAtributo(attr.id) : 0;
+  //  Era 3 cravado aqui — o bônus de treino do Fractured. Na ficha
+  //  Shinobi, ser treinado vale +2, e o rolador estava somando +3.
+  const PERICIA_BONUS = S().pericias?.bonusTreino ?? 3;
 
   const dado  = Math.floor(Math.random() * 20) + 1;
   const bonus = mod + PERICIA_BONUS;
@@ -1341,13 +1525,21 @@ function rolarExpressao(txt) {
 //  Antes era preciso caçar "COM +1" entre 31 opções do seletor. Agora
 //  escolhe-se só o atributo e o valor vem da ficha aberta.
 // ══════════════════════════════════════════════════
+//  O modificador de um atributo, lido da ficha aberta.
+//
+//  No Fractured existe um campo MOD ao lado do valor, e ele é a fonte.
+//  Na ficha Shinobi esse campo não existe — lá o valor JÁ é o bônus, e
+//  repetir o mesmo número em duas caixas era exatamente o que você
+//  pediu para tirar. Sem o campo MOD, a conta sai do valor.
+//
+//  O `v > 0` de antes escondia um erro: um atributo −1 (que existe em
+//  A Vontade do Fogo) devolvia 0. Agora vale qualquer número.
 function modDoAtributo(id) {
   if (!id) return 0;
-  const bruto = document.getElementById('m-' + id)?.value;
-  const n = parseInt(bruto, 10);
+  const n = parseInt(document.getElementById('m-' + id)?.value, 10);
   if (Number.isFinite(n)) return n;
   const v = parseInt(document.getElementById('a-' + id)?.value, 10);
-  return Number.isFinite(v) && v > 0 ? modAtrib(v) : 0;
+  return Number.isFinite(v) ? modAtrib(v) : 0;
 }
 
 // Mostra o modificador atual dentro de cada opção do seletor.
