@@ -47,6 +47,17 @@ function avdfDeDados(dados) {
     //  Equipe — aquele é da mesa e nunca da ficha.
     vinculos: Array.isArray(b.vinculos) ? b.vinculos : [],
 
+    //  Jutsus: só os ids. O resto (custo, efeito, alcance) vem do
+    //  catálogo na hora de mostrar — assim, quando o livro corrigir uma
+    //  técnica, toda ficha que a tem já sai corrigida.
+    jutsus: Array.isArray(b.jutsus) ? b.jutsus : [],
+
+    //  A história completa do personagem.
+    historia: m.historia || '',
+
+    //  Tetos de recurso forçados à mão pelo Mestre (exceções).
+    maxManual: d.maxManual || {},
+
     // Linhagem
     kg:        b.kg || '',
     kg_origem: b.kgOrigem || 'nascimento',
@@ -85,7 +96,9 @@ function avdfParaDados(linha) {
     campos: {
       vila: r.vila || '', idade: r.idade || '', origem: r.origem || '',
       ninjaway: r.ninjaway || '', fardo: r.fardo || '',
+      historia: r.historia || '',
     },
+    maxManual: r.maxManual || {},
     pt: _an(r.pt),
     blocos: {
       naturezas: Array.isArray(r.naturezas) ? r.naturezas : [],
@@ -103,6 +116,7 @@ function avdfParaDados(linha) {
       condicoes: Array.isArray(r.condicoes) ? r.condicoes : [],
       itens:     Array.isArray(r.itens) ? r.itens : [],
       vinculos:  Array.isArray(r.vinculos) ? r.vinculos : [],
+      jutsus:    Array.isArray(r.jutsus) ? r.jutsus : [],
     },
   };
 }

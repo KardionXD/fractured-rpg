@@ -260,8 +260,18 @@ registrarSistema({
       { aba: 'tecnicas', tipo: 'bloco', id: 'section-naturezas', titulo: 'Naturezas de Chakra',
         html: avdfHtmlNaturezas },
 
-      { aba: 'tecnicas', tipo: 'bloco', id: 'section-tecnicas', titulo: 'Técnicas Conhecidas',
-        html: avdfHtmlTecnicas },
+      //  Os jutsus que o personagem sabe. O catálogo inteiro (203
+      //  técnicas do livro + as exclusivas dos 30 clãs) fica atrás do
+      //  botão "＋ Adicionar Jutsu", numa janela com busca e filtros.
+      { aba: 'tecnicas', tipo: 'bloco', id: 'section-jutsus', titulo: 'Jutsus',
+        html: avdfHtmlJutsus },
+
+      //  As oito linhas livres da versão anterior continuam aqui para
+      //  quem escreveu técnica à mão não perder nada. Saem quando a
+      //  biblioteca cobrir tudo o que essas linhas cobriam.
+      { aba: 'tecnicas', tipo: 'bloco', id: 'section-tecnicas', titulo: 'Anotações de técnica (formato antigo)',
+        html: () => `<details class="avdf-legado"><summary>Abrir as oito linhas livres da versão anterior</summary>
+          <div class="avdf-legado-corpo">${avdfHtmlTecnicas()}</div></details>` },
 
       // ── CLÃ E PROGRESSÃO ────────────────────────────────────────
       { aba: 'cla', tipo: 'bloco', id: 'section-rank', titulo: 'Rank',
@@ -281,10 +291,14 @@ registrarSistema({
       { aba: 'alma', tipo: 'bloco', id: 'section-alma', titulo: 'Ninja Way e Fardo',
         html: avdfHtmlAlma },
 
+      //  A história completa, num lugar só dela.
+      { aba: 'alma', tipo: 'bloco', id: 'section-historia', titulo: 'História do Personagem',
+        html: avdfHtmlHistoria },
+
       { aba: 'alma', tipo: 'bloco', id: 'section-vinculos', titulo: 'Vínculos',
         html: avdfHtmlVinculos },
 
-      { aba: 'alma', tipo: 'notas', titulo: 'História', dica: 'De onde veio, o que perdeu, o que quer...' },
+      { aba: 'alma', tipo: 'notas', titulo: 'Anotações rápidas', dica: 'Aparência, personalidade, objetivos, o que a mesa combinar...' },
     ],
 
     //  Atributo em linha: sigla, nome, valor e o dado. Sem VALOR e MOD
@@ -293,6 +307,7 @@ registrarSistema({
     formatoRecurso: avdfFormatoRecurso,
     estado: avdfEstadoDaTela,
     aoMudarRecurso: avdfAoMudarRecurso,
+    ajusteDeRecurso: avdfAjusteDeRecurso,
     contadorAtributos: avdfContadorAtributos,
 
     //  Quando um atributo muda, Defesa e Resiliência mudam junto — os

@@ -134,30 +134,100 @@ function erroDeColunaAusente(erro, coluna) {
       && txt.includes(coluna);
 }
 
-//  Acrescenta `dados` à linha que vai para o banco, sem tirar nada.
+// ══════════════════════════════════════════════════════════════════
+//  O QUE PODE IR PARA AS COLUNAS DA TABELA — E O QUE NÃO PODE
+//
+//  A tabela `fichas` tem colunas do Fractured: attr_for, trauma,
+//  veiculo_comb_max, profissao… Um sistema novo tem campos que NÃO
+//  existem lá — rank, vila, clã, naturezas, jutsus — e mandar um
+//  desses para o Supabase derruba a gravação inteira:
+//
+//      Could not find the 'cla' column of 'fichas' in the schema cache
+//
+//  A regra passa a ser: campo de sistema NUNCA vira coluna. Ele vai
+//  dentro de `dados` (jsonb), que é livre. `_sistema` é a bandeja onde
+//  a tela entrega esses campos ao núcleo; ela é lida por `paraDados` e
+//  removida antes de a linha chegar ao banco.
+//
+//  Isto resolve a classe do problema, não um campo: qualquer campo que
+//  um sistema inventar amanhã já nasce do lado certo.
+// ══════════════════════════════════════════════════════════════════
+
+//  A visão completa da ficha — colunas + campos do sistema — para quem
+//  precisa montar o `dados`.
+function fichaCompleta(linha) {
+  const extra = linha && linha._sistema;
+  return extra ? { ...linha, ...extra } : (linha || {});
+}
+
+//  A linha pronta para o banco: sem a bandeja, e sem nenhuma chave que
+//  não seja coluna de verdade.
+function fichaParaBanco(linha) {
+  const fora = { ...linha };
+  delete fora._sistema;
+  //  Colunas que o banco recusou em alguma gravação anterior desta
+  //  sessão. Ver `fichaTratarErro`.
+  _colunasRecusadas.forEach(c => delete fora[c]);
+  return fora;
+}
+
+//  Acrescenta `dados` à linha que vai para o banco, e tira dela tudo o
+//  que não é coluna.
 function fichaComDados(linha) {
-  if (_semColunaDados) return linha;
+  const base = fichaParaBanco(linha);
+  if (_semColunaDados) return base;
   const f = S().ficha || {};
-  if (typeof f.paraDados !== 'function') return linha;
+  if (typeof f.paraDados !== 'function') return base;
   try {
-    return { ...linha, dados: f.paraDados(linha) };
+    return { ...base, dados: f.paraDados(fichaCompleta(linha)) };
   } catch (e) {
     // Um erro aqui NÃO pode impedir o salvamento. Grava sem `dados`;
     // a próxima gravação tenta de novo.
     console.error('[ficha] não consegui montar o formato novo:', e);
-    return linha;
+    return base;
   }
 }
 
-//  Chamado quando a gravação falha. Se o motivo foi a coluna não existir,
-//  desliga o formato novo e manda tentar de novo sem ele.
+//  Colunas que este banco não tem. Descobertas pelo próprio erro, e
+//  lembradas até a página recarregar — assim o segundo salvamento já
+//  nasce certo em vez de errar de novo.
+const _colunasRecusadas = new Set();
+
+//  Qual coluna o banco disse que não existe? A mensagem do PostgREST é
+//  «Could not find the 'cla' column of 'fichas' in the schema cache»;
+//  a do Postgres é «column "cla" of relation "fichas" does not exist».
+function _colunaDoErro(erro) {
+  const txt = `${erro?.message || ''} ${erro?.details || ''}`;
+  const m = txt.match(/'([^']+)' column/) || txt.match(/column "([^"]+)"/);
+  return m ? m[1] : null;
+}
+
+//  Chamado quando a gravação falha. Devolve `true` quando vale a pena
+//  tentar de novo — porque a linha foi corrigida.
+//
+//  Dois casos:
+//   · a coluna `dados` não existe → a migração 002 não foi rodada;
+//     desliga o formato novo e grava só nas colunas de sempre.
+//   · qualquer OUTRA coluna não existe → o campo não pertence a esta
+//     tabela. Anota, avisa no console e tenta de novo sem ele. Nenhum
+//     jogador fica com a ficha travada por causa de um campo só.
 function fichaTratarErro(erro) {
-  if (!erroDeColunaAusente(erro, 'dados')) return false;
-  _semColunaDados = true;
-  console.warn('[ficha] a coluna `dados` ainda não existe no banco — ' +
-               'gravando só no formato antigo. Rode migracao/002-ficha-dados.sql ' +
-               'no Supabase para ligar o formato novo.');
-  return true;   // vale a pena tentar de novo sem o campo
+  if (erroDeColunaAusente(erro, 'dados')) {
+    _semColunaDados = true;
+    console.warn('[ficha] a coluna `dados` ainda não existe no banco — ' +
+                 'gravando só no formato antigo. Rode migracao/002-ficha-dados.sql ' +
+                 'no Supabase para ligar o formato novo.');
+    return true;
+  }
+  const col = _colunaDoErro(erro);
+  if (col && (erro.code === 'PGRST204' || erro.code === '42703') && !_colunasRecusadas.has(col)) {
+    _colunasRecusadas.add(col);
+    console.warn(`[ficha] a tabela não tem a coluna \`${col}\` — ` +
+                 'gravando sem ela. Se este campo é de um sistema, ele deveria ' +
+                 'estar dentro de `dados` (ver _sistema em coletarFicha).');
+    return true;
+  }
+  return false;
 }
 
 //  A linha do banco, já no formato que a tela espera.
@@ -200,12 +270,16 @@ async function fichaMigrarEmSilencio(linha) {
 //  campo não voltou igual. É o alarme que pega um erro de tradução
 //  ANTES de ele virar dado perdido.
 let _fichaConferida = false;
-function fichaConferirIdaEVolta(linha) {
+function fichaConferirIdaEVolta(bandeja) {
   if (_fichaConferida) return;
   _fichaConferida = true;
   const f = S().ficha || {};
   if (typeof f.paraDados !== 'function' || typeof f.deDados !== 'function') return;
   try {
+    //  A conferência precisa da ficha INTEIRA — colunas mais os campos
+    //  do sistema. Sem isso ela acusaria como perdido tudo o que mora
+    //  em `_sistema`.
+    const linha = fichaCompleta(bandeja);
     const volta = f.deDados(f.paraDados(linha));
     const difs = Object.keys(volta).filter(k =>
       JSON.stringify(volta[k]) !== JSON.stringify(linha[k] ?? volta[k]));
@@ -217,4 +291,12 @@ function fichaConferirIdaEVolta(linha) {
   } catch (e) {
     console.warn('[ficha] não consegui conferir a ida e volta:', e?.message || e);
   }
+}
+
+//  Os atributos de um NPC no formato que `derivado()` espera: as
+//  chaves `attr_<id>` viram `<id>`.
+function attributosDoNpc(attrs) {
+  const fora = {};
+  Object.keys(attrs || {}).forEach(k => { fora[k.replace(/^attr_/, '')] = attrs[k]; });
+  return fora;
 }

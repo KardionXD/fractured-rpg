@@ -104,6 +104,15 @@ function _avdfMedidorNumero(r) {
             <button type="button" class="avdf-medidor-btn" onclick="ajustarRecurso('${r.id}',1)" aria-label="Mais 1 de ${_av(r.nome)}">+</button>
           </div>
           <div class="avdf-medidor-barra"><div class="avdf-medidor-fill" id="gauge-${r.id}-fill"></div></div>
+          <div class="avdf-medidor-teto">
+            <label for="max-${r.id}">Máximo</label>
+            <input type="number" id="max-${r.id}" class="avdf-medidor-max-input" min="0" inputmode="numeric"
+                   placeholder="auto" onchange="recMaxDefinirManual('${r.id}', this.value)"
+                   title="Vazio = calculado pela regra. Escreva um número para forçar outro valor.">
+            <button type="button" class="avdf-medidor-auto" onclick="avdfVoltarAoAutomatico('${r.id}')"
+                    title="Voltar ao valor da regra">↺</button>
+            <span class="avdf-medidor-excecao" id="excecao-${r.id}" hidden>exceção do Mestre</span>
+          </div>
           <span class="avdf-medidor-legenda"${r.legendaId ? ` id="${r.legendaId}"` : ''}>${_av(r.legenda || '')}</span>
         </div>`;
 }
@@ -118,16 +127,21 @@ const AVDF_USOS_VONTADE = [
   'Recusar um genjutsu no momento em que ele te pega',
 ];
 
+//  As chamas são desenhadas a partir do MÁXIMO ATUAL, não de um 3
+//  cravado: o Sarutobi tem 4 ("Você começa cada sessão com 4 Pontos de
+//  Vontade do Fogo em vez de 3"), e o Mestre pode pôr outro número.
 function _avdfVontadeDoFogo(r) {
-  const cargas = Array.from({ length: r.max }, (_, i) =>
-    `<button type="button" class="avdf-chama" id="avdf-chama-${i}" onclick="avdfGastarVontade(${i})"
-             aria-label="Carga ${i + 1} de Vontade do Fogo">🔥</button>`).join('');
   return `
         <div class="avdf-vontade">
           <div class="avdf-vontade-topo">
             <span class="avdf-vontade-nome">${_av(r.nome)}</span>
-            <div class="avdf-chamas" id="avdf-chamas">${cargas}</div>
+            <div class="avdf-chamas" id="avdf-chamas"></div>
             <span class="avdf-vontade-conta" id="gauge-pvf-val">${r.max}</span>
+            <input type="number" id="max-pvf" class="avdf-vontade-max" min="0" inputmode="numeric"
+                   placeholder="auto" onchange="recMaxDefinirManual('pvf', this.value)"
+                   title="Máximo. Vazio = o que a regra e o clã disserem.">
+            <button type="button" class="avdf-medidor-auto" onclick="avdfVoltarAoAutomatico('pvf')"
+                    title="Voltar ao valor da regra">↺</button>
           </div>
           <ul class="avdf-vontade-usos">
             ${AVDF_USOS_VONTADE.map(u => `<li>${_av(u)}</li>`).join('\n            ')}
@@ -176,11 +190,74 @@ function avdfGastarVontade(i) {
 
 function avdfPintarVontade() {
   const atual = REC.pvf ?? 0;
-  document.querySelectorAll('#avdf-chamas .avdf-chama').forEach((el, i) => {
+  const max   = RECMAX.pvf ?? recMax('pvf');
+  const caixa = document.getElementById('avdf-chamas');
+  if (caixa && caixa.childElementCount !== max) {
+    caixa.innerHTML = Array.from({ length: max }, (_, i) =>
+      `<button type="button" class="avdf-chama" id="avdf-chama-${i}" onclick="avdfGastarVontade(${i})"
+               aria-label="Carga ${i + 1} de Vontade do Fogo">🔥</button>`).join('');
+  }
+  caixa?.querySelectorAll('.avdf-chama').forEach((el, i) => {
     el.classList.toggle('apagada', i >= atual);
   });
   const conta = document.getElementById('gauge-pvf-val');
-  if (conta) conta.textContent = String(atual);
+  if (conta) conta.textContent = `${atual} / ${max}`;
+  avdfPintarTetos();
+}
+
+//  Mostra em cada medidor o teto que está valendo, e marca quando ele
+//  é uma exceção escrita à mão.
+function avdfPintarTetos() {
+  (S().recursos || []).forEach(r => {
+    const campo = document.getElementById('max-' + r.id);
+    if (!campo) return;
+    const manual = recMaxEhManual(r.id);
+    campo.value = manual ? RECMAXMANUAL[r.id] : '';
+    campo.placeholder = String(recMaxAutomatico(r.id));
+    campo.classList.toggle('manual', manual);
+    const selo = document.getElementById('excecao-' + r.id);
+    if (selo) selo.hidden = !manual;
+  });
+}
+
+function avdfVoltarAoAutomatico(id) {
+  recMaxDefinirManual(id, '');
+  avdfPintarTetos();
+  if (id === 'pvf') avdfPintarVontade();
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  O QUE O CLÃ MUDA NA FICHA (seus pontos 2 e 6)
+//
+//  "Ao selecionar Sarutobi, a ficha deve automaticamente atualizar o
+//  valor máximo de Vontade do Fogo para 4."
+//
+//  Cada clã declara em `ajustes` o que altera. A ficha aplica sozinha,
+//  mostra de onde veio o número — e o campo continua editável, porque
+//  a campanha pode ter uma regra que nenhuma tabela previu.
+// ══════════════════════════════════════════════════════════════════
+function avdfAjusteDeRecurso(id, base) {
+  const c = claAvdf(document.getElementById('f-cla')?.value);
+  const a = c?.ajustes?.recursos;
+  if (!a) return base;
+  let v = base;
+  if (a.pcMultiplicador && id === 'pc') v *= a.pcMultiplicador;
+  if (a.pcPct && id === 'pc') v *= (1 + a.pcPct / 100);
+  if (typeof a[id] === 'number') v += a[id];
+  return v;
+}
+
+//  A frase que explica o ajuste, para a tela poder mostrar em vez de o
+//  número simplesmente mudar sozinho sem explicação.
+function avdfExplicarAjuste(id) {
+  const c = claAvdf(document.getElementById('f-cla')?.value);
+  const a = c?.ajustes?.recursos;
+  if (!a || !c) return '';
+  const partes = [];
+  if (a.pcMultiplicador && id === 'pc') partes.push(`×${a.pcMultiplicador}`);
+  if (a.pcPct && id === 'pc') partes.push(`+${a.pcPct}%`);
+  if (typeof a[id] === 'number') partes.push(`${a[id] > 0 ? '+' : ''}${a[id]}`);
+  return partes.length ? `${c.nome}: ${partes.join(' ')}` : '';
 }
 
 //  Chamado quando um recurso muda (bateu, gastou chakra). Refaz as
@@ -559,6 +636,36 @@ function avdfAddVinculo() {
 //  Fardo é o que ele carrega. Os dois ficam grandes na tela porque
 //  são grandes na mesa.
 // ══════════════════════════════════════════════════════════════════
+//  A HISTÓRIA DO PERSONAGEM (seu ponto 5)
+//
+//  Uma área só para isto, grande, separada de tudo o mais. Não é
+//  personalidade, não é aparência, não é objetivo: é a história. O
+//  campo cresce sozinho conforme a pessoa escreve, para escrever
+//  quatro parágrafos não virar rolagem dentro de uma caixinha.
+function avdfHtmlHistoria() {
+  return `<div class="avdf-historia">
+        <textarea id="f-historia" rows="14" oninput="avdfCrescerTextarea(this);autoSave()"
+          placeholder="De onde ele veio, quem o criou, o que perdeu, por que virou ninja, o que aconteceu antes da primeira sessão..."></textarea>
+        <div class="avdf-historia-rodape">
+          <span id="avdf-historia-conta">0 palavras</span>
+          <span>Escreva à vontade — o campo cresce com o texto.</span>
+        </div>
+      </div>`;
+}
+
+//  Um textarea que não obriga ninguém a escrever espiando por uma
+//  fresta. Cresce até um teto e só então passa a rolar.
+function avdfCrescerTextarea(el) {
+  if (!el) return;
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight + 2, 900) + 'px';
+  const conta = document.getElementById('avdf-historia-conta');
+  if (conta && el.id === 'f-historia') {
+    const n = (el.value.trim().match(/\S+/g) || []).length;
+    conta.textContent = `${n} ${n === 1 ? 'palavra' : 'palavras'}`;
+  }
+}
+
 function avdfHtmlAlma() {
   return `<div class="avdf-alma">
         <div class="avdf-alma-campo">
@@ -578,78 +685,12 @@ function avdfHtmlAlma() {
 
 
 // ══════════════════════════════════════════════════════════════════
-//  EQUIPAMENTO E RYŌ (seu ponto 25)
+//  EQUIPAMENTO
 //
-//  O Kit Shinobi Padrão não é uma escolha: "todo ninja começa com ele".
-//  Então ele já vem na ficha, marcado como kit — e o que a pessoa
-//  acrescenta entra embaixo, sem se misturar.
+//  A primeira versão eram quatro linhas de texto livre. Virou cartão
+//  clicável com a ficha completa do item — ver a seção EQUIPAMENTO EM
+//  CARTÕES, mais abaixo neste arquivo.
 // ══════════════════════════════════════════════════════════════════
-let avdfItensN = 4;
-
-function avdfHtmlEquipamento() {
-  const kit = KIT_SHINOBI_AVDF.map(i => `
-          <li class="avdf-kit-item">
-            <span class="avdf-kit-qtd">${i.qtd}×</span>
-            <span class="avdf-kit-nome">${_av(i.nome)}</span>
-            ${i.detalhe ? `<span class="avdf-kit-det">${_av(i.detalhe)}</span>` : ''}
-          </li>`).join('');
-  return `<div class="avdf-equip">
-        <div class="avdf-equip-kit">
-          <div class="avdf-equip-sub">Kit Shinobi Padrão <span class="avdf-equip-auto">incluso — todo ninja começa com ele</span></div>
-          <ul class="avdf-kit">${kit}</ul>
-        </div>
-        <div class="avdf-equip-ryo">
-          <label for="f-ryo">Ryō</label>
-          <input type="number" id="f-ryo" min="0" step="10" inputmode="numeric"
-                 value="${RYO_INICIAL}" oninput="autoSave()">
-          <span class="avdf-equip-auto">${RYO_INICIAL} na criação</span>
-        </div>
-        <div class="avdf-equip-sub">O que mais você carrega</div>
-        <div class="avdf-itens" id="avdf-itens-list"></div>
-        <button type="button" class="avdf-add" onclick="avdfAddItem()">＋ Item</button>
-      </div>`;
-}
-
-function avdfMontarItens(dados) {
-  const lista = document.getElementById('avdf-itens-list');
-  if (!lista) return;
-  const existentes = (dados && dados.length) ? dados : avdfColetarItens();
-  avdfItensN = Math.max(4, existentes.length);
-  lista.innerHTML = '';
-  for (let i = 0; i < avdfItensN; i++) {
-    const it = existentes[i] || {};
-    const div = document.createElement('div');
-    div.className = 'avdf-item';
-    div.innerHTML = `
-        <input type="number" id="ai-qtd-${i}" class="avdf-item-qtd" min="0" inputmode="numeric"
-               placeholder="1" value="${it.qtd != null ? _av(it.qtd) : ''}" oninput="autoSave()">
-        <input type="text" id="ai-nome-${i}" class="avdf-item-nome" placeholder="Nome do item..."
-               value="${_av(it.nome || '')}" oninput="autoSave()">
-        <input type="text" id="ai-obs-${i}" class="avdf-item-obs" placeholder="Observação..."
-               value="${_av(it.obs || '')}" oninput="autoSave()">`;
-    lista.appendChild(div);
-  }
-}
-
-function avdfColetarItens() {
-  const arr = [];
-  for (let i = 0; i < avdfItensN; i++) {
-    arr.push({
-      qtd:  document.getElementById(`ai-qtd-${i}`)?.value || '',
-      nome: document.getElementById(`ai-nome-${i}`)?.value || '',
-      obs:  document.getElementById(`ai-obs-${i}`)?.value || '',
-    });
-  }
-  return arr;
-}
-
-function avdfAddItem() {
-  const atuais = avdfColetarItens();
-  atuais.push({});
-  avdfItensN = atuais.length;
-  avdfMontarItens(atuais);
-}
-
 
 // ══════════════════════════════════════════════════════════════════
 //  O QUE O RANK PERMITE, APLICADO NA TELA (seu ponto 7)
@@ -694,6 +735,7 @@ function avdfFichaAoMontar() {
   if (typeof avdfAtualizarTecnicasDisponiveis === 'function') avdfAtualizarTecnicasDisponiveis();
   avdfMontarVinculos(null);
   avdfMontarItens(null);
+  avdfPintarJutsus();
   avdfAoTrocarOrigem();
   avdfAtualizarGrausPermitidos();
   avdfPintarVontade();
@@ -713,6 +755,7 @@ function avdfAplicarCampos(d, porCampo) {
   porCampo('f-ninjaway', d.ninjaway || '');
   porCampo('f-fardo',    d.fardo || '');
   porCampo('f-ryo',      d.ryo != null ? d.ryo : RYO_INICIAL);
+  porCampo('f-historia', d.historia || '');
   porCampo('avdf-exaustao', d.exa_atual || 0);
 
   (d.condicoes || []).forEach(id => {
@@ -737,7 +780,17 @@ function avdfAplicarCampos(d, porCampo) {
   if (typeof avdfAtualizarTecnicasDisponiveis === 'function') avdfAtualizarTecnicasDisponiveis();
 
   avdfMontarVinculos(Array.isArray(d.vinculos) ? d.vinculos : null);
-  avdfMontarItens(Array.isArray(d.itens) ? d.itens : null);
+  avdfMontarItens(Array.isArray(d.itens) && d.itens.length ? d.itens : null);
+  avdfAplicarJutsusNovos(d.jutsus || []);
+
+  //  Tetos de recurso forçados à mão pelo Mestre.
+  Object.keys(RECMAXMANUAL).forEach(k => delete RECMAXMANUAL[k]);
+  Object.entries(d.maxManual || {}).forEach(([k, v]) => { if (v != null && v !== '') RECMAXMANUAL[k] = v; });
+  pintarTodosOsRecursos();
+  avdfPintarTetos();
+
+  const hist = document.getElementById('f-historia');
+  if (hist) avdfCrescerTextarea(hist);
   avdfAoTrocarOrigem();
   avdfAtualizarGrausPermitidos();
   avdfPintarVontade();
@@ -782,6 +835,12 @@ function avdfColetarCampos() {
     itens:    avdfColetarItens(),
     vinculos: avdfColetarVinculos(),
     tecnicas: avdfColetarTecnicas(),
+    jutsus:   avdfColetarJutsusNovos(),
+    historia: document.getElementById('f-historia')?.value || '',
+
+    //  Os tetos que o Mestre forçou à mão. Guardados junto da ficha,
+    //  porque uma exceção que some no recarregamento não é exceção.
+    maxManual: { ...RECMAXMANUAL },
   };
 }
 
@@ -828,3 +887,628 @@ function avdfFormatoRecurso(id, atual, total) {
   return `<span class="avdf-medidor-atual">${atual}</span>` +
          `<span class="avdf-medidor-max"> / ${total}</span>`;
 }
+
+
+// ══════════════════════════════════════════════════════════════════
+//  A BIBLIOTECA DE JUTSUS (seu ponto 3)
+//
+//  203 técnicas não cabem numa lista aberta na ficha — e não deveriam
+//  caber. A ficha mostra só o que o personagem SABE; o catálogo inteiro
+//  mora atrás do botão "＋ Adicionar Jutsu", numa janela com busca e
+//  filtros por rank, natureza, categoria, acesso e clã.
+//
+//  Nada aqui inventa regra: cada campo mostrado vem do que o livro
+//  escreveu. Onde o livro não deu um dado, a linha simplesmente não
+//  aparece — em vez de aparecer com um valor plausível.
+// ══════════════════════════════════════════════════════════════════
+
+//  Os jutsus que o personagem já anotou na ficha.
+let AVDF_JUTSUS = [];
+
+//  Estado dos filtros da janela.
+const AVDF_BIB = { busca: '', rank: '', natureza: '', categoria: '', acesso: '', cla: '', so: '' };
+
+const AVDF_CATEGORIA_NOME = {
+  ninjutsu:  'Ninjutsu',
+  genjutsu:  'Genjutsu',
+  taijutsu:  'Taijutsu',
+  fuinjutsu: 'Fūinjutsu',
+  geral:     'Geral e Academia',
+};
+
+//  O catálogo inteiro: as do livro do jogador MAIS as exclusivas de
+//  cada clã, que moram no Compêndio. As de clã ganham `cla` para o
+//  filtro poder separá-las.
+let _avdfCatalogo = null;
+
+function avdfCatalogoJutsus() {
+  if (_avdfCatalogo) return _avdfCatalogo;
+  const base = (typeof JUTSUS_AVDF !== 'undefined' ? JUTSUS_AVDF : []).map(j => ({ ...j, cla: null }));
+  const deCla = [];
+  (typeof clasAvdf === 'function' ? clasAvdf() : []).forEach(c => {
+    (c.tecnicas || []).forEach(t => {
+      deCla.push({
+        id: `cla_${c.id}_${avdfPericiaId(t.nome)}`,
+        nome: t.nome,
+        rank: t.rk || t.rank || null,
+        pc: t.pc ?? null,
+        natureza: null,
+        categoria: 'cla',
+        acesso: `Exclusiva — ${c.nome}`,
+        efeito: t.efeito || '',
+        cla: c.id,
+        claNome: c.nome,
+        estagio: t.est || t.estagio || null,
+      });
+    });
+  });
+  _avdfCatalogo = base.concat(deCla);
+  return _avdfCatalogo;
+}
+
+//  A janela. Nasce escondida e só é montada uma vez.
+function avdfHtmlBiblioteca() {
+  return `<div class="avdf-modal" id="avdf-bib" hidden role="dialog" aria-modal="true" aria-label="Biblioteca de Jutsus">
+        <div class="avdf-modal-fundo" onclick="avdfFecharBiblioteca()"></div>
+        <div class="avdf-modal-caixa">
+          <div class="avdf-modal-topo">
+            <h2>Biblioteca de Jutsus</h2>
+            <button type="button" class="avdf-modal-x" onclick="avdfFecharBiblioteca()" aria-label="Fechar">✕</button>
+          </div>
+          <div class="avdf-bib-filtros">
+            <input type="search" id="bib-busca" placeholder="Buscar por nome ou efeito..."
+                   oninput="avdfBibFiltrar('busca', this.value)" aria-label="Buscar jutsu">
+            <div class="avdf-bib-selects">
+              <select id="bib-cat" onchange="avdfBibFiltrar('categoria', this.value)" aria-label="Categoria"></select>
+              <select id="bib-rank" onchange="avdfBibFiltrar('rank', this.value)" aria-label="Rank"></select>
+              <select id="bib-nat" onchange="avdfBibFiltrar('natureza', this.value)" aria-label="Natureza"></select>
+              <select id="bib-acesso" onchange="avdfBibFiltrar('acesso', this.value)" aria-label="Acesso"></select>
+              <select id="bib-cla" onchange="avdfBibFiltrar('cla', this.value)" aria-label="Clã"></select>
+            </div>
+            <div class="avdf-bib-atalhos">
+              <button type="button" class="avdf-bib-chip" data-so="" onclick="avdfBibFiltrar('so','')">Tudo</button>
+              <button type="button" class="avdf-bib-chip" data-so="posso" onclick="avdfBibFiltrar('so','posso')"
+                      title="Dentro do seu rank e das naturezas que você domina">Que eu posso aprender</button>
+              <button type="button" class="avdf-bib-chip" data-so="meucla" onclick="avdfBibFiltrar('so','meucla')">Do meu clã</button>
+            </div>
+            <div class="avdf-bib-conta" id="bib-conta"></div>
+          </div>
+          <div class="avdf-bib-lista" id="bib-lista"></div>
+        </div>
+      </div>`;
+}
+
+function _opcoes(sel, lista, rotuloVazio) {
+  const el = document.getElementById(sel);
+  if (!el) return;
+  el.innerHTML = `<option value="">${rotuloVazio}</option>` +
+    lista.map(o => `<option value="${_av(o.v)}">${_av(o.t)}</option>`).join('');
+}
+
+function avdfAbrirBiblioteca() {
+  const cx = document.getElementById('avdf-bib');
+  if (!cx) return;
+  const cat = avdfCatalogoJutsus();
+
+  _opcoes('bib-cat', [...new Set(cat.map(j => j.categoria).filter(Boolean))]
+    .map(c => ({ v: c, t: c === 'cla' ? 'Exclusiva de clã' : (AVDF_CATEGORIA_NOME[c] || c) })), 'Toda categoria');
+  _opcoes('bib-rank', JUTSU_RANKS_AVDF.map(r => ({ v: r.id, t: `Rank ${r.id} · ${r.pc} PC` })), 'Todo rank');
+  _opcoes('bib-nat', NATUREZAS_AVDF.map(n => ({ v: n.id, t: `${n.nome} (${n.trad})` })), 'Toda natureza');
+  _opcoes('bib-acesso', [...new Set(cat.map(j => j.acesso).filter(Boolean))].sort()
+    .map(a => ({ v: a, t: a })), 'Todo acesso');
+  _opcoes('bib-cla', clasAvdf().map(c => ({ v: c.id, t: c.nome })), 'Todo clã');
+
+  cx.hidden = false;
+  document.body.classList.add('avdf-modal-aberto');
+  avdfBibDesenhar();
+  setTimeout(() => document.getElementById('bib-busca')?.focus(), 40);
+}
+
+function avdfFecharBiblioteca() {
+  const cx = document.getElementById('avdf-bib');
+  if (cx) cx.hidden = true;
+  document.body.classList.remove('avdf-modal-aberto');
+}
+
+function avdfBibFiltrar(campo, valor) {
+  AVDF_BIB[campo] = valor;
+  if (campo === 'so') {
+    document.querySelectorAll('.avdf-bib-chip').forEach(b =>
+      b.classList.toggle('ativo', (b.dataset.so || '') === valor));
+  }
+  avdfBibDesenhar();
+}
+
+//  "Que eu posso aprender": o rank alcança e, se for elemental, a
+//  natureza está dominada. É a mesma regra que `avdfCustoJutsu` usa —
+//  a janela não inventa critério próprio.
+function _avdfPossoAprender(j) {
+  const rank = document.getElementById('f-rank')?.value || 'genin';
+  if (j.rank && !avdfJutsuPermitido(rank, j.rank)) return false;
+  if (j.natureza) {
+    const el = document.getElementById('f-nat-' + j.natureza);
+    if (!el || !el.checked) return false;
+  }
+  if (j.cla && j.cla !== document.getElementById('f-cla')?.value) return false;
+  return true;
+}
+
+function avdfBibDesenhar() {
+  const lista = document.getElementById('bib-lista');
+  if (!lista) return;
+  const f = AVDF_BIB;
+  const termo = f.busca.trim().toLowerCase();
+  const meuCla = document.getElementById('f-cla')?.value || '';
+  const jaTenho = new Set(AVDF_JUTSUS.map(j => j.id));
+
+  const achados = avdfCatalogoJutsus().filter(j => {
+    if (f.rank && j.rank !== f.rank) return false;
+    if (f.natureza && j.natureza !== f.natureza) return false;
+    if (f.categoria && j.categoria !== f.categoria) return false;
+    if (f.acesso && j.acesso !== f.acesso) return false;
+    if (f.cla && j.cla !== f.cla) return false;
+    if (f.so === 'posso' && !_avdfPossoAprender(j)) return false;
+    if (f.so === 'meucla' && j.cla !== meuCla) return false;
+    if (termo) {
+      const alvo = `${j.nome} ${j.traducao || ''} ${j.efeito || ''}`.toLowerCase();
+      if (!alvo.includes(termo)) return false;
+    }
+    return true;
+  });
+
+  const conta = document.getElementById('bib-conta');
+  if (conta) conta.textContent = `${achados.length} de ${avdfCatalogoJutsus().length} técnicas`;
+
+  if (!achados.length) {
+    lista.innerHTML = `<div class="avdf-bib-vazio">Nenhuma técnica com esses filtros.</div>`;
+    return;
+  }
+
+  //  Agrupadas pela seção do livro, para a janela ficar parecida com o
+  //  capítulo de onde veio.
+  const grupos = {};
+  achados.forEach(j => {
+    const g = j.cla ? `Exclusivas — ${j.claNome}` : (j.secao || AVDF_CATEGORIA_NOME[j.categoria] || 'Outras');
+    (grupos[g] = grupos[g] || []).push(j);
+  });
+
+  lista.innerHTML = Object.keys(grupos).map(g => `
+        <div class="avdf-bib-grupo">${_av(g)}</div>
+        ${grupos[g].map(j => _avdfBibCartao(j, jaTenho.has(j.id))).join('')}`).join('');
+}
+
+function _avdfBibCartao(j, jaTem) {
+  const nat = j.natureza ? NATUREZAS_AVDF.find(n => n.id === j.natureza) : null;
+  const etiquetas = [
+    j.rank ? `<span class="avdf-bib-rank">Rank ${_av(j.rank)}</span>` : '',
+    j.pc != null ? `<span class="avdf-bib-pc">${_av(j.pc)} PC</span>` : '',
+    j.selos != null ? `<span class="avdf-bib-tag">${_av(j.selos)} selos</span>` : '',
+    nat ? `<span class="avdf-bib-nat" style="--cor-nat:${nat.cor}">${_av(nat.nome)}</span>` : '',
+    j.acesso ? `<span class="avdf-bib-tag">${_av(j.acesso)}</span>` : '',
+    j.estagio ? `<span class="avdf-bib-tag">Estágio ${_av(j.estagio)}</span>` : '',
+  ].filter(Boolean).join('');
+
+  //  Os campos que só algumas técnicas têm. Só entram quando existem.
+  const extras = [
+    ['Alcance', j.alcance], ['CD', j.cd], ['Duração', j.duracao], ['Ação', j.acao],
+    ['Dano', j.dano], ['Acerto', j.acerto], ['Camadas', j.camadas], ['Estilo', j.estilo],
+    ['Requisito', j.requisito], ['Custo real', j.custoReal], ['Olho', j.olho],
+  ].filter(([, v]) => v != null && v !== '')
+   .map(([k, v]) => `<span class="avdf-bib-extra"><b>${k}:</b> ${_av(v)}</span>`).join('');
+
+  const pode = _avdfPossoAprender(j);
+  return `<div class="avdf-bib-item${jaTem ? ' ja-tem' : ''}${pode ? '' : ' fora-do-alcance'}">
+        <div class="avdf-bib-cabeca">
+          <div class="avdf-bib-nome">
+            ${_av(j.nome)}${j.traducao ? `<span class="avdf-bib-trad">${_av(j.traducao)}</span>` : ''}
+          </div>
+          <button type="button" class="avdf-bib-add" onclick="avdfAdicionarJutsu('${_av(j.id)}')"
+                  ${jaTem ? 'disabled' : ''}>${jaTem ? 'na ficha' : '＋ Adicionar'}</button>
+        </div>
+        <div class="avdf-bib-tags">${etiquetas}</div>
+        ${j.efeito ? `<div class="avdf-bib-efeito">${_av(j.efeito)}</div>` : ''}
+        ${j.efeitoDetalhado ? `<div class="avdf-bib-efeito avdf-bib-detalhe">${_av(j.efeitoDetalhado)}</div>` : ''}
+        ${extras ? `<div class="avdf-bib-extras">${extras}</div>` : ''}
+        ${j.observacao ? `<div class="avdf-bib-obs">${_av(j.observacao)}</div>` : ''}
+        ${pode ? '' : `<div class="avdf-bib-aviso">${_av(_avdfPorQueNaoPosso(j))}</div>`}
+      </div>`;
+}
+
+//  Por que esta técnica está fora do alcance. Bloquear sem dizer o
+//  motivo é pior do que não bloquear — e aqui não é bloqueio: o botão
+//  continua funcionando, porque o Mestre manda mais que a tabela.
+function _avdfPorQueNaoPosso(j) {
+  const rank = document.getElementById('f-rank')?.value || 'genin';
+  if (j.rank && !avdfJutsuPermitido(rank, j.rank)) return avdfLimiteJutsu(rank).aviso;
+  if (j.natureza) {
+    const el = document.getElementById('f-nat-' + j.natureza);
+    if (!el || !el.checked) {
+      const n = NATUREZAS_AVDF.find(x => x.id === j.natureza);
+      return `Você não domina ${n ? n.nome : j.natureza} — o livro diz que jutsus de uma natureza que você não domina não podem ser aprendidos.`;
+    }
+  }
+  if (j.cla) return `Exclusiva do clã ${j.claNome}.`;
+  return '';
+}
+
+function avdfAdicionarJutsu(id) {
+  const j = avdfCatalogoJutsus().find(x => x.id === id);
+  if (!j) return;
+  if (AVDF_JUTSUS.some(x => x.id === id)) return;
+  AVDF_JUTSUS.push({ ...j });
+  avdfPintarJutsus();
+  avdfBibDesenhar();
+  if (typeof toast === 'function') toast(`${j.nome} adicionado à ficha.`, 'ok');
+  if (typeof autoSave === 'function') autoSave();
+}
+
+function avdfRemoverJutsu(id) {
+  AVDF_JUTSUS = AVDF_JUTSUS.filter(j => j.id !== id);
+  avdfPintarJutsus();
+  avdfBibDesenhar();
+  if (typeof autoSave === 'function') autoSave();
+}
+
+
+// ══════════════════════════════════════════════════════════════════
+//  OS JUTSUS NA FICHA
+//
+//  Cartão compacto que abre. Fechado mostra o que a mesa pergunta no
+//  meio do turno: nome, rank e custo. Aberto mostra o resto.
+// ══════════════════════════════════════════════════════════════════
+function avdfHtmlJutsus() {
+  return `<div class="avdf-jutsus-topo">
+          <input type="search" id="avdf-jutsu-busca" placeholder="Buscar entre os seus..."
+                 oninput="avdfPintarJutsus()" aria-label="Buscar nos seus jutsus">
+          <button type="button" class="avdf-add avdf-add-forte" onclick="avdfAbrirBiblioteca()">＋ Adicionar Jutsu</button>
+        </div>
+        <div class="avdf-jutsus" id="avdf-jutsus-list"></div>
+        ${avdfHtmlBiblioteca()}`;
+}
+
+function avdfPintarJutsus() {
+  const lista = document.getElementById('avdf-jutsus-list');
+  if (!lista) return;
+  const termo = (document.getElementById('avdf-jutsu-busca')?.value || '').toLowerCase().trim();
+  const meus = AVDF_JUTSUS.filter(j =>
+    !termo || `${j.nome} ${j.efeito || ''}`.toLowerCase().includes(termo));
+
+  if (!meus.length) {
+    lista.innerHTML = AVDF_JUTSUS.length
+      ? `<div class="avdf-vazio">Nenhum jutsu seu casa com "${_av(termo)}".</div>`
+      : `<div class="avdf-vazio">Nenhum jutsu ainda. Use <strong>＋ Adicionar Jutsu</strong> para abrir a biblioteca do sistema.</div>`;
+    return;
+  }
+
+  //  Separadas por tipo, como você pediu: Ninjutsu | Genjutsu |
+  //  Taijutsu | Fūinjutsu | do Clã | Geral.
+  const ordem = ['ninjutsu', 'genjutsu', 'taijutsu', 'fuinjutsu', 'cla', 'geral'];
+  const grupos = {};
+  meus.forEach(j => (grupos[j.categoria] = grupos[j.categoria] || []).push(j));
+
+  lista.innerHTML = ordem.filter(c => grupos[c]).map(c => `
+        <div class="avdf-jutsu-cat">${_av(c === 'cla' ? 'Do Clã' : (AVDF_CATEGORIA_NOME[c] || c))}</div>
+        ${grupos[c].map(_avdfCartaoJutsu).join('')}`).join('');
+}
+
+function _avdfCartaoJutsu(j) {
+  const nat = j.natureza ? NATUREZAS_AVDF.find(n => n.id === j.natureza) : null;
+  const extras = [
+    ['Alcance', j.alcance], ['CD', j.cd], ['Duração', j.duracao], ['Ação', j.acao],
+    ['Dano', j.dano], ['Acerto', j.acerto], ['Selos', j.selos], ['Camadas', j.camadas],
+    ['Estilo', j.estilo], ['Requisito', j.requisito], ['Acesso', j.acesso],
+  ].filter(([, v]) => v != null && v !== '')
+   .map(([k, v]) => `<span class="avdf-bib-extra"><b>${k}:</b> ${_av(v)}</span>`).join('');
+
+  return `<details class="avdf-jutsu">
+        <summary>
+          <span class="avdf-jutsu-nome">${_av(j.nome)}</span>
+          ${nat ? `<span class="avdf-bib-nat" style="--cor-nat:${nat.cor}">${_av(nat.nome)}</span>` : ''}
+          ${j.rank ? `<span class="avdf-bib-rank">${_av(j.rank)}</span>` : ''}
+          ${j.pc != null ? `<span class="avdf-jutsu-pc">${_av(j.pc)} PC</span>` : ''}
+        </summary>
+        <div class="avdf-jutsu-corpo">
+          ${j.efeito ? `<div class="avdf-bib-efeito">${_av(j.efeito)}</div>` : ''}
+          ${j.efeitoDetalhado ? `<div class="avdf-bib-efeito avdf-bib-detalhe">${_av(j.efeitoDetalhado)}</div>` : ''}
+          ${extras ? `<div class="avdf-bib-extras">${extras}</div>` : ''}
+          <div class="avdf-jutsu-acoes">
+            <button type="button" class="avdf-jutsu-usar" onclick="avdfUsarJutsu('${_av(j.id)}')">Usar</button>
+            <button type="button" class="avdf-jutsu-remover" onclick="avdfRemoverJutsu('${_av(j.id)}')">Remover</button>
+          </div>
+        </div>
+      </details>`;
+}
+
+//  Usar um jutsu: confere e desconta o PC, e anuncia na mesa o que o
+//  livro escreveu. NÃO inventa rolagem: se a técnica não tem ataque
+//  previsto, nada é rolado — só o custo sai e o efeito é anunciado.
+function avdfUsarJutsu(id) {
+  const j = AVDF_JUTSUS.find(x => x.id === id);
+  if (!j) return;
+  const custo = parseInt(j.pc, 10);
+
+  if (Number.isFinite(custo) && custo > 0) {
+    if ((REC.pc ?? 0) < custo) {
+      if (typeof toast === 'function') toast(`Chakra insuficiente: ${j.nome} custa ${custo} PC e você tem ${REC.pc ?? 0}.`, 'err');
+      return;
+    }
+    REC.pc = (REC.pc ?? 0) - custo;
+    pintarRecurso('pc');
+    if (typeof S().ficha.aoMudarRecurso === 'function') S().ficha.aoMudarRecurso('pc');
+  }
+
+  const partes = [j.rank ? `rank ${j.rank}` : '', Number.isFinite(custo) ? `${custo} PC` : (j.pc ? String(j.pc) : '')]
+    .filter(Boolean).join(' · ');
+  if (typeof publicarSala === 'function') {
+    publicarSala('msg', { texto: `⚡ **${j.nome}**${partes ? ` (${partes})` : ''}\n${j.efeito || ''}` });
+  }
+  if (typeof toast === 'function') toast(`${j.nome} usado${Number.isFinite(custo) && custo > 0 ? ` — ${custo} PC` : ''}.`, 'ok');
+  if (typeof autoSave === 'function') autoSave();
+}
+
+function avdfColetarJutsusNovos() {
+  return AVDF_JUTSUS.map(j => j.id);
+}
+
+function avdfAplicarJutsusNovos(ids) {
+  const cat = avdfCatalogoJutsus();
+  AVDF_JUTSUS = (ids || []).map(id => cat.find(j => j.id === id)).filter(Boolean);
+  avdfPintarJutsus();
+}
+
+
+// ══════════════════════════════════════════════════════════════════
+//  EQUIPAMENTO EM CARTÕES (seu ponto 4)
+//
+//  Na ficha aparece "Kunai ×10". Clicar abre a janela com tudo que o
+//  livro diz daquele item: categoria, preço, dano, alcance, efeito,
+//  regra especial, requisito. A ficha fica limpa e ninguém precisa
+//  sair dela para consultar a regra de um selo explosivo.
+//
+//  Vale para o kit inicial e para qualquer item acrescentado depois:
+//  quem digita um nome que existe no catálogo ganha o cartão junto.
+// ══════════════════════════════════════════════════════════════════
+
+//  O que está na mochila. Cada entrada é { nome, qtd } — o resto das
+//  informações vem do catálogo pelo nome, para a ficha não guardar uma
+//  cópia velha da regra de um item.
+let AVDF_ITENS = [];
+
+const AVDF_CAT_ITEM = {
+  arma: 'Armas', ferramenta: 'Ferramentas',
+  consumivel: 'Consumíveis', vestuario: 'Vestuário',
+};
+
+function avdfHtmlEquipamento() {
+  return `<div class="avdf-equip">
+        <div class="avdf-equip-linha">
+          <div class="avdf-equip-ryo">
+            <label for="f-ryo">Ryō</label>
+            <input type="number" id="f-ryo" min="0" step="10" inputmode="numeric"
+                   value="${RYO_INICIAL}" oninput="autoSave()">
+            <span class="avdf-equip-auto">${RYO_INICIAL} na criação</span>
+          </div>
+          <button type="button" class="avdf-add avdf-add-forte" onclick="avdfAbrirLojinha()">＋ Adicionar Item</button>
+        </div>
+        <div class="avdf-equip-sub">Mochila <span class="avdf-equip-auto" id="avdf-equip-conta"></span></div>
+        <div class="avdf-itens-grade" id="avdf-itens-list"></div>
+        ${_avdfHtmlJanelaItem()}
+        ${_avdfHtmlLojinha()}
+      </div>`;
+}
+
+//  A mochila. Cada item é um cartão compacto; clicar abre a ficha dele.
+function avdfMontarItens(dados) {
+  const lista = document.getElementById('avdf-itens-list');
+  if (!lista) return;
+  //  Ficha nova nasce com o Kit Shinobi Padrão: "todo ninja começa com
+  //  ele" — não é escolha, então não se pergunta.
+  //  O kit sai do próprio catálogo (`kit: true`), e não de uma segunda
+  //  lista escrita à mão. Com duas listas, os nomes divergiam — o kit
+  //  dizia "Shuriken" e o catálogo "Shuriken (×10)" — e metade dos
+  //  itens iniciais abria sem ficha nenhuma.
+  if (dados) AVDF_ITENS = dados.slice();
+  else if (!AVDF_ITENS.length) {
+    const kit = typeof kitShinobiAvdf === 'function' ? kitShinobiAvdf() : [];
+    AVDF_ITENS = kit.map(k => ({ nome: k.nome, qtd: k.qtdKit ?? 1, doKit: true }));
+  }
+
+  const conta = document.getElementById('avdf-equip-conta');
+  if (conta) conta.textContent = `${AVDF_ITENS.length} ${AVDF_ITENS.length === 1 ? 'item' : 'itens'}`;
+
+  lista.innerHTML = AVDF_ITENS.map((it, i) => {
+    const d = typeof itemAvdf === 'function' ? itemAvdf(it.nome) : null;
+    return `<div class="avdf-item-card${d ? ' com-ficha' : ''}${it.doKit ? ' do-kit' : ''}"
+                 ${d ? `onclick="avdfAbrirItem(${i})" role="button" tabindex="0"
+                 onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();avdfAbrirItem(${i})}"` : ''}>
+        <span class="avdf-item-icone">${_av(d?.icone || '▫')}</span>
+        <span class="avdf-item-txt">
+          <span class="avdf-item-nome">${_av(it.nome)}</span>
+          ${d?.categoria ? `<span class="avdf-item-cat">${_av(AVDF_CAT_ITEM[d.categoria] || d.categoria)}</span>` : ''}
+        </span>
+        <span class="avdf-item-qtd">×${_av(it.qtd ?? 1)}</span>
+        <button type="button" class="avdf-item-x" title="Remover"
+                onclick="event.stopPropagation();avdfRemoverItem(${i})">✕</button>
+      </div>`;
+  }).join('') || `<div class="avdf-vazio">Mochila vazia.</div>`;
+}
+
+function avdfColetarItens() { return AVDF_ITENS.slice(); }
+
+function avdfRemoverItem(i) {
+  AVDF_ITENS.splice(i, 1);
+  avdfMontarItens(AVDF_ITENS);
+  if (typeof autoSave === 'function') autoSave();
+}
+
+function avdfMudarQtd(i, delta) {
+  const it = AVDF_ITENS[i]; if (!it) return;
+  it.qtd = Math.max(0, (parseInt(it.qtd, 10) || 0) + delta);
+  avdfMontarItens(AVDF_ITENS);
+  avdfAbrirItem(i);
+  if (typeof autoSave === 'function') autoSave();
+}
+
+// ── A ficha de um item ────────────────────────────────────────────
+function _avdfHtmlJanelaItem() {
+  return `<div class="avdf-modal" id="avdf-item-modal" hidden role="dialog" aria-modal="true">
+        <div class="avdf-modal-fundo" onclick="avdfFecharItem()"></div>
+        <div class="avdf-modal-caixa avdf-modal-estreita" id="avdf-item-corpo"></div>
+      </div>`;
+}
+
+function avdfAbrirItem(i) {
+  const it = AVDF_ITENS[i];
+  const d = it && typeof itemAvdf === 'function' ? itemAvdf(it.nome) : null;
+  const cx = document.getElementById('avdf-item-modal');
+  const corpo = document.getElementById('avdf-item-corpo');
+  if (!cx || !corpo || !d) return;
+
+  //  Só entram as linhas que o livro realmente dá. Um campo vazio
+  //  seria pior do que campo nenhum: dá a impressão de que a regra
+  //  existe e ninguém preencheu.
+  const linhas = [
+    ['Categoria', AVDF_CAT_ITEM[d.categoria] || d.categoria],
+    ['Preço', d.precoTexto || (d.preco != null ? `${d.preco} ryō` : null)],
+    ['Dano', d.dano],
+    ['Alcance', d.alcance],
+    ['Zona', d.alcanceZona],
+    ['Requisito', d.requisito || d.requisitoPara],
+    ['Teste', d.teste],
+    ['Condição', d.condicao],
+    ['Doses', d.doses],
+    ['Usos', d.usos],
+    ['Duração', d.duracao],
+    ['Custo em ação', d.custoAcao],
+    ['Redução de dano', d.reducaoDano],
+    ['Embalagem', d.embalagem],
+    ['Regra especial', d.regraEspecial],
+  ].filter(([, v]) => v != null && v !== '')
+   .map(([k, v]) => `<div class="avdf-ficha-linha"><span>${k}</span><span>${_av(v)}</span></div>`).join('');
+
+  corpo.innerHTML = `
+        <div class="avdf-modal-topo">
+          <h2><span class="avdf-item-icone-grande">${_av(d.icone || '▫')}</span> ${_av(d.nome)}</h2>
+          <button type="button" class="avdf-modal-x" onclick="avdfFecharItem()" aria-label="Fechar">✕</button>
+        </div>
+        <div class="avdf-ficha-item">
+          <div class="avdf-ficha-qtd">
+            <button type="button" onclick="avdfMudarQtd(${i},-1)">−</button>
+            <span>${_av(it.qtd ?? 1)}</span>
+            <button type="button" onclick="avdfMudarQtd(${i},1)">+</button>
+            <span class="avdf-ficha-qtd-rot">na mochila</span>
+          </div>
+          ${d.efeito ? `<div class="avdf-ficha-efeito">${_av(d.efeito)}</div>` : ''}
+          ${linhas ? `<div class="avdf-ficha-tabela">${linhas}</div>` : ''}
+          ${d.kit ? `<div class="avdf-ficha-nota">Faz parte do Kit Shinobi Padrão — todo ninja começa com ele.</div>` : ''}
+        </div>`;
+  cx.hidden = false;
+  document.body.classList.add('avdf-modal-aberto');
+}
+
+function avdfFecharItem() {
+  const cx = document.getElementById('avdf-item-modal');
+  if (cx) cx.hidden = true;
+  document.body.classList.remove('avdf-modal-aberto');
+}
+
+// ── O catálogo de equipamento ─────────────────────────────────────
+function _avdfHtmlLojinha() {
+  return `<div class="avdf-modal" id="avdf-loja" hidden role="dialog" aria-modal="true" aria-label="Equipamento">
+        <div class="avdf-modal-fundo" onclick="avdfFecharLojinha()"></div>
+        <div class="avdf-modal-caixa">
+          <div class="avdf-modal-topo">
+            <h2>Equipamento</h2>
+            <button type="button" class="avdf-modal-x" onclick="avdfFecharLojinha()" aria-label="Fechar">✕</button>
+          </div>
+          <div class="avdf-bib-filtros">
+            <input type="search" id="loja-busca" placeholder="Buscar item..." oninput="avdfLojaDesenhar()">
+            <div class="avdf-bib-atalhos" id="loja-cats"></div>
+            <div class="avdf-loja-livre">
+              <input type="text" id="loja-livre" placeholder="Ou escreva um item que não está no livro...">
+              <button type="button" class="avdf-add" onclick="avdfAddItemLivre()">Adicionar</button>
+            </div>
+          </div>
+          <div class="avdf-bib-lista" id="loja-lista"></div>
+        </div>
+      </div>`;
+}
+
+let AVDF_LOJA_CAT = '';
+
+function avdfAbrirLojinha() {
+  const cx = document.getElementById('avdf-loja');
+  if (!cx) return;
+  const cats = document.getElementById('loja-cats');
+  if (cats) {
+    cats.innerHTML = [['', 'Tudo']].concat(Object.entries(AVDF_CAT_ITEM))
+      .map(([v, t]) => `<button type="button" class="avdf-bib-chip${v === AVDF_LOJA_CAT ? ' ativo' : ''}"
+             onclick="AVDF_LOJA_CAT='${v}';avdfAbrirLojinha()">${t}</button>`).join('');
+  }
+  cx.hidden = false;
+  document.body.classList.add('avdf-modal-aberto');
+  avdfLojaDesenhar();
+}
+
+function avdfFecharLojinha() {
+  const cx = document.getElementById('avdf-loja');
+  if (cx) cx.hidden = true;
+  document.body.classList.remove('avdf-modal-aberto');
+}
+
+function avdfLojaDesenhar() {
+  const lista = document.getElementById('loja-lista');
+  if (!lista) return;
+  const termo = (document.getElementById('loja-busca')?.value || '').toLowerCase().trim();
+  const achados = (typeof ITENS_AVDF !== 'undefined' ? ITENS_AVDF : []).filter(d => {
+    if (AVDF_LOJA_CAT && d.categoria !== AVDF_LOJA_CAT) return false;
+    if (termo && !`${d.nome} ${d.efeito || ''}`.toLowerCase().includes(termo)) return false;
+    return true;
+  });
+  lista.innerHTML = achados.map(d => `
+        <div class="avdf-bib-item">
+          <div class="avdf-bib-cabeca">
+            <div class="avdf-bib-nome">${_av(d.icone || '')} ${_av(d.nome)}</div>
+            <button type="button" class="avdf-bib-add" onclick="avdfAdicionarItem('${_av(d.id)}')">＋ Adicionar</button>
+          </div>
+          <div class="avdf-bib-tags">
+            <span class="avdf-bib-tag">${_av(AVDF_CAT_ITEM[d.categoria] || d.categoria)}</span>
+            ${d.precoTexto ? `<span class="avdf-bib-tag">${_av(d.precoTexto)}</span>` : ''}
+            ${d.dano ? `<span class="avdf-bib-pc">${_av(d.dano)}</span>` : ''}
+          </div>
+          ${d.efeito ? `<div class="avdf-bib-efeito">${_av(d.efeito)}</div>` : ''}
+        </div>`).join('') || `<div class="avdf-bib-vazio">Nenhum item com esses filtros.</div>`;
+}
+
+function avdfAdicionarItem(id) {
+  const d = (typeof ITENS_AVDF !== 'undefined' ? ITENS_AVDF : []).find(x => x.id === id);
+  if (!d) return;
+  const ja = AVDF_ITENS.find(x => x.nome === d.nome);
+  if (ja) ja.qtd = (parseInt(ja.qtd, 10) || 0) + 1;
+  else AVDF_ITENS.push({ nome: d.nome, qtd: 1 });
+  avdfMontarItens(AVDF_ITENS);
+  if (typeof toast === 'function') toast(`${d.nome} na mochila.`, 'ok');
+  if (typeof autoSave === 'function') autoSave();
+}
+
+//  Item que não está no livro. A mesa inventa coisa, e a ficha não
+//  pode ser mais restrita que a mesa.
+function avdfAddItemLivre() {
+  const el = document.getElementById('loja-livre');
+  const nome = (el?.value || '').trim();
+  if (!nome) return;
+  AVDF_ITENS.push({ nome, qtd: 1 });
+  el.value = '';
+  avdfMontarItens(AVDF_ITENS);
+  if (typeof autoSave === 'function') autoSave();
+}
+
+//  Fechar qualquer janela com Esc.
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  ['avdf-bib', 'avdf-item-modal', 'avdf-loja'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && !el.hidden) el.hidden = true;
+  });
+  document.body.classList.remove('avdf-modal-aberto');
+});

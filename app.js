@@ -28,13 +28,62 @@ const RECMAX = {};     // { pv: 20, sup: 10, hum: 10 } — máximos calculados
 //  a ficha nova com quatro bolinhas sem entender por quê. Nesse caso
 //  vale o máximo declarado pelo sistema, que é o número de referência.
 //  Assim que o primeiro atributo é digitado, a fórmula assume.
-function recMax(id, attr) {
+// ══════════════════════════════════════════════════════════════════
+//  O TETO DE UM RECURSO — AUTOMÁTICO, MAS NUNCA TRANCADO
+//
+//  A regra que vale para a ficha inteira daqui em diante:
+//
+//      escolha  →  aplica o valor padrão sozinha  →  continua editável
+//
+//  A ficha calcula o teto pela fórmula do sistema e soma o que o clã
+//  (ou a raça, ou a característica) mandar somar. Mas se o Mestre
+//  escrever um número na mão, o número dele MANDA — porque nenhuma
+//  tabela previu a habilidade que a campanha dele inventou ontem.
+//
+//  `RECMAXMANUAL` guarda essas exceções, e elas são gravadas junto com
+//  a ficha. Apagar o campo devolve o automático.
+// ══════════════════════════════════════════════════════════════════
+const RECMAXMANUAL = {};
+
+//  O teto automático: fórmula do sistema + ajustes de clã/origem.
+function recMaxAutomatico(id, attr) {
   const r = (S().recursos || []).find(x => x.id === id);
   if (!r) return 0;
-  if (!r.maxDerivado) return r.max || 0;
   const a = attr || _attrDaTela();
-  const temAlgo = (S().atributos || []).some(x => (parseInt(a[x.id], 10) || 0) !== 0);
-  return temAlgo ? derivado(r.maxDerivado, a) : (r.max || derivado(r.maxDerivado, a));
+  let base;
+  if (!r.maxDerivado) {
+    base = r.max || 0;
+  } else {
+    const temAlgo = (S().atributos || []).some(x => (parseInt(a[x.id], 10) || 0) !== 0);
+    base = temAlgo ? derivado(r.maxDerivado, a) : (r.max || derivado(r.maxDerivado, a));
+  }
+  //  O sistema pode ter algo que muda esse teto — no Shinobi é o clã.
+  if (typeof S().ficha?.ajusteDeRecurso === 'function') {
+    try { base = S().ficha.ajusteDeRecurso(id, base, a); } catch (e) { console.error('[recurso]', e); }
+  }
+  return Math.max(0, Math.round(base));
+}
+
+function recMax(id, attr) {
+  const manual = RECMAXMANUAL[id];
+  if (manual != null && manual !== '') return Math.max(0, parseInt(manual, 10) || 0);
+  return recMaxAutomatico(id, attr);
+}
+
+//  O Mestre escreveu um teto na mão. Campo vazio devolve o automático.
+function recMaxDefinirManual(id, valor) {
+  const v = String(valor ?? '').trim();
+  if (v === '') delete RECMAXMANUAL[id];
+  else RECMAXMANUAL[id] = parseInt(v, 10) || 0;
+  pintarRecurso(id);
+  if (typeof S().ficha.aoMudarRecurso === 'function') S().ficha.aoMudarRecurso(id);
+  autoSave();
+}
+
+//  Este teto está sendo forçado à mão? A tela usa isto para marcar a
+//  exceção — uma exceção que não se anuncia vira bug silencioso.
+function recMaxEhManual(id) {
+  return RECMAXMANUAL[id] != null && RECMAXMANUAL[id] !== '';
 }
 
 //  Lê os atributos direto da tela. Usado quando um recurso depende
@@ -865,12 +914,17 @@ function coletarFicha() {
     notas:      document.getElementById('f-notas')?.value || '',
     updated_at: new Date().toISOString(),
 
-    //  Os campos que só existem num sistema. SEM ISTO, tudo que a ficha
-    //  Shinobi tem de próprio — rank, vila, origem, naturezas, clã,
-    //  Kekkei Genkai, técnicas, PT, equipamento — era lido da tela por
-    //  ninguém e gravado como vazio. A ficha salvava e voltava em
-    //  branco, e o formato novo (`dados`) recebia um objeto oco.
-    ...(typeof S().ficha.aoColetar === 'function' ? S().ficha.aoColetar() : {}),
+    //  Os campos que só existem num sistema vão numa BANDEJA À PARTE,
+    //  nunca soltos na linha. Espalhá-los aqui fazia o Supabase tentar
+    //  gravar `cla`, `rank`, `vila`… como coluna, e a tabela `fichas`
+    //  não tem essas colunas:
+    //
+    //      Could not find the 'cla' column of 'fichas' in the schema cache
+    //
+    //  Dentro de `_sistema` eles chegam inteiros ao `paraDados`, que os
+    //  guarda em `dados` (jsonb), e o núcleo tira a bandeja antes de a
+    //  linha ir para o banco.
+    _sistema: (typeof S().ficha.aoColetar === 'function' ? S().ficha.aoColetar() : {}),
   };
 }
 
@@ -983,9 +1037,10 @@ function autoSave() {
 async function salvarFicha(silencioso = false) {
   // Se montar os dados falhar, o salvamento morria aqui sem nenhum aviso na
   // tela — o jogador só via o botão não fazer nada. Agora o erro aparece.
-  let dados;
+  let dados, bruto;
   try {
-    dados = coletarFicha();
+    bruto = coletarFicha();
+    dados = bruto;
   } catch (e) {
     console.error('[salvarFicha] falha ao montar os dados da ficha:', e);
     toast('Erro ao ler a ficha: ' + (e.message || 'ver console (F12)'), 'err');
@@ -996,6 +1051,9 @@ async function salvarFicha(silencioso = false) {
   // Escrita dupla: além das colunas de sempre, a ficha vai também no
   // formato livre da coluna `dados`. As colunas continuam sendo a
   // verdade — é isso que permite voltar atrás sem perder nada.
+  //
+  // `fichaComDados` também é quem TIRA da linha tudo que não é coluna
+  // desta tabela (os campos do sistema, que vão dentro de `dados`).
   fichaConferirIdaEVolta(dados);
   dados = fichaComDados(dados);
 
@@ -1010,8 +1068,12 @@ async function salvarFicha(silencioso = false) {
   // Se o banco recusou porque a coluna `dados` ainda não existe (a
   // migração 002 não foi rodada), tenta de novo sem ela. Assim a ordem
   // entre subir o site e rodar o SQL deixa de importar.
-  if (error && fichaTratarErro(error)) {
-    delete dados.dados;
+  //  Se o banco recusou por causa de uma coluna, `fichaTratarErro`
+  //  anota qual e devolve `true`. Refazemos a linha — já sem ela — e
+  //  tentamos de novo, até três vezes. Assim uma coluna faltando não
+  //  trava a ficha de ninguém.
+  for (let tentativa = 0; tentativa < 3 && error && fichaTratarErro(error); tentativa++) {
+    dados = fichaComDados({ ...bruto, mesa_id: mesaId() });
     ({ data, error } = await db.from('fichas')
       .upsert(dados, { onConflict: 'user_id,mesa_id' })
       .select().single());

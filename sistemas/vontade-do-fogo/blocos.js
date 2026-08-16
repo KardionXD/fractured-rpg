@@ -198,9 +198,18 @@ function avdfAoTrocarKG() {
 // ══════════════════════════════════════════════════════════════════
 
 function avdfHtmlCla() {
-  const opcoes = [{ id: 'comum', nome: 'Ninja Comum (sem clã)' }]
-    .concat(CLAS_AVDF.map(c => ({ id: c.id, nome: c.nome + (c.vila ? ' · ' + c.vila : '') })))
-    .map(c => `<option value="${c.id}">${c.nome}</option>`).join('');
+  //  Os trinta do Compêndio, agrupados pela região — que é como o livro
+  //  os apresenta e como a pessoa procura. Antes só o Uchiha estava na
+  //  lista, porque só ele tinha sido transcrito.
+  //  Sem os que o livro marca como não jogáveis (o Ōtsutsuki: "nunca
+  //  como opção de jogador").
+  const grupos = clasAvdfPorRegiao(true);
+  const ordemRegiao = ['Konohagakure', ...Object.keys(grupos).filter(r => r !== 'Konohagakure').sort()];
+  const opcoes = '<option value="comum">Ninja Comum (sem clã)</option>' +
+    ordemRegiao.filter(r => grupos[r]).map(r =>
+      `<optgroup label="${esc(r)}">` +
+      grupos[r].map(c => `<option value="${c.id}">${esc(c.nome)}</option>`).join('') +
+      `</optgroup>`).join('');
 
   return `<div class="grid-2">
           <div class="field"><label>Clã</label>
@@ -208,6 +217,7 @@ function avdfHtmlCla() {
               <option value="">Selecionar...</option>
               ${opcoes}
             </select>
+            <div id="cla-ajustes" class="avdf-cla-ajustes" hidden></div>
           </div>
           <div class="field"><label>Pontos de Treino disponíveis</label>
             <div style="display:flex;align-items:center;gap:6px">
@@ -248,11 +258,16 @@ function avdfAoTrocarCla(marcados) {
   const jaMarcados = marcados || avdfEstagiosMarcados();
 
   if (!c) { box.style.display = 'none'; tri.innerHTML = ''; ext.innerHTML = '';
+            avdfAplicarClaNaFicha(null);
             if (typeof autoSave === 'function') autoSave(); return; }
 
   box.style.display = '';
-  box.innerHTML = `<div class="avdf-passiva-rot">Passiva — ${esc(c.passiva.nome)}</div>
-      <div class="avdf-passiva-txt">${esc(c.passiva.efeito)}</div>`;
+  const fardo = c.fardo
+    ? `<div class="avdf-passiva-rot" style="margin-top:10px">Fardo — ${esc(c.fardo.nome)}</div>
+       <div class="avdf-passiva-txt">${esc(c.fardo.efeito)}</div>`
+    : '';
+  box.innerHTML = `<div class="avdf-passiva-rot">Passiva — ${esc(c.passiva?.nome || '—')}</div>
+      <div class="avdf-passiva-txt">${esc(c.passiva?.efeito || '')}</div>${fardo}`;
 
   //  O Estágio I é de graça e já vem cumprido: é um rito de infância,
   //  não conquista de campanha. Por isso nasce marcado.
@@ -294,7 +309,80 @@ function avdfAoTrocarCla(marcados) {
       </div>`);
   }
   ext.innerHTML = extras.join('');
+  avdfAplicarClaNaFicha(c);
   if (typeof autoSave === 'function') autoSave();
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  O CLÃ APLICADO NA FICHA (seus pontos 2 e 6)
+//
+//  Escolher o clã não deve deixar trabalho para o jogador: o que o clã
+//  dá, a ficha já dá. E o que ela deu fica escrito, para ninguém ficar
+//  olhando um número que mudou sozinho sem saber por quê.
+//
+//  Nada aqui TRANCA nada: todos os campos que isto mexe continuam
+//  editáveis à mão.
+// ══════════════════════════════════════════════════════════════════
+function avdfAplicarClaNaFicha(c) {
+  const aviso = document.getElementById('cla-ajustes');
+  const linhas = [];
+
+  //  Kekkei Genkai vem do clã, não de um seletor solto (seu ponto 14
+  //  do primeiro documento). Só preenche se o campo estiver vazio ou
+  //  com o KG de outro clã — nunca por cima de uma escolha do Mestre.
+  const kg = document.getElementById('f-kg');
+  if (kg && c?.linhagem) {
+    const temOpcao = [...kg.options].some(o => o.value === c.linhagem);
+    if (temOpcao && (!kg.value || _kgDeAlgumCla(kg.value))) {
+      kg.value = c.linhagem;
+      if (typeof avdfAoTrocarKG === 'function') avdfAoTrocarKG();
+      linhas.push(`Kekkei Genkai: <strong>${esc(kekkeiGenkaiAvdf(c.linhagem)?.nome || c.linhagem)}</strong>`);
+    }
+  }
+
+  //  Naturezas concedidas pelo clã.
+  (c?.naturezas || []).forEach(n => {
+    const el = document.getElementById('f-nat-' + n);
+    if (el && !el.checked) {
+      el.checked = true;
+      linhas.push(`Natureza: <strong>${esc((NATUREZAS_AVDF.find(x => x.id === n) || {}).nome || n)}</strong>`);
+    }
+  });
+
+  //  Perícias treinadas pelo clã. Só sobe de Não treinado para
+  //  Treinado — nunca rebaixa o que já foi comprado com PT.
+  (c?.ajustes?.periciasTreinadas || []).forEach(nome => {
+    const el = document.getElementById('pg-' + avdfPericiaId(nome));
+    if (el && (parseInt(el.value, 10) || 0) < 1) {
+      el.value = '1';
+      linhas.push(`Perícia treinada: <strong>${esc(nome)}</strong>`);
+    }
+  });
+  if (typeof avdfPintarPericias === 'function') avdfPintarPericias();
+
+  //  Recursos. O teto é recalculado por `recMax`, que já consulta o
+  //  clã; aqui só repintamos e explicamos.
+  (S().recursos || []).forEach(r => {
+    const txt = typeof avdfExplicarAjuste === 'function' ? avdfExplicarAjuste(r.id) : '';
+    if (txt) linhas.push(`${esc(r.nome)}: <strong>${esc(txt.replace(/^[^:]+:\s*/, ''))}</strong>`);
+    if (typeof pintarRecurso === 'function') pintarRecurso(r.id);
+  });
+  if (typeof avdfPintarVontade === 'function') avdfPintarVontade();
+  if (typeof avdfAtualizarDerivados === 'function') avdfAtualizarDerivados();
+
+  if (aviso) {
+    aviso.innerHTML = linhas.length
+      ? `<span class="avdf-cla-auto">Aplicado pelo clã</span> ${linhas.join(' · ')}
+         <span class="avdf-cla-nota">— tudo continua editável à mão</span>`
+      : '';
+    aviso.hidden = !linhas.length;
+  }
+}
+
+//  O KG que está no campo veio de algum clã? Serve para saber se pode
+//  ser substituído ao trocar de clã, ou se foi o Mestre que escolheu.
+function _kgDeAlgumCla(id) {
+  return clasAvdf().some(c => c.linhagem === id);
 }
 
 function avdfTrilha(id, delta) {
@@ -324,6 +412,9 @@ function avdfAoMarcarEstagio(input) {
 const AVDF_TEC_SLOTS = 8;
 
 function avdfHtmlTecnicas() {
+  //  Este bloco é a versão antiga (oito linhas em branco). A biblioteca
+  //  de jutsus o substitui; ele fica dobrado, e só para quem já tinha
+  //  escrito técnica à mão não perder o que escreveu.
   const ranks = JUTSU_RANKS_AVDF.map(r =>
     `<option value="${r.id}">${r.id} — ${r.pc} PC · ${r.dano}</option>`).join('');
   const cats = TECNICA_CATEGORIAS.map(c => `<option>${c}</option>`).join('');

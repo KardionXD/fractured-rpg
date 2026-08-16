@@ -4722,3 +4722,330 @@ button.ocupado::after {
    do Fractured (.pips { display: flex }) reaparecia dentro do medidor
    numérico do Shinobi mesmo marcada como escondida. */
 #page-ficha [hidden] { display: none !important; }
+
+/* ══════════════════════════════════════════════════════════════
+   JANELAS DA FICHA SHINOBI — biblioteca de jutsus, catálogo de
+   equipamento e a ficha de um item.
+
+   Bottom sheet no celular, caixa centrada no desktop. Mesma casca
+   para as três, para não haver três jeitos de fechar uma janela.
+   ══════════════════════════════════════════════════════════════ */
+
+.avdf-modal { position: fixed; inset: 0; z-index: 900; display: flex; }
+.avdf-modal[hidden] { display: none; }
+.avdf-modal-fundo { position: absolute; inset: 0; background: rgba(0,0,0,.72); }
+body.avdf-modal-aberto { overflow: hidden; }
+
+.avdf-modal-caixa {
+  position: relative; margin: auto;
+  width: min(880px, 100% - 32px); max-height: min(88vh, 900px);
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 14px; display: flex; flex-direction: column; overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0,0,0,.6);
+}
+.avdf-modal-estreita { width: min(560px, 100% - 32px); }
+
+.avdf-modal-topo {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px; border-bottom: 1px solid var(--border);
+  background: var(--surface2);
+}
+.avdf-modal-topo h2 {
+  margin: 0; font-size: 13px; font-weight: 700; letter-spacing: 1.6px;
+  text-transform: uppercase; color: var(--f-accent, var(--gold));
+  display: flex; align-items: center; gap: 9px;
+}
+.avdf-modal-x {
+  margin-left: auto; width: 36px; height: 36px; flex: 0 0 36px;
+  background: transparent; border: 1px solid var(--border); border-radius: 8px;
+  color: var(--muted); font-size: 14px; cursor: pointer;
+}
+.avdf-modal-x:hover { color: var(--text); border-color: var(--border2); }
+
+.avdf-bib-filtros {
+  padding: 12px 16px; border-bottom: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 9px;
+}
+.avdf-bib-filtros input[type="search"], .avdf-bib-filtros input[type="text"] {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text); padding: 10px 12px; font-size: 13px; outline: none; width: 100%;
+  box-sizing: border-box;
+}
+.avdf-bib-filtros input:focus { border-color: var(--f-accent, var(--gold)); }
+.avdf-bib-selects { display: flex; gap: 6px; flex-wrap: wrap; }
+.avdf-bib-selects select {
+  flex: 1 1 130px; min-width: 0;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text); padding: 8px 9px; font-size: 11.5px; outline: none;
+}
+.avdf-bib-atalhos { display: flex; gap: 6px; flex-wrap: wrap; }
+.avdf-bib-chip {
+  background: transparent; border: 1px solid var(--border); border-radius: 20px;
+  color: var(--muted); padding: 6px 13px; font-size: 11px; font-weight: 600;
+  cursor: pointer; font-family: inherit; min-height: 32px;
+}
+.avdf-bib-chip:hover { color: var(--text); border-color: var(--border2); }
+.avdf-bib-chip.ativo {
+  color: var(--f-accent2, var(--gold)); border-color: var(--f-line, var(--gold-dim));
+  background: var(--f-soft, rgba(217,180,91,.12));
+}
+.avdf-bib-conta { font-size: 10.5px; color: var(--muted); }
+.avdf-loja-livre { display: flex; gap: 6px; }
+.avdf-loja-livre input { flex: 1 1 auto; }
+
+.avdf-bib-lista { overflow-y: auto; padding: 12px 16px 18px; -webkit-overflow-scrolling: touch; }
+.avdf-bib-grupo {
+  font-size: 9px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--muted); margin: 14px 0 7px; padding-bottom: 4px;
+  border-bottom: 1px solid var(--border); position: sticky; top: -12px;
+  background: var(--surface); z-index: 1;
+}
+.avdf-bib-grupo:first-child { margin-top: 0; }
+.avdf-bib-vazio, .avdf-vazio {
+  padding: 22px; text-align: center; color: var(--muted); font-size: 12.5px;
+  border: 1px dashed var(--border); border-radius: 10px;
+}
+.avdf-bib-item {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 11px 12px; margin-bottom: 7px;
+  display: flex; flex-direction: column; gap: 7px;
+}
+.avdf-bib-item.ja-tem { opacity: .62; }
+.avdf-bib-item.fora-do-alcance { border-style: dashed; }
+.avdf-bib-cabeca { display: flex; align-items: flex-start; gap: 10px; }
+.avdf-bib-nome {
+  flex: 1 1 auto; min-width: 0;
+  font-size: 13px; font-weight: 700; color: var(--text);
+  display: flex; flex-direction: column; gap: 2px;
+}
+.avdf-bib-trad { font-size: 11px; font-weight: 400; color: var(--muted); }
+.avdf-bib-add {
+  flex: 0 0 auto; min-height: 34px;
+  background: var(--f-soft, rgba(217,180,91,.12));
+  border: 1px solid var(--f-line, var(--gold-dim)); border-radius: 8px;
+  color: var(--f-accent2, var(--gold-text)); padding: 7px 13px;
+  font-size: 11px; font-weight: 700; cursor: pointer; font-family: inherit;
+  white-space: nowrap;
+}
+.avdf-bib-add:hover:not(:disabled) { background: rgba(224,86,63,.24); }
+.avdf-bib-add:disabled { opacity: .5; cursor: default; }
+.avdf-bib-tags { display: flex; gap: 5px; flex-wrap: wrap; }
+.avdf-bib-tag, .avdf-bib-rank, .avdf-bib-pc, .avdf-bib-nat {
+  font-size: 9.5px; font-weight: 700; letter-spacing: .6px;
+  border: 1px solid var(--border); border-radius: 5px; padding: 3px 7px;
+  color: var(--muted); background: var(--surface3);
+}
+.avdf-bib-rank { color: var(--text); border-color: var(--border2); }
+.avdf-bib-pc   { color: var(--f-chakra, var(--blue)); border-color: var(--f-chakra, var(--blue)); }
+.avdf-bib-nat  { color: var(--cor-nat); border-color: var(--cor-nat); }
+.avdf-bib-efeito { font-size: 12px; color: var(--text); line-height: 1.55; }
+.avdf-bib-detalhe { color: var(--muted); border-left: 2px solid var(--border); padding-left: 9px; }
+.avdf-bib-extras { display: flex; gap: 5px 14px; flex-wrap: wrap; }
+.avdf-bib-extra { font-size: 10.5px; color: var(--muted); }
+.avdf-bib-extra b { color: var(--text); font-weight: 600; }
+.avdf-bib-obs { font-size: 10.5px; color: var(--muted); font-style: italic; }
+.avdf-bib-aviso {
+  font-size: 10.5px; color: var(--f-accent2, var(--gold));
+  border-left: 2px solid var(--f-line, var(--gold-dim)); padding-left: 9px;
+}
+
+/* ── OS JUTSUS NA FICHA ─────────────────────────────────────── */
+.avdf-jutsus-topo { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+#avdf-jutsu-busca {
+  flex: 1 1 200px; min-width: 0;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text); padding: 9px 11px; font-size: 12.5px; outline: none;
+}
+#avdf-jutsu-busca:focus { border-color: var(--f-accent); }
+.avdf-add-forte {
+  border-style: solid; border-color: var(--f-line, var(--gold-dim));
+  color: var(--f-accent2, var(--gold)); background: var(--f-soft, rgba(217,180,91,.1));
+}
+.avdf-jutsus { display: flex; flex-direction: column; gap: 5px; }
+.avdf-jutsu-cat {
+  font-size: 8.5px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--muted); margin: 11px 0 3px; padding-bottom: 3px;
+  border-bottom: 1px solid var(--border);
+}
+.avdf-jutsu-cat:first-child { margin-top: 0; }
+.avdf-jutsu {
+  background: var(--surface2); border: 1px solid var(--border); border-radius: 9px;
+}
+.avdf-jutsu[open] { border-color: var(--f-line); }
+.avdf-jutsu > summary {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 10px 12px; cursor: pointer; list-style: none; min-height: 42px;
+}
+.avdf-jutsu > summary::-webkit-details-marker { display: none; }
+.avdf-jutsu > summary::before {
+  content: '▸'; color: var(--muted); font-size: 10px; transition: transform .14s;
+}
+.avdf-jutsu[open] > summary::before { transform: rotate(90deg); }
+.avdf-jutsu-nome { flex: 1 1 auto; min-width: 0; font-size: 12.5px; font-weight: 600; color: var(--text); }
+.avdf-jutsu-pc { font-size: 11px; font-weight: 700; color: var(--f-chakra); white-space: nowrap; }
+.avdf-jutsu-corpo {
+  padding: 0 12px 12px; display: flex; flex-direction: column; gap: 8px;
+  border-top: 1px solid var(--border); margin-top: 2px; padding-top: 10px;
+}
+.avdf-jutsu-acoes { display: flex; gap: 7px; }
+.avdf-jutsu-usar, .avdf-jutsu-remover {
+  min-height: 36px; padding: 7px 15px; border-radius: 8px;
+  font-size: 11px; font-weight: 700; cursor: pointer; font-family: inherit;
+  background: var(--f-soft); border: 1px solid var(--f-line); color: var(--f-accent2);
+}
+.avdf-jutsu-usar:hover { background: rgba(224,86,63,.24); }
+.avdf-jutsu-remover { background: transparent; border-color: var(--border); color: var(--muted); }
+.avdf-jutsu-remover:hover { color: var(--red); border-color: var(--red-dim); }
+
+/* ── EQUIPAMENTO EM CARTÕES ─────────────────────────────────── */
+.avdf-equip-linha { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+.avdf-equip-linha .avdf-equip-ryo { flex: 1 1 auto; }
+.avdf-itens-grade {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 6px;
+}
+.avdf-item-card {
+  display: flex; align-items: center; gap: 9px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 9px; padding: 9px 10px; min-height: 46px;
+  transition: border-color .14s, background .14s;
+}
+.avdf-item-card.com-ficha { cursor: pointer; }
+.avdf-item-card.com-ficha:hover { border-color: var(--f-line); background: var(--f-soft); }
+.avdf-item-card.com-ficha:focus-visible { outline: 2px solid var(--f-accent); outline-offset: 2px; }
+.avdf-item-card.do-kit { border-left: 2px solid var(--f-line); }
+.avdf-item-icone { font-size: 16px; line-height: 1; flex: 0 0 auto; }
+.avdf-item-icone-grande { font-size: 20px; }
+.avdf-item-txt { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.avdf-item-nome {
+  font-size: 12.5px; font-weight: 600; color: var(--text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.avdf-item-cat { font-size: 9.5px; color: var(--muted); }
+.avdf-item-qtd { font-size: 13px; font-weight: 800; color: var(--f-accent); font-variant-numeric: tabular-nums; }
+.avdf-item-x {
+  width: 26px; height: 26px; flex: 0 0 26px;
+  background: transparent; border: 0; color: var(--muted);
+  font-size: 11px; cursor: pointer; border-radius: 6px;
+}
+.avdf-item-x:hover { color: var(--red); background: rgba(192,57,43,.12); }
+
+.avdf-ficha-item { padding: 14px 16px 18px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
+.avdf-ficha-qtd { display: flex; align-items: center; gap: 8px; }
+.avdf-ficha-qtd button {
+  width: 34px; height: 34px; border-radius: 8px;
+  background: var(--bg); border: 1px solid var(--border); color: var(--text);
+  font-size: 17px; cursor: pointer;
+}
+.avdf-ficha-qtd button:hover { border-color: var(--f-accent); color: var(--f-accent); }
+.avdf-ficha-qtd > span { font-size: 17px; font-weight: 800; color: var(--f-accent); min-width: 28px; text-align: center; }
+.avdf-ficha-qtd-rot { font-size: 10.5px; color: var(--muted); font-weight: 400; }
+.avdf-ficha-efeito { font-size: 13px; line-height: 1.6; color: var(--text); }
+.avdf-ficha-tabela { display: flex; flex-direction: column; gap: 1px; }
+.avdf-ficha-linha {
+  display: flex; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.avdf-ficha-linha > span:first-child {
+  flex: 0 0 130px; color: var(--muted); font-size: 9.5px; font-weight: 700;
+  letter-spacing: 1.2px; text-transform: uppercase; padding-top: 2px;
+}
+.avdf-ficha-linha > span:last-child { flex: 1 1 auto; color: var(--text); }
+.avdf-ficha-nota {
+  font-size: 11px; color: var(--f-accent2);
+  border-left: 2px solid var(--f-line); padding-left: 10px;
+}
+
+/* ── TETO DE RECURSO EDITÁVEL (automático + exceção) ────────── */
+.avdf-medidor-teto { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.avdf-medidor-teto label {
+  font-size: 9px; font-weight: 700; letter-spacing: 1.2px;
+  text-transform: uppercase; color: var(--muted);
+}
+.avdf-medidor-max-input, .avdf-vontade-max {
+  width: 64px; background: var(--bg); border: 1px solid var(--border);
+  border-radius: 6px; color: var(--text); padding: 5px 7px;
+  font-size: 12px; text-align: center; outline: none;
+}
+.avdf-medidor-max-input:focus, .avdf-vontade-max:focus { border-color: var(--f-accent); }
+.avdf-medidor-max-input.manual, .avdf-vontade-max.manual {
+  border-color: var(--f-accent2); color: var(--f-accent2); font-weight: 700;
+}
+.avdf-medidor-auto {
+  width: 28px; height: 28px; background: transparent;
+  border: 1px solid var(--border); border-radius: 6px;
+  color: var(--muted); cursor: pointer; font-size: 12px;
+}
+.avdf-medidor-auto:hover { color: var(--f-accent); border-color: var(--f-accent); }
+.avdf-medidor-excecao {
+  font-size: 9px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase;
+  color: var(--f-accent2); border: 1px solid var(--f-line);
+  border-radius: 4px; padding: 2px 6px;
+}
+.avdf-vontade-max { width: 56px; }
+
+/* ── O QUE O CLÃ APLICOU ────────────────────────────────────── */
+.avdf-cla-ajustes {
+  margin-top: 8px; padding: 9px 11px; font-size: 11px; line-height: 1.6;
+  color: var(--text); background: var(--f-soft);
+  border: 1px solid var(--f-line); border-radius: 8px;
+}
+.avdf-cla-auto {
+  font-size: 8.5px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase;
+  color: var(--f-accent2); margin-right: 6px;
+}
+.avdf-cla-nota { color: var(--muted); font-size: 10px; }
+
+/* ── HISTÓRIA DO PERSONAGEM ─────────────────────────────────── */
+.avdf-historia { display: flex; flex-direction: column; gap: 7px; }
+#f-historia {
+  width: 100%; box-sizing: border-box;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
+  color: var(--text); padding: 15px 17px;
+  font-family: var(--font); font-size: 14px; line-height: 1.8;
+  outline: none; resize: vertical; min-height: 240px;
+}
+#f-historia:focus { border-color: var(--f-accent); }
+.avdf-historia-rodape {
+  display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+  font-size: 10px; color: var(--muted);
+}
+
+/* ── MOBILE ─────────────────────────────────────────────────── */
+@media (max-width: 700px) {
+  /* A janela vira folha de baixo: sobe do rodapé, cola no topo do
+     polegar e ocupa a tela quase toda. */
+  .avdf-modal-caixa, .avdf-modal-estreita {
+    width: 100%; max-width: 100%; margin: auto 0 0;
+    max-height: 92vh; border-radius: 16px 16px 0 0;
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+  .avdf-modal-topo { position: sticky; top: 0; z-index: 2; }
+  .avdf-bib-selects select { flex: 1 1 calc(50% - 3px); font-size: 16px; padding: 10px; }
+  .avdf-bib-filtros input[type="search"], .avdf-bib-filtros input[type="text"] { font-size: 16px; }
+  .avdf-bib-cabeca { flex-wrap: wrap; }
+  .avdf-bib-add { width: 100%; }
+  .avdf-itens-grade { grid-template-columns: 1fr; }
+  .avdf-ficha-linha { flex-direction: column; gap: 2px; }
+  .avdf-ficha-linha > span:first-child { flex: 0 0 auto; }
+  #f-historia, #avdf-jutsu-busca, .avdf-medidor-max-input, .avdf-vontade-max { font-size: 16px; }
+  .avdf-jutsus-topo .avdf-add-forte { width: 100%; }
+}
+
+/* Item de grid não encolhe abaixo do conteúdo por padrão: um nome
+   comprido esticava o cartão para fora da tela. */
+.avdf-itens-grade > * { min-width: 0; }
+.avdf-item-card { min-width: 0; }
+.avdf-item-txt, .avdf-item-nome, .avdf-item-cat { min-width: 0; }
+.avdf-item-cat { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.avdf-item-qtd { flex: 0 0 auto; white-space: nowrap; }
+
+/* O bloco antigo de técnicas, dobrado. */
+.avdf-legado > summary {
+  cursor: pointer; font-size: 11px; color: var(--muted); padding: 8px 0;
+  list-style: none; min-height: 36px; display: flex; align-items: center; gap: 7px;
+}
+.avdf-legado > summary::-webkit-details-marker { display: none; }
+.avdf-legado > summary::before { content: "▸"; font-size: 10px; }
+.avdf-legado[open] > summary::before { content: "▾"; }
+.avdf-legado > summary:hover { color: var(--text); }
+.avdf-legado-corpo { padding-top: 8px; border-top: 1px solid var(--border); }

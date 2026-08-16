@@ -210,11 +210,16 @@ function abrirFormNPC(npc = null) {
   document.getElementById('npc-f-notas').value     = npc?.notas || '';
 
   // Atributos gravados. No banco, "for" virou `for_` (palavra reservada
-  // em SQL); os demais têm o mesmo nome do id.
+  // em SQL); os demais têm o mesmo nome do id — mas isso só vale para o
+  // Fractured. Um NPC de outro sistema tem os atributos dentro de
+  // `dados`, porque a tabela não tem coluna para eles.
+  const doSistema = (npc && typeof S().npc?.deDados === 'function' && npc.dados?.v)
+    ? (() => { try { return S().npc.deDados(npc.dados); } catch (e) { return null; } })()
+    : null;
   S().atributos.forEach(a => {
     const el = document.getElementById('npc-a-' + a.id);
     if (!el) return;
-    const doBanco = npc?.[a.id === 'for' ? 'for_' : a.id];
+    const doBanco = doSistema?.[`attr_${a.id}`] ?? npc?.[a.id === 'for' ? 'for_' : a.id];
     el.value = doBanco ?? 1;
   });
 
@@ -229,12 +234,10 @@ function abrirFormNPC(npc = null) {
   npcAtualizarEmoji();
 
   // Set attribute values from npc data
+  //  Este bloco repetia o de cima com os nomes do Fractured cravados, e
+  //  sobrescrevia os valores já corretos quando a mesa é de outro
+  //  sistema. Sobrou só o PV, que é coluna de verdade.
   if (npc) {
-    const attrMap = { for: npc.for_, res: npc.res, com: npc.com, soc: npc.soc, con: npc.con, agi: npc.agi };
-    Object.entries(attrMap).forEach(([a, v]) => {
-      const el = document.getElementById('npc-a-'+a);
-      if (el && v !== undefined && v !== null) el.value = v;
-    });
     document.getElementById('npc-f-pv').value = npc.pv_max || '';
   }
   // Trigger automatic calculation
@@ -254,9 +257,17 @@ async function salvarNPC() {
 
   // Coleta atributos
   const getN = id => parseInt(document.getElementById(id)?.value) || 0;
+
+  //  Os atributos do sistema da mesa, seja ele qual for. As colunas
+  //  `for_`, `res`, `com`… são do Fractured; um NPC de A Vontade do
+  //  Fogo tem TAI, NIN, GEN, CTR, COR, ESP e não cabia em nenhuma
+  //  delas — os seis números eram lidos da tela e jogados fora.
+  const attrDoSistema = {};
+  (S().atributos || []).forEach(a => { attrDoSistema['attr_' + a.id] = getN('npc-a-' + a.id); });
+
   const res  = getN('npc-a-res');
   const pvCustom = getN('npc-f-pv');
-  const pvMax    = pvCustom > 0 ? pvCustom : derivado('pv_max', { res });
+  const pvMax    = pvCustom > 0 ? pvCustom : derivado('pv_max', attributosDoNpc(attrDoSistema));
 
   const payload = {
     master_id:   currentUser.id,
@@ -281,7 +292,11 @@ async function salvarNPC() {
   // Escrita dupla, igual à da ficha: as colunas continuam mandando e o
   // formato livre vai junto, pronto para quando outro sistema entrar.
   if (typeof S().npc?.paraDados === 'function') {
-    try { payload.dados = S().npc.paraDados(payload); }
+    //  `paraDados` recebe a ficha inteira — colunas MAIS os atributos do
+    //  sistema. `attrDoSistema` não entra no payload: são campos que a
+    //  tabela `npcs_mestre` não tem, e mandá-los como coluna derrubaria
+    //  a gravação igual ao que acontecia com `cla` na ficha.
+    try { payload.dados = S().npc.paraDados({ ...payload, ...attrDoSistema }); }
     catch (e) { console.error('[npc] não consegui montar o formato novo:', e); }
   }
 

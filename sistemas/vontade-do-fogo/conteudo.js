@@ -303,9 +303,72 @@ const NINJA_COMUM = {
   estagios: [],
 };
 
+// ══════════════════════════════════════════════════════════════════
+//  TODOS OS CLÃS, NUMA LISTA SÓ
+//
+//  O Uchiha foi transcrito primeiro e ficou aqui em cima. Os outros 29
+//  vieram depois, do Compêndio dos Clãs, e moram em `clas-konoha.js` e
+//  `clas-mundo.js` — dois arquivos separados porque juntos passariam de
+//  1900 linhas e ninguém acha nada num arquivo desses.
+//
+//  Os dois lotes usam nomes de campo um pouco diferentes (`vila` x
+//  `regiao`, `linhagem` x `kg`, `rk`/`est` x `rank`/`estagio`). Em vez
+//  de reescrever 30 clãs à mão — e arriscar errar num —, a diferença é
+//  aplainada aqui, uma vez, na primeira consulta.
+// ══════════════════════════════════════════════════════════════════
+
+//  Deixa qualquer clã na mesma forma, venha do lote que vier.
+function _normalizarCla(c) {
+  const a = c.ajustes || {};
+  //  `ajustes` veio em duas formas: solta (`pv: 5`) e aninhada
+  //  (`recursos: { pv: 12 }`). As duas passam a valer o mesmo.
+  const rec = { ...(a.recursos || {}) };
+  ['pv', 'pc', 'pvf', 'pcPct', 'pcMultiplicador'].forEach(k => {
+    if (a[k] != null && rec[k] == null) rec[k] = a[k];
+  });
+  return {
+    ...c,
+    vila:     c.vila || c.regiao || '',
+    linhagem: c.linhagem ?? c.kg ?? null,
+    estagios: (c.estagios || []).map(e => ({ ...e, n: e.n })),
+    tecnicas: (c.tecnicas || []).map(t => ({
+      ...t,
+      rk:  t.rk  ?? t.rank,
+      est: t.est ?? t.estagio,
+    })),
+    ajustes: { ...a, recursos: rec },
+  };
+}
+
+let _clasTodos = null;
+
+function clasAvdf() {
+  if (_clasTodos) return _clasTodos;
+  const lotes = [CLAS_AVDF];
+  //  Os arquivos extras podem não estar carregados (uma instalação que
+  //  não copiou os dois novos). A ficha continua funcionando com o que
+  //  existir, em vez de quebrar inteira.
+  if (typeof CLAS_KONOHA_AVDF !== 'undefined') lotes.push(CLAS_KONOHA_AVDF);
+  if (typeof CLAS_MUNDO_AVDF  !== 'undefined') lotes.push(CLAS_MUNDO_AVDF);
+  _clasTodos = lotes.flat().map(_normalizarCla)
+    .sort((x, y) => x.nome.localeCompare(y.nome, 'pt-BR'));
+  return _clasTodos;
+}
+
+//  Agrupados pela região, que é como o Compêndio os apresenta e como a
+//  pessoa procura ("o clã é de Konoha ou de fora?").
+function clasAvdfPorRegiao(soJogaveis) {
+  const grupos = {};
+  clasAvdf().filter(c => !soJogaveis || c.jogavel !== false).forEach(c => {
+    const r = c.vila || 'Sem vila';
+    (grupos[r] = grupos[r] || []).push(c);
+  });
+  return grupos;
+}
+
 function claAvdf(id) {
   if (id === 'comum') return NINJA_COMUM;
-  return CLAS_AVDF.find(c => c.id === id) || null;
+  return clasAvdf().find(c => c.id === id) || null;
 }
 
 function kekkeiGenkaiAvdf(id) {
