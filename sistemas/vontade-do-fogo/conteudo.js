@@ -116,12 +116,11 @@ const NATUREZAS_AVDF = [
 //     Base da cura, da regeneração e das expansões dos Akimichi.
 //     Requisito: CTR +4, ou clã que a use por Hiden."
 //
-//  CONFLITO DE NOME, NÃO RESOLVIDO AQUI: o livro chama a natureza Yang
-//  de "Yōton" no Cap. 07 e chama de "Yōton (Lava) — Fogo+Terra" o
-//  Kekkei Genkai da Mei Terumī, duas páginas adiante. São coisas
-//  diferentes com o mesmo nome. Na ficha o id da natureza é `yang` e o
-//  do Kekkei Genkai continua sendo o da lista de KG — assim nenhuma das
-//  duas some enquanto o autor não decidir qual fica com o nome.
+//  CONFLITO DE NOME, JÁ RESOLVIDO COM O AUTOR: o livro imprime "Yōton"
+//  nos dois lugares — a natureza Yang (Cap. 07) e o Kekkei Genkai de
+//  Lava, Fogo+Terra (duas páginas adiante). Ficou assim: o Kekkei
+//  Genkai mantém Yōton, que é o nome canônico dele, e a natureza passa
+//  a se chamar só Yang.
 
 const NATUREZAS_ESPECIAIS_AVDF = [
   { id: 'yin',  nome: 'Inton',  trad: 'Yin · Imaginação',  cor: '#8f7ae8',
@@ -129,12 +128,22 @@ const NATUREZAS_ESPECIAIS_AVDF = [
     requisito: { atributo: 'gen', valor: 3 },
     requisitoTexto: 'GEN +3, ou clã que a use por Hiden' },
 
-  { id: 'yang', nome: 'Yōton', trad: 'Yang · Vitalidade', cor: '#e8c23a',
+  //  CONFLITO RESOLVIDO COM O AUTOR: o livro chamava esta natureza de
+  //  "Yōton" e chamava de "Yōton (Lava)" o Kekkei Genkai Fogo+Terra.
+  //  Quem fica com o nome canônico é a LAVA; a natureza Yang passa a
+  //  se chamar só Yang na ficha.
+  { id: 'yang', nome: 'Yang', trad: 'Vitalidade', cor: '#e8c23a',
     oque: 'Dá vida e volume ao que já existe. Base da cura, da regeneração e das expansões dos Akimichi.',
     requisito: { atributo: 'ctr', valor: 4 },
     requisitoTexto: 'CTR +4, ou clã que a use por Hiden',
-    nota: 'O livro usa "Yōton" também para o Kekkei Genkai de Lava (Fogo+Terra). São coisas diferentes.' },
+    nota: 'O livro imprime "Yōton" aqui, mas Yōton é o Kekkei Genkai de Lava. Na ficha esta natureza é Yang.' },
 ];
+
+// ── O QUE INTON DESTRAVA (decisão do autor) ───────────────────────
+//  O livro diz que Inton é "base de todo genjutsu". Isso podia ser
+//  sabor ou regra; ficou como regra PARCIAL: genjutsu de rank B ou
+//  superior exige Inton dominado. Os básicos continuam livres.
+const INTON_EXIGIDO_A_PARTIR_DE = 'B';
 
 //  A união das duas. Não é comprável: o livro é explícito.
 const ONMYOTON_AVDF = {

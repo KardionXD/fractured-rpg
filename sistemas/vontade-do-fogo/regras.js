@@ -106,6 +106,16 @@ function avdfCustoAtributo(deValor, rankId) {
   return { pode: true, pt, alvo };
 }
 
+//  Genjutsu de rank B ou superior exige Inton dominado — decisão do
+//  autor a partir de "Inton é base de todo genjutsu". Os básicos (E, D,
+//  C) continuam livres para qualquer um.
+function avdfGenjutsuExigeInton(rankJutsu) {
+  const ordem = JUTSU_RANKS_AVDF.map(j => j.id);
+  const corte = ordem.indexOf(INTON_EXIGIDO_A_PARTIR_DE);
+  const alvo  = ordem.indexOf(rankJutsu);
+  return corte !== -1 && alvo !== -1 && alvo >= corte;
+}
+
 function avdfCustoJutsu(rankJutsu, ctx) {
   const trava = podeAprenderAvdf({ ...ctx, rankJutsu });
   const base = PT_CUSTOS_AVDF.jutsu[rankJutsu] ?? null;

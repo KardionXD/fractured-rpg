@@ -60,7 +60,20 @@ function avdfHtmlNaturezas() {
             <div style="color:var(--muted)">${esc(ONMYOTON_AVDF.regra)}</div></div>
         </div>
 
-        <div class="avdf-nat-nota">O livro não diz se Yin e Yang custam PT como uma segunda natureza, nem se cumprir o requisito de atributo já as concede. Por isso a ficha mostra o requisito e deixa a marcação com você.</div>`;
+        <div class="avdf-nat-nota">${avdfNotaNaturezasEspeciais()}</div>`;
+}
+
+//  A regra combinada com o autor: Yin e Yang têm requisito de atributo
+//  E custo próprio em PT. Enquanto o custo não estiver definido em
+//  `dados.js`, a ficha diz isso em voz alta em vez de cobrar um número
+//  inventado.
+function avdfNotaNaturezasEspeciais() {
+  const c = PT_CUSTOS_AVDF.naturezaEspecial || {};
+  const definidos = ['inton', 'yang'].filter(k => c[k] != null);
+  const custo = definidos.length
+    ? `Custam ${definidos.map(k => `${k === 'inton' ? 'Inton' : 'Yang'} ${c[k]} PT`).join(' e ')}, além do requisito de atributo.`
+    : 'Além do requisito de atributo, custam PT — o valor ainda não foi definido, então a ficha não cobra nada por enquanto.';
+  return `${custo} Genjutsu de rank ${INTON_EXIGIDO_A_PARTIR_DE} ou superior exige Inton dominado; os de rank menor, não.`;
 }
 
 //  Marca no rótulo quem já cumpre o requisito de atributo de Yin e de

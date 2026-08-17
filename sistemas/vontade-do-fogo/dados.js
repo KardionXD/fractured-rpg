@@ -239,6 +239,16 @@ const PT_CUSTOS_AVDF = {
   atributo: { 5: 6, 6: 8, 7: 10, 8: 12 },
   jutsu:    { E: 1, D: 2, C: 4, B: 8, A: 14, S: 24 },
   natureza: { segunda: 8, terceira: 14, quartaEQuinta: 20 },
+
+  //  Yin e Yang não são elementos e não entram na conta de "segunda /
+  //  terceira natureza". O livro dá só o requisito de atributo
+  //  (GEN +3 / CTR +4) e não diz preço. O autor decidiu que há
+  //  requisito E preço — mas o número ainda não foi definido.
+  //
+  //  Enquanto for `null`, a ficha mostra o requisito, deixa a caixa
+  //  para a pessoa marcar e NÃO cobra PT. Basta pôr o número aqui para
+  //  a cobrança passar a valer em toda a ficha.
+  naturezaEspecial: { inton: null, yang: null },
   talento:  6,
   estilo:   6,
   //  Por estágio, e não um valor único (ver nota acima).
@@ -269,6 +279,12 @@ function descontosDeAprendizado(ctx) {
 function podeAprenderAvdf(ctx) {
   if (ctx?.foraDaNatureza) {
     return { pode: false, porque: 'Fora de qualquer natureza que você domine — impossível, a nenhum preço.' };
+  }
+  //  Genjutsu de rank B+ exige Inton (Yin) dominado.
+  if (ctx?.categoria === 'genjutsu' && typeof avdfGenjutsuExigeInton === 'function'
+      && avdfGenjutsuExigeInton(ctx?.rankJutsu) && !ctx?.temInton) {
+    return { pode: false,
+             porque: `Genjutsu de rank ${INTON_EXIGIDO_A_PARTIR_DE} ou superior exige Inton (Yin) dominado — "Inton é base de todo genjutsu".` };
   }
   if ((ctx?.rankJutsu === 'S' || ctx?.acesso === 'Ōgi') && !ctx?.tresSelos) {
     return { pode: false, porque: 'Rank S e acesso Ōgi exigem os três Selos conquistados em jogo antes de qualquer PT.' };

@@ -1032,6 +1032,9 @@ function _avdfPossoAprender(j) {
     const el = document.getElementById('f-nat-' + j.natureza);
     if (!el || !el.checked) return false;
   }
+  //  Genjutsu de rank B+ exige Inton.
+  if (j.categoria === 'genjutsu' && avdfGenjutsuExigeInton(j.rank)
+      && !document.getElementById('f-nat-yin')?.checked) return false;
   if (j.cla && j.cla !== document.getElementById('f-cla')?.value) return false;
   return true;
 }
@@ -1129,6 +1132,10 @@ function _avdfPorQueNaoPosso(j) {
       const n = NATUREZAS_AVDF.find(x => x.id === j.natureza);
       return `Você não domina ${n ? n.nome : j.natureza} — o livro diz que jutsus de uma natureza que você não domina não podem ser aprendidos.`;
     }
+  }
+  if (j.categoria === 'genjutsu' && avdfGenjutsuExigeInton(j.rank)
+      && !document.getElementById('f-nat-yin')?.checked) {
+    return `Genjutsu de rank ${INTON_EXIGIDO_A_PARTIR_DE} ou superior exige Inton (Yin) dominado.`;
   }
   if (j.cla) return `Exclusiva do clã ${j.claNome}.`;
   return '';
