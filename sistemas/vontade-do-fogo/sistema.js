@@ -315,6 +315,8 @@ registrarSistema({
     aoMudarAtributo: (attr) => {
       avdfAtualizarDerivados(attr);
       if (typeof avdfPintarPericias === 'function') avdfPintarPericias();
+      //  GEN e CTR são o requisito de Yin e de Yang.
+      if (typeof avdfAtualizarNaturezasEspeciais === 'function') avdfAtualizarNaturezasEspeciais();
     },
 
     aoMontar:  avdfFichaAoMontar,

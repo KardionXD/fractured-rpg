@@ -30,15 +30,62 @@ function avdfHtmlRank() {
 //  mandam: "jutsus de uma natureza que você não domina não podem ser
 //  aprendidos".
 function avdfHtmlNaturezas() {
-  const nat = NATUREZAS_AVDF.map(n =>
-    `<label class="avdf-natureza" style="--cor-nat:${n.cor}">
-            <input type="checkbox" id="f-nat-${n.id}" onchange="autoSave()">
-            <span>${n.nome} <span style="opacity:.65">(${n.trad})</span></span>
-          </label>`).join('\n          ');
-  return `<div class="avdf-naturezas">
-          ${nat}
+  const caixa = n => `<label class="avdf-natureza" id="nat-cx-${n.id}" style="--cor-nat:${n.cor}">
+            <input type="checkbox" id="f-nat-${n.id}" onchange="avdfAoMudarNatureza()">
+            <span class="avdf-nat-nome">${esc(n.nome)} <span style="opacity:.65">(${esc(n.trad)})</span></span>
+            ${n.requisitoTexto ? `<span class="avdf-nat-req" id="nat-req-${n.id}">${esc(n.requisitoTexto)}</span>` : ''}
+          </label>`;
+
+  return `<div class="avdf-nat-grupo">Cinco naturezas elementais</div>
+        <div class="avdf-naturezas">
+          ${NATUREZAS_AVDF.map(caixa).join('\n          ')}
         </div>
-        <div class="avdf-nat-nota">Afinidade natural, dominadas por treino e concedidas por Kekkei Genkai aparecem aqui juntas — a distinção entra na entrega seguinte.</div>`;
+
+        <div class="avdf-nat-grupo">Yin, Yang e Yin-Yang <span>não são elementos — Cap. 07</span></div>
+        <div class="avdf-naturezas avdf-naturezas-especiais">
+          ${NATUREZAS_ESPECIAIS_AVDF.map(caixa).join('\n          ')}
+        </div>
+        <div class="avdf-nat-oque">
+          ${NATUREZAS_ESPECIAIS_AVDF.map(n =>
+            `<div><strong>${esc(n.nome)}</strong> — ${esc(n.oque)}</div>`).join('')}
+        </div>
+
+        <div class="avdf-onmyoton">
+          <label class="avdf-natureza" style="--cor-nat:#cfcfe6">
+            <input type="checkbox" id="f-nat-onmyoton" onchange="avdfAoMudarNatureza()">
+            <span class="avdf-nat-nome">${esc(ONMYOTON_AVDF.nome)} <span style="opacity:.65">(${esc(ONMYOTON_AVDF.trad)})</span></span>
+            <span class="avdf-nat-req avdf-nat-mestre">só por concessão do Mestre</span>
+          </label>
+          <div class="avdf-nat-oque"><div>${esc(ONMYOTON_AVDF.oque)}</div>
+            <div style="color:var(--muted)">${esc(ONMYOTON_AVDF.regra)}</div></div>
+        </div>
+
+        <div class="avdf-nat-nota">O livro não diz se Yin e Yang custam PT como uma segunda natureza, nem se cumprir o requisito de atributo já as concede. Por isso a ficha mostra o requisito e deixa a marcação com você.</div>`;
+}
+
+//  Marca no rótulo quem já cumpre o requisito de atributo de Yin e de
+//  Yang. NÃO marca a caixa sozinha: o livro dá o requisito, mas não diz
+//  se cumpri-lo concede a natureza ou se ela ainda tem que ser
+//  comprada. Inventar aqui seria dar Yin de graça a todo genjutsuka.
+function avdfAtualizarNaturezasEspeciais() {
+  const attr = typeof _attrDaTela === 'function' ? _attrDaTela() : {};
+  NATUREZAS_ESPECIAIS_AVDF.forEach(n => {
+    const rot = document.getElementById('nat-req-' + n.id);
+    const cx  = document.getElementById('nat-cx-' + n.id);
+    if (!rot || !cx) return;
+    const cumpre = requisitoNaturezaCumpridoAvdf(n.id, attr);
+    const marcada = document.getElementById('f-nat-' + n.id)?.checked;
+    cx.classList.toggle('req-ok', cumpre);
+    rot.textContent = marcada
+      ? (cumpre ? 'requisito cumprido' : 'abaixo do requisito — ' + n.requisitoTexto)
+      : (cumpre ? 'requisito cumprido · ' + n.requisitoTexto : n.requisitoTexto);
+  });
+}
+
+function avdfAoMudarNatureza() {
+  avdfAtualizarNaturezasEspeciais();
+  if (typeof avdfBibDesenhar === 'function' && !document.getElementById('avdf-bib')?.hidden) avdfBibDesenhar();
+  if (typeof autoSave === 'function') autoSave();
 }
 
 //  Defesa e Resiliência são valores que a mesa consulta o tempo todo
@@ -345,7 +392,7 @@ function avdfAplicarClaNaFicha(c) {
     const el = document.getElementById('f-nat-' + n);
     if (el && !el.checked) {
       el.checked = true;
-      linhas.push(`Natureza: <strong>${esc((NATUREZAS_AVDF.find(x => x.id === n) || {}).nome || n)}</strong>`);
+      linhas.push(`Natureza: <strong>${esc(naturezaAvdf(n)?.nome || n)}</strong>`);
     }
   });
 

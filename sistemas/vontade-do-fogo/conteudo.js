@@ -104,6 +104,66 @@ const NATUREZAS_AVDF = [
   { id: 'doton',  nome: 'Doton',  trad: 'Terra', cor: '#a07a4e' },
 ];
 
+// ── YIN, YANG E YIN-YANG (Cap. 07) ────────────────────────────────
+//  Não são elementos. São as duas naturezas fundamentais, e o livro as
+//  descreve em seção própria, logo depois das cinco:
+//
+//    "Inton — Yin (Imaginação). Dá forma ao que não existe. Base de
+//     todo genjutsu e das técnicas de sombra dos Nara.
+//     Requisito: GEN +3, ou clã que a use por Hiden."
+//
+//    "Yōton — Yang (Vitalidade). Dá vida e volume ao que já existe.
+//     Base da cura, da regeneração e das expansões dos Akimichi.
+//     Requisito: CTR +4, ou clã que a use por Hiden."
+//
+//  CONFLITO DE NOME, NÃO RESOLVIDO AQUI: o livro chama a natureza Yang
+//  de "Yōton" no Cap. 07 e chama de "Yōton (Lava) — Fogo+Terra" o
+//  Kekkei Genkai da Mei Terumī, duas páginas adiante. São coisas
+//  diferentes com o mesmo nome. Na ficha o id da natureza é `yang` e o
+//  do Kekkei Genkai continua sendo o da lista de KG — assim nenhuma das
+//  duas some enquanto o autor não decidir qual fica com o nome.
+
+const NATUREZAS_ESPECIAIS_AVDF = [
+  { id: 'yin',  nome: 'Inton',  trad: 'Yin · Imaginação',  cor: '#8f7ae8',
+    oque: 'Dá forma ao que não existe. Base de todo genjutsu e das técnicas de sombra dos Nara.',
+    requisito: { atributo: 'gen', valor: 3 },
+    requisitoTexto: 'GEN +3, ou clã que a use por Hiden' },
+
+  { id: 'yang', nome: 'Yōton', trad: 'Yang · Vitalidade', cor: '#e8c23a',
+    oque: 'Dá vida e volume ao que já existe. Base da cura, da regeneração e das expansões dos Akimichi.',
+    requisito: { atributo: 'ctr', valor: 4 },
+    requisitoTexto: 'CTR +4, ou clã que a use por Hiden',
+    nota: 'O livro usa "Yōton" também para o Kekkei Genkai de Lava (Fogo+Terra). São coisas diferentes.' },
+];
+
+//  A união das duas. Não é comprável: o livro é explícito.
+const ONMYOTON_AVDF = {
+  id: 'onmyoton', nome: 'Onmyōton', trad: 'Yin-Yang',
+  oque: 'A união das duas: criar vida a partir do nada, o poder dos Seis Caminhos.',
+  regra: 'Não é adquirível por PT — só existe como poder de PNJ lendário ou conclusão de campanha, concedida pelo Mestre.',
+  compravel: false,
+};
+
+//  As sete que a ficha mostra: as cinco elementais mais Yin e Yang.
+function naturezasTodasAvdf() {
+  return NATUREZAS_AVDF.concat(NATUREZAS_ESPECIAIS_AVDF);
+}
+
+function naturezaAvdf(id) {
+  return naturezasTodasAvdf().find(n => n.id === id) || null;
+}
+
+//  O personagem cumpre o requisito de atributo desta natureza?
+//  O requisito é do LIVRO; o que o livro NÃO diz é se cumpri-lo já
+//  concede a natureza ou se ainda é preciso pagar PT por ela. Por isso
+//  a ficha marca "requisito cumprido" e deixa a caixa para a pessoa —
+//  ela não marca sozinha.
+function requisitoNaturezaCumpridoAvdf(id, attr) {
+  const n = naturezaAvdf(id);
+  if (!n || !n.requisito) return true;
+  return (parseInt(attr?.[n.requisito.atributo], 10) || 0) >= n.requisito.valor;
+}
+
 // ── CONDIÇÕES ──────────────────────────────────────────
 //  Moraram aqui até a remodelação da ficha. Agora estão em dados.js,
 //  junto das outras tabelas de regra, com os efeitos mecânicos que a

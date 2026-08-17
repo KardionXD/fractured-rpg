@@ -738,6 +738,7 @@ function avdfFichaAoMontar() {
   avdfPintarJutsus();
   avdfAoTrocarOrigem();
   avdfAtualizarGrausPermitidos();
+  avdfAtualizarNaturezasEspeciais();
   avdfPintarVontade();
   avdfAoMudarEstado();
   //  O medidor de Vínculo de Equipe da mesa. Ele existe desde o começo,
@@ -764,10 +765,11 @@ function avdfAplicarCampos(d, porCampo) {
   });
 
   //  Naturezas, clã, linhagem, estágios e técnicas.
-  NATUREZAS_AVDF.forEach(n => {
+  naturezasTodasAvdf().concat([ONMYOTON_AVDF]).forEach(n => {
     const el = document.getElementById('f-nat-' + n.id);
     if (el) el.checked = (d.naturezas || []).includes(n.id);
   });
+  if (typeof avdfAtualizarNaturezasEspeciais === 'function') avdfAtualizarNaturezasEspeciais();
   porCampo('f-kg',        d.kg || '');
   porCampo('f-kg-origem', d.kg_origem || 'nascimento');
   porCampo('f-kg-outra',  d.kg_outra || '');
@@ -805,7 +807,8 @@ function avdfAplicarCampos(d, porCampo) {
 //  nunca chegavam ao banco. `avdfParaDados` recebia uma linha sem
 //  nenhum deles e gravava tudo vazio, sem erro nenhum na tela.
 function avdfColetarCampos() {
-  const naturezas = NATUREZAS_AVDF
+  //  As cinco elementais mais Yin, Yang e Onmyōton.
+  const naturezas = naturezasTodasAvdf().concat([ONMYOTON_AVDF])
     .filter(n => document.getElementById('f-nat-' + n.id)?.checked)
     .map(n => n.id);
 

@@ -280,7 +280,7 @@ const CLAS_KONOHA_AVDF = [
     // A passiva diz "Você domina Yin de graça". Yin NÃO é uma das cinco naturezas
     // elementais (katon/suiton/futon/raiton/doton), então não entra na lista — inventar
     // um id 'yin' seria criar dado que o modelo de naturezas não tem.
-    naturezas: [],
+    naturezas: ['yin'],   // "Você domina Yin de graça" (Passiva)
     dominioExtra: 'Yin (natureza Yin, de graça — citada na Passiva; não é uma das cinco naturezas elementais do Cap. 07)',
     // "Você domina Yin de graça e tem Estratégia treinada." (Passiva)
     ajustes: { periciasTreinadas: ['Estratégia'] },

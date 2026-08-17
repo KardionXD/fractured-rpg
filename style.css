@@ -5049,3 +5049,29 @@ body.avdf-modal-aberto { overflow: hidden; }
 .avdf-legado[open] > summary::before { content: "▾"; }
 .avdf-legado > summary:hover { color: var(--text); }
 .avdf-legado-corpo { padding-top: 8px; border-top: 1px solid var(--border); }
+
+/* ── YIN, YANG E YIN-YANG ───────────────────────────────────── */
+.avdf-nat-grupo {
+  font-size: 8.5px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--muted); margin: 14px 0 6px; padding-bottom: 3px;
+  border-bottom: 1px solid var(--border); display: flex; gap: 8px; align-items: baseline;
+}
+.avdf-nat-grupo:first-child { margin-top: 0; }
+.avdf-nat-grupo span { font-weight: 400; letter-spacing: 0; text-transform: none; font-size: 9.5px; }
+.avdf-naturezas-especiais .avdf-natureza { border-style: dashed; }
+.avdf-natureza.req-ok { border-style: solid; }
+.avdf-nat-nome { display: block; }
+.avdf-nat-req {
+  display: block; font-size: 9px; color: var(--muted); margin-top: 2px;
+}
+.avdf-natureza.req-ok .avdf-nat-req { color: var(--f-accent2); }
+.avdf-nat-mestre { color: var(--f-accent2) !important; }
+.avdf-nat-oque {
+  font-size: 11px; color: var(--muted); line-height: 1.6; margin-top: 7px;
+  display: flex; flex-direction: column; gap: 3px;
+}
+.avdf-nat-oque strong { color: var(--text); }
+.avdf-onmyoton {
+  margin-top: 12px; padding: 10px 11px;
+  border: 1px dashed var(--border2); border-radius: 9px;
+}
