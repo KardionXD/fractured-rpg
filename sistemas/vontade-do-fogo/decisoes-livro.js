@@ -1426,7 +1426,7 @@ const DECISOES_LIVRO_AVDF = [
 
   {
     id: 'C07',
-    titulo: 'Inton e Yōton (Yang) não têm custo em PT nem rank mínimo',
+    titulo: 'Inton e Yang: custo em PT — PROPOSTA, aguarda o autor',
     onde: 'LJ:426-441 · LJ:2162',
     tipo: 'numero',
     impacto: 'bloqueia',
@@ -1436,8 +1436,14 @@ const DECISOES_LIVRO_AVDF = [
       + 'LJ:433-439 — Inton exige "GEN +3, ou clã que a use por Hiden" e Yōton (Yang) exige '
       + '"CTR +4, ou clã que a use por Hiden", sem PT e sem rank · LJ:440-441 — "Onmyōton '
       + '(Yin-Yang) (...) Não é adquirível por PT."',
+    //  ATENCAO: e a unica entrada que o autor reservou para si. Ele ja
+    //  decidiu a FORMA ("requisito de atributo E custo proprio em PT") e
+    //  disse que daria o numero. Enquanto o numero nao vier, a ficha NAO
+    //  cobra nada: `PT_CUSTOS_AVDF.naturezaEspecial` segue `null` em
+    //  dados.js. O texto abaixo e a proposta, nao a regra em vigor.
+    aguardaAutor: true,
     decisao:
-      'Inton e Yōton (Yang) entram na mesma tabela das cinco naturezas e ocupam a posição '
+      'PROPOSTA, ainda nao em vigor — o autor reservou este numero para si. Inton e Yang entrariam na mesma tabela das cinco naturezas, ocupando a posicao '
       + 'seguinte na contagem do personagem: custam 8 PT se forem a sua segunda natureza, '
       + '14 se forem a terceira, 20 se forem a quarta ou quinta, e exigem o rank mínimo '
       + 'daquela posição (Chūnin, Jōnin, Elite) além do requisito de atributo próprio '
@@ -1452,15 +1458,7 @@ const DECISOES_LIVRO_AVDF = [
       + 'genjutsu de sombra de graça a qualquer personagem com GEN +3.',
     principio: 'P4',
     confianca: 'alta',
-    aplica: {
-      naturezaPt: {
-        inton: { custo: 'posicao_na_tabela', requisito: 'GEN+3', comprável: true },
-        yang: { custo: 'posicao_na_tabela', requisito: 'CTR+4', comprável: true },
-        onmyoton: { comprável: false },
-        tabela: { 2: 8, 3: 14, 4: 20, 5: 20 },
-        rankMinimoPorPosicao: { 2: 'chunin', 3: 'jonin', 4: 'elite', 5: 'elite' },
-      },
-    },
+    //  Sem `aplica`: uma proposta nao mexe em numero nenhum.
   },
 
   {
