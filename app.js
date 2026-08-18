@@ -2302,6 +2302,8 @@ function initMasterUI() {
   // Show master nav items in sidebar
   const section = document.getElementById('nav-master-section');
   if (section) section.style.display = '';
+  // As seções da ficha marcadas como do Mestre.
+  if (typeof fichaAplicarVisibilidade === 'function') fichaAplicarVisibilidade();
   // Subscreve todos os canais realtime
   if (typeof subscribeCenas === 'function') subscribeCenas();
   if (typeof subscribeMapaRealtime === 'function') subscribeMapaRealtime();

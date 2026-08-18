@@ -271,7 +271,27 @@ const _FM_TIPOS = {
 function _fmSecaoHtml(s, sec) {
   const fn = _FM_TIPOS[sec.tipo];
   if (!fn) { console.warn('[ficha] tipo de seção desconhecido:', sec.tipo); return null; }
-  return fn(s, sec);
+  let html = fn(s, sec);
+  //  Seção marcada `soMestre` nasce escondida e só aparece se quem
+  //  abriu a ficha for o Mestre. A marca fica no HTML — e não uma
+  //  checagem espalhada no meio de cada bloco —, porque assim qualquer
+  //  seção de qualquer sistema pode ser do Mestre sem código novo.
+  if (sec.soMestre && html) {
+    html = html.replace(/^(\s*<div)/, '$1 data-so-mestre="1" hidden');
+  }
+  return html;
+}
+
+//  Mostra ou esconde as seções do Mestre. Chamada quando a ficha é
+//  montada e de novo quando o login descobre que a pessoa é o Mestre —
+//  as duas coisas acontecem em ordens diferentes dependendo de quanto o
+//  banco demora, então esta função é chamada nas duas pontas.
+function fichaAplicarVisibilidade() {
+  const mestre = (typeof isMaster !== 'undefined' && isMaster)
+              || (typeof window !== 'undefined' && window.isMaster);
+  document.querySelectorAll('#page-ficha [data-so-mestre]').forEach(el => {
+    el.hidden = !mestre;
+  });
 }
 
 function fichaMotorHtml() {
@@ -333,6 +353,7 @@ function fichaMotorMontar() {
   //  Alguns blocos precisam de um ajuste depois de existirem na tela —
   //  a trilha do clã, a linhagem, a lista de técnicas disponíveis. O
   //  motor não sabe o que são; só avisa o sistema que a ficha está de pé.
+  fichaAplicarVisibilidade();
   if (typeof S().ficha.aoMontar === 'function') {
     try { S().ficha.aoMontar(); }
     catch (e) { console.error('[ficha] o sistema falhou ao ajustar os blocos:', e); }

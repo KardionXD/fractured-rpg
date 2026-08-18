@@ -285,8 +285,12 @@ registrarSistema({
 
       //  Onde o livro deixou buraco, alguém decidiu — e a decisão fica
       //  visível, com o texto original e o porquê a um clique.
+      //  Só o Mestre vê: é a auditoria das regras, não parte do
+      //  personagem. O jogador continua vendo o aviso curto na caixa do
+      //  clã — aquele diz que o clã dele tem regra arbitrada, que é o
+      //  que ele precisa saber para jogar.
       { aba: 'cla', tipo: 'bloco', id: 'section-decisoes', titulo: 'Decisões da casa',
-        html: avdfHtmlDecisoes },
+        soMestre: true, html: avdfHtmlDecisoes },
 
       // ── EQUIPAMENTO ─────────────────────────────────────────────
       { aba: 'equip', tipo: 'bloco', id: 'section-equip', titulo: 'Equipamento e Ryō',
