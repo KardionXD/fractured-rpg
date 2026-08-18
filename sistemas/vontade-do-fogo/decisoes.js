@@ -218,142 +218,18 @@ function cdDaTecnicaAvdf(j, attr) {
 
 
 // ══════════════════════════════════════════════════════════════════
-//  O PAINEL — onde as decisões ficam visíveis
+//  NÃO EXISTE PAINEL AQUI, E É DE PROPÓSITO
+//
+//  Houve uma seção "Decisões da casa" na ficha, listando as 107
+//  arbitragens com busca e filtros. Ela foi removida a pedido do autor.
+//
+//  O que ficou é o que importa em jogo: as decisões continuam VALENDO.
+//  O custo de atributo até +4, os valores corrigidos das técnicas, os
+//  CDs que faltavam — tudo isso segue sendo aplicado por
+//  `aplicarDecisoesAvdf()` logo acima, e cada técnica corrigida ainda
+//  carrega `decisao` (o id) e `_livro_<campo>` (o valor original), caso
+//  algum dia se queira mostrar isso de novo.
+//
+//  O registro das decisões, para leitura humana, vive fora do site:
+//  na Errata Oficial em PDF e nos arquivos `decisoes-*.js`.
 // ══════════════════════════════════════════════════════════════════
-
-const DEC_FILTRO = { busca: '', impacto: '', confianca: '', tipo: '', cla: '' };
-
-const DEC_TIPO_NOME = {
-  conflito: 'Conflito entre passagens',
-  numero:   'Número que faltava',
-  grandeza: 'Grandeza sem base',
-  nome:     'Efeito nomeado e nunca descrito',
-  termo:    'Termo sem definição',
-  gatilho:  'Gatilho sem consequência',
-};
-
-function avdfHtmlDecisoes() {
-  const todas = decisoesAvdf();
-  const n = todas.length;
-  const baixa = todas.filter(d => d.confianca === 'baixa').length;
-
-  return `<div class="avdf-dec">
-        <div class="avdf-dec-intro">
-          O livro deixou buracos: números que faltam, efeitos citados e nunca
-          descritos, e passagens que se contradizem. <strong>${n}</strong> deles
-          foram arbitrados aqui — cada um com o texto original, o princípio que
-          produziu a regra nova e a citação que a sustenta.
-          <br>Nada disto se disfarça de livro: toda regra arbitrada carrega o selo
-          <span class="avdf-dec-selo">decisão da casa</span>.
-          ${baixa ? `<br><strong>${baixa}</strong> têm confiança baixa — são as que eu revisaria primeiro.` : ''}
-        </div>
-
-        <div class="avdf-dec-filtros">
-          <input type="search" id="dec-busca" placeholder="Buscar decisão..." oninput="avdfDecFiltrar('busca', this.value)">
-          <div class="avdf-bib-atalhos">
-            <button type="button" class="avdf-bib-chip ativo" onclick="avdfDecFiltrar('impacto','')">Todas</button>
-            <button type="button" class="avdf-bib-chip" onclick="avdfDecFiltrar('impacto','bloqueia')">Que travavam a ficha</button>
-            <button type="button" class="avdf-bib-chip" onclick="avdfDecFiltrar('confianca','baixa')">Confiança baixa</button>
-            <button type="button" class="avdf-bib-chip" onclick="avdfDecFiltrar('tipo','conflito')">Conflitos</button>
-          </div>
-          <div class="avdf-bib-conta" id="dec-conta"></div>
-        </div>
-
-        <div class="avdf-dec-lista" id="dec-lista"></div>
-      </div>`;
-}
-
-function avdfDecFiltrar(campo, valor) {
-  //  Os atalhos são exclusivos entre si: escolher um limpa os outros.
-  if (campo !== 'busca') { DEC_FILTRO.impacto = ''; DEC_FILTRO.confianca = ''; DEC_FILTRO.tipo = ''; }
-  DEC_FILTRO[campo] = valor;
-  document.querySelectorAll('.avdf-dec-filtros .avdf-bib-chip').forEach(b =>
-    b.classList.toggle('ativo', b.textContent.trim() === (
-      valor === '' ? 'Todas' :
-      valor === 'bloqueia' ? 'Que travavam a ficha' :
-      valor === 'baixa' ? 'Confiança baixa' : 'Conflitos')));
-  avdfDecDesenhar();
-}
-
-function avdfDecDesenhar() {
-  const lista = document.getElementById('dec-lista');
-  if (!lista) return;
-  const f = DEC_FILTRO;
-  const termo = f.busca.trim().toLowerCase();
-
-  const achadas = decisoesAvdf().filter(d => {
-    if (f.impacto && d.impacto !== f.impacto) return false;
-    if (f.confianca && d.confianca !== f.confianca) return false;
-    if (f.tipo && d.tipo !== f.tipo) return false;
-    if (f.cla && d.cla !== f.cla) return false;
-    if (termo) {
-      const alvo = `${d.titulo} ${d.decisao} ${d.oQueOLivroDiz} ${d.onde}`.toLowerCase();
-      if (!alvo.includes(termo)) return false;
-    }
-    return true;
-  });
-
-  const conta = document.getElementById('dec-conta');
-  if (conta) conta.textContent = `${achadas.length} de ${decisoesAvdf().length} decisões`;
-
-  if (!achadas.length) {
-    lista.innerHTML = `<div class="avdf-bib-vazio">Nenhuma decisão com esses filtros.</div>`;
-    return;
-  }
-
-  lista.innerHTML = achadas.map(d => `
-      <details class="avdf-dec-item conf-${_av(d.confianca)}">
-        <summary>
-          <span class="avdf-dec-titulo">${_av(d.titulo)}</span>
-          <span class="avdf-dec-tags">
-            <span class="avdf-bib-tag">${_av(d.onde)}</span>
-            <span class="avdf-dec-imp imp-${_av(d.impacto)}">${_av(d.impacto)}</span>
-            <span class="avdf-dec-conf">confiança ${_av(d.confianca)}</span>
-          </span>
-        </summary>
-        <div class="avdf-dec-corpo">
-          <div class="avdf-dec-bloco">
-            <span class="avdf-dec-rot">O que o livro diz</span>
-            <div class="avdf-dec-livro">${_av(d.oQueOLivroDiz)}</div>
-          </div>
-          <div class="avdf-dec-bloco">
-            <span class="avdf-dec-rot">O que passa a valer</span>
-            <div class="avdf-dec-regra">${_av(d.decisao)}</div>
-          </div>
-          <div class="avdf-dec-bloco">
-            <span class="avdf-dec-rot">Por quê</span>
-            <div class="avdf-dec-porque">
-              <span class="avdf-dec-principio">${_av(d.principio || '—')}</span>
-              ${_av(d.porque)}
-            </div>
-          </div>
-          <div class="avdf-dec-rodape">
-            ${_av(DEC_TIPO_NOME[d.tipo] || d.tipo || '')}
-            ${d.cla ? ` · clã ${_av(d.cla)}` : ''} · achado ${_av(d.id)}
-          </div>
-        </div>
-      </details>`).join('');
-}
-
-//  As decisões que afetam o clã escolhido, mostradas na aba do clã.
-function avdfPintarDecisoesDoCla(idCla) {
-  const caixa = document.getElementById('cla-decisoes');
-  if (!caixa) return;
-  const lista = idCla ? decisoesDoClaAvdf(idCla) : [];
-  if (!lista.length) { caixa.hidden = true; caixa.innerHTML = ''; return; }
-  caixa.hidden = false;
-  caixa.innerHTML = `
-      <div class="avdf-dec-cla-rot">
-        <span class="avdf-dec-selo">decisão da casa</span>
-        ${lista.length} ${lista.length === 1 ? 'regra deste clã foi arbitrada' : 'regras deste clã foram arbitradas'} — o livro não as tinha
-      </div>
-      ${lista.map(d => `
-      <details class="avdf-dec-mini conf-${_av(d.confianca)}">
-        <summary>${_av(d.titulo)}</summary>
-        <div class="avdf-dec-mini-corpo">
-          <div><strong>Livro:</strong> ${_av(d.oQueOLivroDiz)}</div>
-          <div><strong>Vale:</strong> ${_av(d.decisao)}</div>
-          <div class="avdf-dec-porque"><span class="avdf-dec-principio">${_av(d.principio || '—')}</span>${_av(d.porque)}</div>
-        </div>
-      </details>`).join('')}`;
-}

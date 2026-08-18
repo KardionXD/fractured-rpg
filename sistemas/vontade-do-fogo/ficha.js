@@ -732,7 +732,6 @@ function avdfFichaAoMontar() {
   //  As arbitragens que viram número entram ANTES de qualquer coisa ler
   //  o catálogo — senão a biblioteca mostraria o valor velho.
   if (typeof aplicarDecisoesAvdf === 'function') aplicarDecisoesAvdf();
-  if (typeof avdfDecDesenhar === 'function') avdfDecDesenhar();
   if (typeof avdfAoTrocarRank === 'function') avdfAoTrocarRank();
   if (typeof avdfAoTrocarCla === 'function') avdfAoTrocarCla();
   if (typeof avdfAoTrocarKG === 'function') avdfAoTrocarKG();

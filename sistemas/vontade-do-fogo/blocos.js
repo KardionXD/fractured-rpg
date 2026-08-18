@@ -288,7 +288,6 @@ function avdfHtmlCla() {
             </div>
           </div>
         </div>
-        <div id="cla-decisoes" class="avdf-dec-cla" hidden></div>
         <div id="cla-passiva" class="avdf-passiva" style="display:none"></div>
         <div id="cla-trilha" class="avdf-trilha"></div>
         <div id="cla-extra"></div>`;
@@ -370,7 +369,6 @@ function avdfAoTrocarCla(marcados) {
       </div>`);
   }
   ext.innerHTML = extras.join('');
-  if (typeof avdfPintarDecisoesDoCla === 'function') avdfPintarDecisoesDoCla(c.id);
   avdfAplicarClaNaFicha(c);
   if (typeof autoSave === 'function') autoSave();
 }
