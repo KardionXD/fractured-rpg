@@ -283,6 +283,11 @@ registrarSistema({
       { aba: 'cla', tipo: 'bloco', id: 'section-cla', titulo: 'Clã, Passiva e Progressão',
         html: avdfHtmlCla },
 
+      //  Onde o livro deixou buraco, alguém decidiu — e a decisão fica
+      //  visível, com o texto original e o porquê a um clique.
+      { aba: 'cla', tipo: 'bloco', id: 'section-decisoes', titulo: 'Decisões da casa',
+        html: avdfHtmlDecisoes },
+
       // ── EQUIPAMENTO ─────────────────────────────────────────────
       { aba: 'equip', tipo: 'bloco', id: 'section-equip', titulo: 'Equipamento e Ryō',
         html: avdfHtmlEquipamento },

@@ -729,6 +729,10 @@ function avdfAtualizarGrausPermitidos() {
 
 //  Depois que a ficha é desenhada.
 function avdfFichaAoMontar() {
+  //  As arbitragens que viram número entram ANTES de qualquer coisa ler
+  //  o catálogo — senão a biblioteca mostraria o valor velho.
+  if (typeof aplicarDecisoesAvdf === 'function') aplicarDecisoesAvdf();
+  if (typeof avdfDecDesenhar === 'function') avdfDecDesenhar();
   if (typeof avdfAoTrocarRank === 'function') avdfAoTrocarRank();
   if (typeof avdfAoTrocarCla === 'function') avdfAoTrocarCla();
   if (typeof avdfAoTrocarKG === 'function') avdfAoTrocarKG();
@@ -926,7 +930,12 @@ let _avdfCatalogo = null;
 
 function avdfCatalogoJutsus() {
   if (_avdfCatalogo) return _avdfCatalogo;
-  const base = (typeof JUTSUS_AVDF !== 'undefined' ? JUTSUS_AVDF : []).map(j => ({ ...j, cla: null }));
+  //  Sem cópia: o catálogo usa os MESMOS objetos de `JUTSUS_AVDF`. Com
+  //  cópia, uma correção aplicada por uma decisão da casa valia num
+  //  lugar e não no outro, e a ficha mostrava dois números diferentes
+  //  para a mesma técnica.
+  const base = (typeof JUTSUS_AVDF !== 'undefined' ? JUTSUS_AVDF : []);
+  base.forEach(j => { if (j.cla === undefined) j.cla = null; });
   const deCla = [];
   (typeof clasAvdf === 'function' ? clasAvdf() : []).forEach(c => {
     (c.tecnicas || []).forEach(t => {
