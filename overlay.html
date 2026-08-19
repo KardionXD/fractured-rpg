@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Fractured — Overlay OBS</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  html, body {
+    margin: 0; padding: 0;
+    width: 100%; height: 100%;
+    background: transparent; /* IMPORTANTE: mantém transparente no OBS */
+    overflow: hidden;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+  }
+  #mapa-wrap {
+    position: fixed; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #mapa-canvas {
+    display: block;
+  }
+
+  /* ── Login fallback (só aparece se a leitura anônima falhar) ── */
+  #login-box {
+    position: fixed; inset: 0;
+    display: none;
+    align-items: center; justify-content: center;
+    background: rgba(5,5,10,0.92);
+    color: #e8c979; font-size: 14px;
+  }
+  #login-box.show { display: flex; }
+  #login-box form {
+    display: flex; flex-direction: column; gap: 8px;
+    background: #0d0d13; border: 1px solid #26262e; border-radius: 10px;
+    padding: 20px; width: 260px;
+  }
+  #login-box input {
+    background: #16161d; border: 1px solid #33333d; color: #fff;
+    padding: 8px 10px; border-radius: 6px; font-size: 13px;
+  }
+  #login-box button {
+    background: linear-gradient(135deg,#d9b45b,#e8c979); border: none;
+    color: #14140f; font-weight: 700; padding: 9px; border-radius: 6px;
+    cursor: pointer;
+  }
+  #login-msg { font-size: 11px; color: #ff8a8a; min-height: 14px; }
+
+  /* ── Overlay de dado ── */
+  #dado-overlay {
+    position: fixed; inset: 0;
+    display: none;
+    align-items: center; justify-content: center;
+    pointer-events: none;
+    z-index: 50;
+  }
+  #dado-overlay.show { display: flex; }
+
+  .d20-shape {
+    width: 160px; height: 160px;
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+    animation: dadoSpin 0.9s cubic-bezier(.2,1.6,.4,1) 1;
+  }
+  .d20-shape svg { width: 100%; height: 100%; filter: drop-shadow(0 0 14px rgba(0,0,0,.6)); }
+  .d20-resultado {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 46px; font-weight: 900; color: #fff;
+    text-shadow: 0 0 10px rgba(0,0,0,.9), 0 0 20px rgba(0,0,0,.6);
+    opacity: 0; animation: numFadeIn .3s ease-out .55s forwards;
+  }
+  .d20-label {
+    position: absolute; bottom: -34px; left: 50%; transform: translateX(-50%);
+    white-space: nowrap; font-size: 13px; font-weight: 700; letter-spacing: 1px;
+    color: #ddd; text-shadow: 0 0 6px rgba(0,0,0,.9);
+    opacity: 0; animation: numFadeIn .3s ease-out .55s forwards;
+  }
+
+  @keyframes dadoSpin {
+    0%   { transform: rotate(0deg) scale(0.2); opacity: 0; }
+    40%  { opacity: 1; }
+    60%  { transform: rotate(430deg) scale(1.15); }
+    100% { transform: rotate(360deg) scale(1); }
+  }
+  @keyframes numFadeIn { from { opacity:0; transform: scale(.5);} to { opacity:1; transform: scale(1);} }
+
+  /* Crítico: aura dourada + confete */
+  .critico .d20-shape svg { filter: drop-shadow(0 0 26px #f1c40f) drop-shadow(0 0 46px #f1c40f); }
+  .critico .d20-resultado { color: #ffe8a3; }
+
+  /* Falha crítica: aura vermelha + tremor de tela */
+  .falha .d20-shape svg { filter: drop-shadow(0 0 26px #e74c3c) drop-shadow(0 0 46px #c0392b); }
+  .falha .d20-resultado { color: #ffb3ab; }
+
+  body.screen-shake { animation: screenShake 0.45s ease-in-out 1; }
+  @keyframes screenShake {
+    0%,100% { transform: translate(0,0); }
+    20% { transform: translate(-8px, 4px); }
+    40% { transform: translate(7px, -5px); }
+    60% { transform: translate(-6px, -3px); }
+    80% { transform: translate(5px, 5px); }
+  }
+
+  .flash-critico, .flash-falha {
+    position: fixed; inset: 0; z-index: 40; pointer-events: none;
+    animation: flashPulse 0.6s ease-out 1;
+  }
+  .flash-critico { background: radial-gradient(circle, rgba(241,196,15,0.35), transparent 70%); }
+  .flash-falha   { background: radial-gradient(circle, rgba(192,57,43,0.35), transparent 70%); }
+  @keyframes flashPulse { 0%{opacity:0;} 25%{opacity:1;} 100%{opacity:0;} }
+
+  .particle {
+    position: fixed; width: 8px; height: 8px; border-radius: 50%;
+    pointer-events: none; z-index: 45;
+  }
+
+  /* Rolagem oculta do mestre: pulso místico sem número */
+  .mystery-pulse {
+    position: fixed; inset: 0; z-index: 45; pointer-events: none;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .mystery-pulse .ring {
+    width: 90px; height: 90px; border-radius: 50%;
+    border: 3px solid rgba(155,89,182,0.85);
+    animation: mysteryRing 1.4s ease-out 1;
+  }
+  @keyframes mysteryRing {
+    0%   { transform: scale(0.3); opacity: 1; }
+    100% { transform: scale(3.2); opacity: 0; }
+  }
+</style>
+</head>
+<body>
+
+<div id="mapa-wrap"><canvas id="mapa-canvas"></canvas></div>
+
+<div id="dado-overlay">
+  <div class="d20-shape">
+    <svg viewBox="0 0 100 100"><polygon points="50,3 93,27 93,73 50,97 7,73 7,27" fill="#1a1a22" stroke="#e8c979" stroke-width="2.5"/><polygon points="50,3 93,27 50,50" fill="#26262e"/><polygon points="93,27 93,73 50,50" fill="#1a1a22"/><polygon points="93,73 50,97 50,50" fill="#2c2c36"/><polygon points="50,97 7,73 50,50" fill="#1f1f28"/><polygon points="7,73 7,27 50,50" fill="#26262e"/><polygon points="7,27 50,3 50,50" fill="#20202a"/></svg>
+    <div class="d20-resultado" id="dado-resultado-num"></div>
+    <div class="d20-label" id="dado-resultado-label"></div>
+  </div>
+</div>
+
+<div id="login-box">
+  <form id="login-form">
+    <div style="font-weight:700;color:#e8c979">Overlay Fractured — login</div>
+    <div style="font-size:11px;color:#999">A leitura anônima da mesa foi bloqueada. Faça login com uma conta que participe desta mesa (só precisa uma vez nesta Browser Source).</div>
+    <input type="email" id="login-email" placeholder="email" required>
+    <input type="password" id="login-senha" placeholder="senha" required>
+    <button type="submit">Entrar</button>
+    <div id="login-msg"></div>
+  </form>
+</div>
+
+<!-- Config do Supabase (mesma do site) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase.js"></script>
+<script src="overlay.js"></script>
+</body>
+</html>
