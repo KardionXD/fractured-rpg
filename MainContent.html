@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pergaminho da Missão</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;600;700&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --ink:#0a090b; --ink-2:#141013;
+    --crimson:#b3282d; --crimson-deep:#4a1012; --crimson-mid:#7d1c1f;
+    --cream:#e8dcc4; --stone:#c9bea4; --stone-dim:#6f6858; --gold:#c9a24b;
+    --grid-line:rgba(201,162,75,.28);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{background:transparent;display:flex;align-items:center;justify-content:center;
+       min-height:100vh;padding:24px;font-family:'Shippori Mincho',Georgia,serif;-webkit-font-smoothing:antialiased}
+
+  .scroll{position:relative;width:min(1330px,100%);aspect-ratio:1330/500;background:var(--ink-2);
+    border:1px solid var(--crimson-mid);
+    box-shadow:0 0 0 1px #000 inset,0 0 0 6px #0a0709,0 30px 80px -30px #000,0 0 60px -20px var(--crimson-deep);
+    overflow:hidden}
+  .scroll::before{content:"";position:absolute;inset:8px;z-index:6;
+    border:1px solid color-mix(in srgb,var(--gold) 30%,transparent);pointer-events:none}
+  .scroll:fullscreen{width:100%;height:100%;aspect-ratio:auto;border:none;box-shadow:none}
+  .scroll:fullscreen::before{inset:0}
+
+  .viewport{position:absolute;inset:0;z-index:2;overflow:hidden;cursor:grab;touch-action:none;
+    background:radial-gradient(120% 140% at 50% -10%,transparent 40%,#000 140%),var(--ink)}
+  .viewport.arrastando{cursor:grabbing}
+
+  .world{position:absolute;top:0;left:0;transform-origin:0 0;will-change:transform}
+  .world img,.world video{display:block;width:100%;height:100%;-webkit-user-drag:none;user-select:none;pointer-events:none;background:#000}
+  .world .midia{position:absolute;inset:0;display:none}
+  .world .midia.ativo{display:block}
+  .grid{position:absolute;inset:0;pointer-events:none;
+    background-image:linear-gradient(var(--grid-line) 1px,transparent 1px),
+                     linear-gradient(90deg,var(--grid-line) 1px,transparent 1px);
+    background-size:var(--cell,64px) var(--cell,64px);display:none}
+  .scroll.grid-on .grid{display:block}
+
+  .vinheta{position:absolute;inset:0;z-index:3;pointer-events:none;opacity:0;transition:opacity .5s ease;
+    background:radial-gradient(130% 130% at 50% 45%,transparent 58%,rgba(0,0,0,.5) 100%)}
+  .scroll.tem-mapa .vinheta{opacity:1}
+
+  .head{position:absolute;top:0;left:0;right:0;z-index:5;display:flex;align-items:center;gap:14px;
+    padding:14px 18px;pointer-events:none;background:linear-gradient(180deg,rgba(10,8,9,.82),rgba(10,8,9,0))}
+  .seal{width:40px;height:40px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;
+    font-size:20px;color:var(--cream);
+    background:radial-gradient(circle at 38% 30%,var(--crimson-mid),var(--crimson-deep));
+    border:1px solid color-mix(in srgb,var(--crimson) 70%,transparent);box-shadow:0 0 18px -6px var(--crimson)}
+  .titles h1{font-weight:600;font-size:clamp(17px,2vw,25px);line-height:1;color:var(--cream);
+    letter-spacing:.01em;white-space:nowrap;text-shadow:0 2px 10px #000}
+  .titles .sub{font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:10px;letter-spacing:.32em;
+    text-transform:uppercase;color:var(--stone-dim)}
+  .head .rule{flex:1;height:1px;margin-left:4px;align-self:center;overflow:hidden;position:relative;
+    background-image:linear-gradient(90deg,color-mix(in srgb,var(--crimson) 65%,transparent),
+                                             color-mix(in srgb,var(--crimson) 8%,transparent))}
+  .head .rule::after{content:"";position:absolute;inset:0;
+    background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--cream) 50%,transparent),transparent);
+    background-size:220px 100%;background-repeat:no-repeat;animation:sweep 6s ease-in-out infinite}
+  @keyframes sweep{0%{background-position:-220px 0}60%,100%{background-position:calc(100% + 220px) 0}}
+
+  .controls{position:absolute;right:14px;bottom:14px;z-index:5;display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+  .controls .row{display:flex;gap:6px}
+  .btn{width:38px;height:38px;display:flex;align-items:center;justify-content:center;
+    font-family:'Shippori Mincho',serif;font-size:17px;line-height:1;color:var(--cream);cursor:pointer;
+    background:rgba(10,8,9,.7);border:1px solid color-mix(in srgb,var(--crimson) 45%,transparent);
+    backdrop-filter:blur(4px);transition:background .15s,border-color .15s,transform .05s;user-select:none}
+  .btn:hover{background:rgba(74,16,18,.85);border-color:var(--crimson)}
+  .btn:active{transform:translateY(1px)}
+  .btn svg{width:17px;height:17px;stroke:var(--cream);fill:none;stroke-width:1.7}
+  .btn.on{background:rgba(74,16,18,.9);border-color:var(--gold)}
+  .zoomlvl{margin-top:2px;font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:10px;
+    letter-spacing:.1em;color:var(--stone-dim);background:rgba(10,8,9,.6);padding:3px 8px}
+
+  /* selo de conexão ao vivo */
+  .live{position:absolute;left:14px;bottom:14px;z-index:5;display:none;align-items:center;gap:7px;
+    padding:6px 12px;font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:10px;
+    letter-spacing:.22em;text-transform:uppercase;color:var(--cream);background:rgba(10,8,9,.62);
+    border:1px solid color-mix(in srgb,var(--crimson) 45%,transparent);backdrop-filter:blur(3px)}
+  .live.show{display:flex}
+  .live::before{content:"";width:6px;height:6px;border-radius:50%;background:#6f6858;transition:.3s}
+  .live.ok::before{background:#7ac97a;box-shadow:0 0 8px #7ac97a}
+  .live.err::before{background:var(--crimson);box-shadow:0 0 8px var(--crimson)}
+
+  .vazio{position:absolute;inset:0;z-index:4;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;gap:16px;text-align:center;padding:20px;
+    background:radial-gradient(90% 120% at 50% 0%,color-mix(in srgb,var(--crimson-deep) 30%,transparent),transparent 60%),
+              repeating-linear-gradient(45deg,#0e0a0c 0 2px,#100b0e 2px 4px),var(--ink-2)}
+  .scroll.tem-mapa .vazio{display:none}
+  .vazio .mark{font-size:34px;color:color-mix(in srgb,var(--crimson) 80%,var(--cream));
+    text-shadow:0 0 24px color-mix(in srgb,var(--crimson) 60%,transparent)}
+  .vazio .label{font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:15px;letter-spacing:.34em;
+    text-transform:uppercase;color:var(--cream);padding:10px 22px;
+    border:1px solid color-mix(in srgb,var(--stone) 30%,transparent)}
+  .vazio .desc{font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:12px;letter-spacing:.14em;
+    line-height:1.9;color:var(--stone-dim);max-width:640px}
+  .vazio .desc b{color:var(--stone);font-weight:600}
+
+  .corner{position:absolute;width:20px;height:20px;z-index:6;pointer-events:none;border-color:var(--gold);opacity:.65}
+  .corner.tl{top:13px;left:13px;border-top:1px solid;border-left:1px solid}
+  .corner.tr{top:13px;right:13px;border-top:1px solid;border-right:1px solid}
+  .corner.bl{bottom:13px;left:13px;border-bottom:1px solid;border-left:1px solid}
+  .corner.br{bottom:13px;right:13px;border-bottom:1px solid;border-right:1px solid}
+  .scroll:fullscreen .corner{opacity:.4}
+
+  @media (max-width:640px){body{padding:10px}.btn{width:34px;height:34px}
+    .vazio .label{font-size:12px;letter-spacing:.2em;padding:8px 14px}.vazio .desc br{display:none}}
+  @media (prefers-reduced-motion:reduce){.head .rule::after{animation:none;opacity:.4}}
+</style>
+</head>
+
+<body>
+  <div class="scroll" id="scroll">
+    <span class="corner tl"></span><span class="corner tr"></span>
+    <span class="corner bl"></span><span class="corner br"></span>
+
+    <div class="viewport" id="viewport">
+      <div class="world" id="world">
+        <img   id="mapaImg" class="midia" alt="" decoding="async">
+        <video id="mapaVid" class="midia" muted loop playsinline preload="metadata"></video>
+        <div class="grid" id="grid"></div>
+      </div>
+      <div class="vinheta"></div>
+
+      <div class="vazio">
+        <div class="mark">巻</div>
+        <div class="label">Conteúdo Principal</div>
+        <div class="desc">
+          <b>mapas</b> · artes de personagens · cenários · NPCs · documentos<br>
+          combates · ilustrações · rolagens · informações · e muito mais
+        </div>
+      </div>
+    </div>
+
+    <div class="head">
+      <div class="seal">巻</div>
+      <div class="titles">
+        <h1 id="titulo">Pergaminho da Missão</h1>
+        <span class="sub">Guerra Shinobi · Mesa de RPG</span>
+      </div>
+      <div class="rule"></div>
+    </div>
+
+    <div class="live" id="live">Ao vivo</div>
+
+    <div class="controls" id="controls" style="display:none">
+      <div class="row">
+        <div class="btn" id="bGrid" title="Grid (G)">
+          <svg viewBox="0 0 24 24"><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
+        </div>
+        <div class="btn" id="bFull" title="Tela cheia (F)">
+          <svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+        </div>
+      </div>
+      <div class="row">
+        <div class="btn" id="bOut" title="Diminuir (-)">&minus;</div>
+        <div class="btn" id="bReset" title="Encaixar (0)">
+          <svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="1"/></svg>
+        </div>
+        <div class="btn" id="bIn" title="Aproximar (+)">+</div>
+      </div>
+      <div class="zoomlvl" id="zoomlvl">100%</div>
+    </div>
+  </div>
+
+<!-- biblioteca do Supabase (p/ sincronizar sozinho) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+/* ============================================================================
+   PERGAMINHO DA MISSAO — visualizador de mapa com sincronizacao automatica
+
+   >>> PREENCHA AQUI com os MESMOS valores que seu site ja usa <<<
+   (estao no seu projeto, onde o Supabase e iniciado — sao publicos/seguros) */
+   const SUPABASE_URL      = "https://dgwvyovwlwrjkqgoutzm.supabase.co/rest/v1/";   // ex: https://xxxx.supabase.co
+   const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRnd3Z5b3Z3bHdyamtxZ291dHptIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE4OTc5MDksImV4cCI6MjA5NzQ3MzkwOX0._DOAK7K902X7y3XnSMKyRBGlc8w8ZYwzwSNjkaUERHo";       // a chave "anon public"
+/* ----------------------------------------------------------------------------
+   COMO USAR:
+   1) OBS (muda sozinho):  MainContent.html?mesa=ID_DA_MESA&grid=1&cel=64
+        -> descubra o ID rodando no console do seu VTT (dentro da mesa):
+           localStorage.getItem('fractured_mesa')
+   2) Mapa fixo (sem sync): MainContent.html?mapa=URL_DA_IMAGEM&grid=1
+   3) Manual (console): setMapa("url") | setMapa("video.mp4","video") | setMapa(null)
+   Interacao: arrastar=mover | rolar/pinca=zoom (grid acompanha)
+   Teclas: + - 0 (encaixar) | G (grid) | F (tela cheia)
+============================================================================ */
+(function(){
+  const scroll=document.getElementById('scroll');
+  const viewport=document.getElementById('viewport');
+  const world=document.getElementById('world');
+  const img=document.getElementById('mapaImg');
+  const vid=document.getElementById('mapaVid');
+  const grid=document.getElementById('grid');
+  const controls=document.getElementById('controls');
+  const zoomlvl=document.getElementById('zoomlvl');
+  const live=document.getElementById('live');
+
+  let natW=0,natH=0,scale=1,minScale=.2,maxScale=8,tx=0,ty=0,fitScale=1;
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+
+  function apply(){
+    world.style.transform='translate('+tx+'px,'+ty+'px) scale('+scale+')';
+    zoomlvl.textContent=Math.round((scale/(fitScale||1))*100)+'%';
+  }
+  function encaixar(){
+    if(!natW) return;
+    const vw=viewport.clientWidth,vh=viewport.clientHeight;
+    fitScale=Math.min(vw/natW,vh/natH);
+    scale=fitScale; minScale=fitScale*0.5; maxScale=fitScale*8;
+    tx=(vw-natW*scale)/2; ty=(vh-natH*scale)/2; apply();
+  }
+  function zoomEm(cx,cy,f){
+    const ns=clamp(scale*f,minScale,maxScale),k=ns/scale;
+    tx=cx-(cx-tx)*k; ty=cy-(cy-ty)*k; scale=ns; apply();
+  }
+  function pronto(w,h){
+    natW=w; natH=h; world.style.width=w+'px'; world.style.height=h+'px';
+    scroll.classList.add('tem-mapa'); controls.style.display='flex'; encaixar();
+  }
+
+  // ---- API do mapa (imagem OU video) ----
+  let urlAtual=null;
+  window.setMapa=function(url,tipo){
+    if(url===urlAtual && url) return;         // mesma midia -> nao recarrega
+    urlAtual=url||null;
+    if(!url){
+      scroll.classList.remove('tem-mapa'); controls.style.display='none';
+      img.classList.remove('ativo'); vid.classList.remove('ativo');
+      img.removeAttribute('src'); vid.pause(); vid.removeAttribute('src'); return;
+    }
+    if(tipo==='video'){
+      img.classList.remove('ativo'); img.removeAttribute('src');
+      vid.src=url;
+      vid.onloadedmetadata=function(){
+        vid.classList.add('ativo'); pronto(vid.videoWidth,vid.videoHeight);
+        vid.play().catch(function(){});
+      };
+      vid.onerror=function(){ window.setMapa(null); };
+    }else{
+      vid.classList.remove('ativo'); vid.pause(); vid.removeAttribute('src');
+      const t=new Image();
+      t.onload=function(){ img.src=url; img.classList.add('ativo'); pronto(t.naturalWidth,t.naturalHeight); };
+      t.onerror=function(){ window.setMapa(null); };
+      t.src=url;
+    }
+  };
+  window.setTitulo=function(t){ if(t) document.getElementById('titulo').textContent=t; };
+  window.setGrid=function(on){ scroll.classList.toggle('grid-on',!!on); document.getElementById('bGrid').classList.toggle('on',!!on); };
+  window.setTamanhoCelula=function(px){ grid.style.setProperty('--cell',px+'px'); };
+
+  // ---- pan + pinca ----
+  const pts=new Map(); let pinchDist=0;
+  viewport.addEventListener('pointerdown',e=>{viewport.setPointerCapture(e.pointerId);
+    pts.set(e.pointerId,{x:e.clientX,y:e.clientY}); if(pts.size===1) viewport.classList.add('arrastando');});
+  viewport.addEventListener('pointermove',e=>{
+    if(!pts.has(e.pointerId)) return; const prev=pts.get(e.pointerId);
+    pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(pts.size===1){ tx+=e.clientX-prev.x; ty+=e.clientY-prev.y; apply(); }
+    else if(pts.size===2){ const v=[...pts.values()],a=v[0],b=v[1],d=Math.hypot(a.x-b.x,a.y-b.y);
+      if(pinchDist){ const r=viewport.getBoundingClientRect(); zoomEm((a.x+b.x)/2-r.left,(a.y+b.y)/2-r.top,d/pinchDist);} pinchDist=d; }
+  });
+  function up(e){ pts.delete(e.pointerId); if(pts.size<2) pinchDist=0; if(pts.size===0) viewport.classList.remove('arrastando'); }
+  viewport.addEventListener('pointerup',up); viewport.addEventListener('pointercancel',up);
+  viewport.addEventListener('wheel',e=>{ if(!natW) return; e.preventDefault();
+    const r=viewport.getBoundingClientRect(); zoomEm(e.clientX-r.left,e.clientY-r.top,e.deltaY<0?1.12:1/1.12); },{passive:false});
+
+  const centro=()=>({x:viewport.clientWidth/2,y:viewport.clientHeight/2});
+  document.getElementById('bIn').onclick=()=>{const c=centro();zoomEm(c.x,c.y,1.25);};
+  document.getElementById('bOut').onclick=()=>{const c=centro();zoomEm(c.x,c.y,.8);};
+  document.getElementById('bReset').onclick=encaixar;
+  const bGrid=document.getElementById('bGrid');
+  bGrid.onclick=()=>{scroll.classList.toggle('grid-on'); bGrid.classList.toggle('on');};
+  const bFull=document.getElementById('bFull');
+  bFull.onclick=()=>{ if(document.fullscreenElement) document.exitFullscreen(); else if(scroll.requestFullscreen) scroll.requestFullscreen(); };
+  document.addEventListener('fullscreenchange',()=>{ bFull.classList.toggle('on',!!document.fullscreenElement); setTimeout(encaixar,60); });
+  addEventListener('resize',()=>{ if(natW) encaixar(); });
+  addEventListener('keydown',e=>{ let c;
+    if(e.key==='+'||e.key==='='){c=centro();zoomEm(c.x,c.y,1.25);}
+    else if(e.key==='-'){c=centro();zoomEm(c.x,c.y,.8);}
+    else if(e.key==='0'){encaixar();}
+    else if(e.key.toLowerCase()==='g'){bGrid.click();}
+    else if(e.key.toLowerCase()==='f'){bFull.click();} });
+
+  window.setTamanhoCelula(64);
+
+  // ---- parametros da URL ----
+  const q=new URLSearchParams(location.search);
+  if(q.get('titulo')) window.setTitulo(q.get('titulo'));
+  if(q.get('cel'))    window.setTamanhoCelula(parseInt(q.get('cel'),10)||64);
+  if(q.get('grid')==='1'||q.get('grid')==='true') window.setGrid(true);
+
+  // =====================================================================
+  // SINCRONIZACAO AUTOMATICA (le a tabela mapa_estado da sua mesa)
+  // =====================================================================
+  function aplicarEstado(d){
+    if(!d){ window.setMapa(null); return; }
+    if(d.video_url && String(d.video_url).startsWith('https://')) window.setMapa(d.video_url,'video');
+    else if(d.mapa_url && String(d.mapa_url).startsWith('https://')) window.setMapa(d.mapa_url);
+    else window.setMapa(null);
+  }
+  async function conectar(mesa){
+    live.classList.add('show');
+    if(!window.supabase || SUPABASE_URL.indexOf('COLE_AQUI')===0){
+      live.classList.add('err'); live.textContent='Configurar Supabase'; return;
+    }
+    try{
+      const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+      // estado inicial
+      const {data}=await db.from('mapa_estado').select('mapa_url,video_url').eq('id',mesa).single();
+      aplicarEstado(data);
+      // realtime: troca sozinho quando a cena muda
+      db.channel('overlay-mapa-'+mesa)
+        .on('postgres_changes',{event:'UPDATE',schema:'public',table:'mapa_estado',filter:'id=eq.'+mesa},
+            p=>aplicarEstado(p.new))
+        .subscribe(st=>{
+          if(st==='SUBSCRIBED'){ live.classList.add('ok'); live.classList.remove('err'); live.textContent='Ao vivo'; }
+          else if(st==='CHANNEL_ERROR'||st==='TIMED_OUT'||st==='CLOSED'){
+            live.classList.remove('ok'); live.classList.add('err'); live.textContent='Reconectando';
+            setTimeout(()=>conectar(mesa),2500);
+          }
+        });
+    }catch(err){ console.error(err); live.classList.add('err'); live.textContent='Erro de conexao'; }
+  }
+
+  const mesa=q.get('mesa');
+  if(mesa){ conectar(mesa); }                 // modo AO VIVO
+  else if(q.get('mapa')){ window.setMapa(q.get('mapa')); }   // modo mapa fixo
+
+  /* teste rapido no console:
+     setMapa("https://picsum.photos/1600/1000"); setGrid(true);
+  */
+})();
+</script>
+</body>
+</html>
