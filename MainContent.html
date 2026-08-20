@@ -44,6 +44,17 @@
     background-size:var(--cell,64px) var(--cell,64px);display:none}
   .scroll.grid-on .grid{display:block}
 
+  /* camada de tokens (posicionados em px do mapa, escalam junto) */
+  .tokens{position:absolute;inset:0;pointer-events:none}
+  .tok{position:absolute}
+  .tok .disc{position:absolute;border-radius:50%;border:2.5px solid #555;background:#555 center/cover no-repeat;
+    display:flex;align-items:center;justify-content:center;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.6)}
+  .tok .disc span{color:#fff;line-height:1}
+  .tok .nome{position:absolute;left:50%;transform:translateX(-50%);white-space:nowrap;
+    font:700 8px/1 sans-serif;color:#fff;text-shadow:0 0 3px #000,0 0 3px #000,0 0 3px #000}
+  .tok .pv{position:absolute;height:4px;background:rgba(0,0,0,.5);overflow:hidden}
+  .tok .pv i{display:block;height:100%}
+
   .vinheta{position:absolute;inset:0;z-index:3;pointer-events:none;opacity:0;transition:opacity .5s ease;
     background:radial-gradient(130% 130% at 50% 45%,transparent 58%,rgba(0,0,0,.5) 100%)}
   .scroll.tem-mapa .vinheta{opacity:1}
@@ -126,6 +137,7 @@
         <img   id="mapaImg" class="midia" alt="" decoding="async">
         <video id="mapaVid" class="midia" muted loop playsinline preload="metadata"></video>
         <div class="grid" id="grid"></div>
+        <div class="tokens" id="tokens"></div>
       </div>
       <div class="vinheta"></div>
 
@@ -287,7 +299,7 @@
     else if(e.key.toLowerCase()==='g'){bGrid.click();}
     else if(e.key.toLowerCase()==='f'){bFull.click();} });
 
-  window.setTamanhoCelula(64);
+  window.setTamanhoCelula(60);   // mesmo gridSize do VTT
 
   // ---- parametros da URL ----
   const q=new URLSearchParams(location.search);
@@ -298,11 +310,41 @@
   // =====================================================================
   // SINCRONIZACAO AUTOMATICA (le a tabela mapa_estado da sua mesa)
   // =====================================================================
+  // ---- desenha os tokens (mesma logica do mapa.js: gridSize 60, r=grid*0.42) ----
+  const tokensEl=document.getElementById('tokens');
+  const G=60, R=G*0.42;
+  const CORES={pc:'#2980b9',infectado:'#c0392b',animal:'#27ae60',
+               animal_infectado:'#8e44ad',humano:'#e67e22',custom:'#7f8c8d'};
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+  function renderTokens(lista){
+    if(!Array.isArray(lista)){ tokensEl.innerHTML=''; return; }
+    let html='';
+    for(const t of lista){
+      if(typeof t.x!=='number'||typeof t.y!=='number') continue;
+      const cor=CORES[t.tipo]||'#555';
+      const discPos='left:'+(G/2-R)+'px;top:'+(G/2-R)+'px;width:'+(R*2)+'px;height:'+(R*2)+'px;border-color:'+cor+';';
+      const disc = t.imgUrl
+        ? '<div class="disc" style="'+discPos+'background-image:url(\''+esc(t.imgUrl)+'\')"></div>'
+        : '<div class="disc" style="'+discPos+'background:'+cor+'"><span style="font-size:'+(R*0.9)+'px">'+esc(t.emoji||'?')+'</span></div>';
+      let pv='';
+      if(t.pvMax && t.isPC){
+        const pct=Math.max(0,Math.min(1,(t.pvAtual||0)/t.pvMax));
+        const pcor=pct>0.5?'#27ae60':pct>0.25?'#f39c12':'#c0392b';
+        pv='<div class="pv" style="left:4px;top:3px;width:'+(G-8)+'px"><i style="width:'+(pct*100)+'%;background:'+pcor+'"></i></div>';
+      }
+      const nome=t.nome?'<div class="nome" style="top:'+(G-15)+'px">'+esc(String(t.nome).substring(0,10))+'</div>':'';
+      html+='<div class="tok" style="left:'+t.x+'px;top:'+t.y+'px;width:'+G+'px;height:'+G+'px">'+pv+disc+nome+'</div>';
+    }
+    tokensEl.innerHTML=html;
+  }
+  window.renderTokens=renderTokens;
+
   function aplicarEstado(d){
-    if(!d){ window.setMapa(null); return; }
+    if(!d){ window.setMapa(null); renderTokens([]); return; }
     if(d.video_url && String(d.video_url).startsWith('https://')) window.setMapa(d.video_url,'video');
     else if(d.mapa_url && String(d.mapa_url).startsWith('https://')) window.setMapa(d.mapa_url);
     else window.setMapa(null);
+    renderTokens(d.tokens);
   }
   async function conectar(mesa){
     live.classList.add('show');
@@ -312,7 +354,7 @@
     try{
       const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
       // estado inicial
-      const {data}=await db.from('mapa_estado').select('mapa_url,video_url').eq('id',mesa).single();
+      const {data}=await db.from('mapa_estado').select('mapa_url,video_url,tokens').eq('id',mesa).single();
       aplicarEstado(data);
       // realtime: troca sozinho quando a cena muda
       db.channel('overlay-mapa-'+mesa)
