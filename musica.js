@@ -9,9 +9,24 @@ const MUSICA = {
   player: null,        // YT.Player
   pronto: false,       // iframe API carregada + player criado
   chan: null,          // canal supabase
-  estado: null,        // { videoId, titulo, playing, startedAt, offset, volume, loop }
+  estado: null,        // { videoId, playlistId, index, titulo, playing, startedAt, offset, volume, loop }
   somLiberado: false,  // players precisam de 1 clique p/ liberar áudio (política do navegador)
   apiCarregando: false,
+
+  //  PLAYLIST — o que ESTE navegador já aplicou.
+  //
+  //  `indexAplicado` é a peça que faltava. Antes a faixa publicada era
+  //  comparada com `getPlaylistIndex()` (onde o player está AGORA). Só
+  //  que a playlist anda sozinha: depois de três músicas o player está
+  //  no índice 3 e o estado publicado continua dizendo 0. Aí qualquer
+  //  republicação — o mestre mexer no volume, o título chegar — era
+  //  lida como "o mestre pulou para a faixa 0" e a mesa inteira voltava
+  //  para a primeira música. Guardando a última ordem RECEBIDA, só uma
+  //  ordem nova de verdade troca a faixa.
+  playlistAtual: null,
+  indexAplicado: null,
+  loopPendente: null,  // setLoop só funciona depois que a lista chega
+  erroFaixa: 0,        // faixas quebradas puladas seguidas (trava anti-loop)
 };
 
 // ── INIT (chamado quando a mesa é escolhida) ──────
@@ -81,11 +96,66 @@ function _musCriarPlayer() {
           MUSICA.player.seekTo(0, true);
           MUSICA.player.playVideo();
         }
-        if (e.data === YT.PlayerState.PLAYING) _musAtualizarWidget();
+        if (e.data === YT.PlayerState.PLAYING) {
+          MUSICA.erroFaixa = 0;          // tocou, então a faixa presta
+          _musLoopPendente();
+          _musMestreSeguirFaixa();
+          _musAtualizarWidget();
+        }
       },
-      onError: () => { if (isMaster) toast('Esse vídeo não permite reprodução externa. Tenta outro link.', 'err'); },
+      onError: _musErro,
     },
   });
+}
+
+// ── PLAYLIST: as três engrenagens ─────────────────
+
+//  1) `setLoop` só pega depois que a lista existe no player. Chamar
+//     logo após `loadPlaylist` às vezes caía no vazio (a correção
+//     anterior era um setTimeout de 1,5s, que falhava em conexão lenta).
+//     Agora a gente espera a lista chegar de verdade.
+function _musLoopPendente() {
+  if (MUSICA.loopPendente == null) return;
+  const lista = MUSICA.player?.getPlaylist?.();
+  if (!lista || !lista.length) return;
+  try { MUSICA.player.setLoop(!!MUSICA.loopPendente); } catch (e) {}
+  MUSICA.loopPendente = null;
+}
+
+//  2) A playlist anda sozinha. Quando ela vira a faixa no navegador do
+//     MESTRE, isso vira ordem para a mesa — senão o estado publicado
+//     envelhece na faixa 0 e quem entra depois começa do começo.
+function _musMestreSeguirFaixa() {
+  if (!isMaster || !MUSICA.estado?.playlistId) return;
+  const i = MUSICA.player?.getPlaylistIndex?.();
+  if (i == null || i < 0 || i === MUSICA.estado.index) return;
+  MUSICA.indexAplicado = i;
+  _musPublicar({ ...MUSICA.estado, index: i, playing: true, startedAt: Date.now(), offset: 0 });
+}
+
+//  3) Uma faixa bloqueada por região ou removida travava a mesa inteira
+//     em silêncio. O mestre pula; ao pular, o item 2 avisa todo mundo.
+function _musErro() {
+  if (MUSICA.estado?.playlistId) {
+    if (!isMaster) return;                  // o player espera a ordem do mestre
+    if (++MUSICA.erroFaixa > 5) {           // lista inteira bloqueada: para de tentar
+      toast('Várias faixas seguidas desta playlist não podem tocar aqui. Tenta outra lista.', 'err');
+      MUSICA.erroFaixa = 0;
+      return;
+    }
+    toast('Uma faixa da playlist não pode tocar aqui — pulando.', 'err');
+    try { MUSICA.player.nextVideo(); } catch (e) {}
+    return;
+  }
+  if (isMaster) toast('Esse vídeo não permite reprodução externa. Tenta outro link.', 'err');
+}
+
+//  Mix/rádio e listas privadas não carregam pela API do YouTube, e
+//  falhavam caladas. Melhor dizer o porquê.
+function _musTipoDeLista(id) {
+  if (/^RD/i.test(id)) return 'mix';          // Mix / rádio gerado pelo YouTube
+  if (/^(WL|LL)$/i.test(id)) return 'privada'; // Assistir mais tarde / Curtidas
+  return 'ok';
 }
 
 // ── CANAL DE SYNC ─────────────────────────────────
@@ -121,6 +191,10 @@ function _musAplicarEstado(st) {
 
   if (!st.playing || (!st.videoId && !st.playlistId)) {
     try { MUSICA.player.pauseVideo(); } catch(e) {}
+    //  Parar (sem playlist no estado) é diferente de pausar: esquece a
+    //  lista carregada, senão tocar a MESMA playlist de novo caía no
+    //  ramo "já é essa" e não recarregava nada.
+    if (!st.playlistId) { MUSICA.playlistAtual = null; MUSICA.indexAplicado = null; }
     return;
   }
 
@@ -135,15 +209,37 @@ function _musAplicarEstado(st) {
 
   // ── PLAYLIST ──
   if (st.playlistId) {
+    const faixa = st.index || 0;
+
+    //  (a) Lista diferente: carrega, já na faixa e no ponto certos —
+    //  quem entra no meio da sessão não recomeça do primeiro segundo.
     if (MUSICA.playlistAtual !== st.playlistId) {
       MUSICA.playlistAtual = st.playlistId;
-      MUSICA.player.loadPlaylist({ list: st.playlistId, listType: 'playlist', index: st.index || 0 });
-      setTimeout(() => { try { MUSICA.player.setLoop(!!st.loop); } catch(e) {} }, 1500);
-    } else if ((st.index ?? null) !== null && MUSICA.player.getPlaylistIndex?.() !== st.index) {
-      MUSICA.player.playVideoAt(st.index); // mestre pulou de faixa
-    } else {
-      MUSICA.player.playVideo();
+      MUSICA.indexAplicado = faixa;
+      MUSICA.loopPendente  = !!st.loop;
+      MUSICA.player.loadPlaylist({
+        list: st.playlistId, listType: 'playlist',
+        index: faixa, startSeconds: offset,
+      });
+      return;
     }
+
+    //  (b) Mesma lista, ORDEM NOVA de faixa: o mestre pulou. Compara com
+    //  a última ordem recebida, não com onde o player está — a playlist
+    //  anda sozinha, e comparar com o player fazia toda republicação
+    //  (volume, título) arrastar a mesa de volta para a faixa 0.
+    if (faixa !== MUSICA.indexAplicado) {
+      MUSICA.indexAplicado = faixa;
+      MUSICA.player.playVideoAt(faixa);
+      if (offset > 2) { try { MUSICA.player.seekTo(offset, true); } catch(e) {} }
+      return;
+    }
+
+    //  (c) Mesma lista, mesma faixa: nada de pular. Só garante que está
+    //  tocando e reaproxima quem ficou muito para trás.
+    const fora = Math.abs((MUSICA.player.getCurrentTime?.() || 0) - offset);
+    if (fora > 5) { try { MUSICA.player.seekTo(offset, true); } catch(e) {} }
+    MUSICA.player.playVideo();
     return;
   }
 
@@ -165,12 +261,24 @@ function _musAplicarEstado(st) {
 // Pular faixa da playlist (mestre) — sincroniza todo mundo
 async function musicaPular(dir) {
   if (!isMaster || !MUSICA.estado?.playlistId) return;
-  const len = MUSICA.player?.getPlaylist?.()?.length || 1;
-  const atual = MUSICA.player?.getPlaylistIndex?.() || 0;
-  const novo = ((atual + dir) % len + len) % len;
-  const st = { ...MUSICA.estado, index: novo, playing: true, startedAt: Date.now(), offset: 0 };
+
+  const lista = MUSICA.player?.getPlaylist?.() || [];
+
+  //  Logo depois de carregar, `getPlaylist()` ainda vem vazia — e a
+  //  conta antiga virava `% 1`, ou seja, o botão de próxima sempre
+  //  mandava para a faixa 0 e parecia não funcionar. Enquanto a lista
+  //  não chega, usa os comandos do próprio player; o índice novo é
+  //  publicado sozinho em _musMestreSeguirFaixa.
+  if (lista.length < 2) {
+    try { dir > 0 ? MUSICA.player.nextVideo() : MUSICA.player.previousVideo(); } catch (e) {}
+    return;
+  }
+
+  const atual = MUSICA.player?.getPlaylistIndex?.() ?? MUSICA.estado.index ?? 0;
+  const novo  = ((atual + dir) % lista.length + lista.length) % lista.length;
+  MUSICA.indexAplicado = novo;
   MUSICA.player.playVideoAt(novo);
-  await _musPublicar(st);
+  await _musPublicar({ ...MUSICA.estado, index: novo, playing: true, startedAt: Date.now(), offset: 0 });
 }
 
 function musicaLiberarSom() {
@@ -196,9 +304,27 @@ function _musExtrairPlaylist(url) {
 async function musicaTocar() {
   if (!isMaster) return;
   const url = document.getElementById('mus-url')?.value.trim();
-  const playlistId = _musExtrairPlaylist(url);
+  let playlistId = _musExtrairPlaylist(url);
   const videoId = _musExtrairId(url);
   if (!videoId && !playlistId) { toast('Link do YouTube inválido. Cola o link do vídeo ou da playlist.', 'err'); return; }
+
+  //  Mix/rádio e listas privadas não abrem pela API do YouTube. Antes o
+  //  site tentava, não acontecia nada e ninguém sabia por quê.
+  if (playlistId) {
+    const tipo = _musTipoDeLista(playlistId);
+    if (tipo === 'mix') {
+      if (videoId) {
+        toast('Isso é um Mix do YouTube, que não toca fora do site deles. Vou tocar só este vídeo.', 'err');
+        playlistId = null;
+      } else {
+        toast('Isso é um Mix/rádio do YouTube e não toca aqui. Abra a playlist de verdade e cole aquele link.', 'err');
+        return;
+      }
+    } else if (tipo === 'privada') {
+      toast('"Assistir mais tarde" e "Curtidas" são listas privadas e não tocam aqui. Crie uma playlist pública ou não listada.', 'err');
+      return;
+    }
+  }
 
   const estado = {
     videoId: playlistId ? null : videoId,
@@ -216,14 +342,19 @@ async function musicaTocar() {
   await _musPublicar(estado);
   toast('🎵 Tocando para toda a mesa!', 'ok');
 
-  // Pega o título real do vídeo depois que carregar (só cosmético)
-  setTimeout(() => {
-    const t = MUSICA.player?.getVideoData?.()?.title;
-    if (t && MUSICA.estado?.videoId === videoId) {
-      MUSICA.estado.titulo = t;
-      _musPublicar({ ...MUSICA.estado });
-    }
-  }, 3000);
+  //  Título real do vídeo, depois que carregar (só cosmético). Vale só
+  //  para vídeo único: numa playlist o nome muda a cada faixa, e cada
+  //  navegador lê o seu — ver _musAtualizarWidget. Republicar o título
+  //  de uma playlist só geraria tráfego para arrastar o estado inteiro.
+  if (!estado.playlistId) {
+    setTimeout(() => {
+      const t = MUSICA.player?.getVideoData?.()?.title;
+      if (t && MUSICA.estado?.videoId === videoId) {
+        MUSICA.estado.titulo = t;
+        _musPublicar({ ...MUSICA.estado });
+      }
+    }, 3000);
+  }
 }
 
 async function musicaPausar() {
@@ -244,8 +375,20 @@ async function musicaRetomar() {
 
 async function musicaParar() {
   if (!isMaster) return;
-  const st = { videoId: null, playing: false };
-  MUSICA.videoIdAtual = null;
+  //  Parar limpa a lista carregada em todo mundo. Sem isto, mandar a
+  //  MESMA playlist tocar de novo não recarregava nada: o código via
+  //  "já é essa lista" e dava playVideo() num player parado.
+  const st = {
+    videoId: null, playlistId: null, index: 0, titulo: '',
+    playing: false, startedAt: Date.now(), offset: 0,
+    volume: MUSICA.estado?.volume ?? 60,
+    loop: MUSICA.estado?.loop !== false,
+  };
+  MUSICA.videoIdAtual  = null;
+  MUSICA.playlistAtual = null;
+  MUSICA.indexAplicado = null;
+  MUSICA.loopPendente  = null;
+  MUSICA.erroFaixa     = 0;
   try { MUSICA.player.stopVideo(); } catch(e) {}
   await _musPublicar(st);
   _musAtualizarWidget();
@@ -316,7 +459,20 @@ function _musAtualizarWidget() {
 
   const st = MUSICA.estado;
   if (st?.playing && (st.videoId || st.playlistId)) {
-    agora.textContent = (st.playlistId ? '📻 ' : '▶ ') + (st.titulo && !st.titulo.startsWith('http') ? st.titulo : (st.playlistId ? 'Playlist tocando...' : 'Tocando...'));
+    //  Numa playlist o nome muda a cada faixa. Em vez de mandar o título
+    //  pela rede toda vez, cada navegador pergunta ao próprio player —
+    //  é sempre o nome do que ESTÁ tocando aqui, e não custa nada.
+    let nome = (st.titulo && !st.titulo.startsWith('http')) ? st.titulo : '';
+    let posicao = '';
+    if (st.playlistId) {
+      const daVez = MUSICA.player?.getVideoData?.()?.title;
+      if (daVez) nome = daVez;
+      const lista = MUSICA.player?.getPlaylist?.();
+      const i = MUSICA.player?.getPlaylistIndex?.();
+      if (lista?.length && i != null && i >= 0) posicao = ` (${i + 1}/${lista.length})`;
+    }
+    if (!nome) nome = st.playlistId ? 'Playlist tocando...' : 'Tocando...';
+    agora.textContent = (st.playlistId ? '📻 ' : '▶ ') + nome + posicao;
     if (toggle) toggle.style.borderColor = 'var(--gold, #c9a84c)';
     if (toggle) toggle.style.animation = 'mus-pulse 2s infinite';
   } else {
