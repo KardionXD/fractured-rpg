@@ -27,6 +27,7 @@ const MUSICA = {
   indexAplicado: null,
   loopPendente: null,  // setLoop só funciona depois que a lista chega
   erroFaixa: 0,        // faixas quebradas puladas seguidas (trava anti-loop)
+  vigia: null,         // alarme de "carregou e não tocou"
 };
 
 // ── INIT (chamado quando a mesa é escolhida) ──────
@@ -98,6 +99,7 @@ function _musCriarPlayer() {
         }
         if (e.data === YT.PlayerState.PLAYING) {
           MUSICA.erroFaixa = 0;          // tocou, então a faixa presta
+          _musPararVigia();              // começou a tocar: nada de alarme
           _musLoopPendente();
           _musMestreSeguirFaixa();
           _musAtualizarWidget();
@@ -150,12 +152,55 @@ function _musErro() {
   if (isMaster) toast('Esse vídeo não permite reprodução externa. Tenta outro link.', 'err');
 }
 
-//  Mix/rádio e listas privadas não carregam pela API do YouTube, e
-//  falhavam caladas. Melhor dizer o porquê.
-function _musTipoDeLista(id) {
-  if (/^RD/i.test(id)) return 'mix';          // Mix / rádio gerado pelo YouTube
-  if (/^(WL|LL)$/i.test(id)) return 'privada'; // Assistir mais tarde / Curtidas
-  return 'ok';
+//  4) O SILÊNCIO AVISA.
+//
+//  O pior defeito de uma playlist que não abre é não acontecer nada:
+//  sem erro, sem som, sem pista. A API do YouTube nem sempre dispara
+//  `onError` quando é a LISTA que não serve (privada, Mix, removida) —
+//  ela simplesmente não começa. Então o mestre conta até oito: se nada
+//  tocou, ele diz o que costuma ser.
+function _musVigiar() {
+  if (!isMaster) return;
+  _musPararVigia();
+  MUSICA.vigia = setTimeout(() => {
+    MUSICA.vigia = null;
+    const estado = MUSICA.player?.getPlayerState?.();
+    if (estado === 1) return;                       // está tocando, falso alarme
+    const lista = MUSICA.player?.getPlaylist?.();
+    if (lista && lista.length) {
+      toast('A playlist abriu, mas nenhuma faixa começou. As músicas dela podem bloquear reprodução fora do YouTube.', 'err');
+    } else {
+      toast('Essa playlist não abriu. Quase sempre é um destes: a lista é privada (só funciona pública ou não listada), é um Mix do YouTube, ou foi removida.', 'err');
+    }
+  }, 8000);
+}
+
+function _musPararVigia() {
+  if (MUSICA.vigia) { clearTimeout(MUSICA.vigia); MUSICA.vigia = null; }
+}
+
+//  Listas que o YouTube não entrega pela API.
+//
+//  CUIDADO AQUI. A primeira versão disto barrava TODO id começado em
+//  "RD" por ser Mix. Só que as playlists do YouTube Music — as mais
+//  usadas para ambientação — têm id "RDCLAK5uy_…", e começam em RD sem
+//  serem Mix. O site passou a recusar playlists perfeitamente válidas.
+//
+//  Lição: palpite sobre o formato do id não pode BARRAR nada. Só o
+//  `WL`/`LL` é certeza (são listas pessoais, não existem para outra
+//  conta). O resto, no máximo, avisa — e tenta assim mesmo.
+function _musAvisoDeLista(id) {
+  if (/^(WL|LL)$/i.test(id)) {
+    return { bloquear: true,
+      msg: '"Assistir mais tarde" e "Curtidas" são listas pessoais e não abrem para mais ninguém. Crie uma playlist e deixe como pública ou não listada.' };
+  }
+  //  Mix/rádio de verdade (RDMM…, RDEM…, RDGMEM…, RD<id do vídeo>…).
+  //  RDCLAK… é playlist do YouTube Music e NÃO entra aqui.
+  if (/^RD/i.test(id) && !/^RDCLAK/i.test(id)) {
+    return { bloquear: false,
+      msg: 'Isso parece um Mix do YouTube. Vou tentar, mas Mix costuma não tocar fora do site deles — se não rolar, abra a playlist de verdade e cole aquele link.' };
+  }
+  return null;
 }
 
 // ── CANAL DE SYNC ─────────────────────────────────
@@ -199,7 +244,15 @@ function _musAplicarEstado(st) {
   }
 
   // Offset: onde a música está agora (sincroniza quem entrou depois)
-  const offset = Math.max(0, (st.offset || 0) + (Date.now() - (st.startedAt || Date.now())) / 1000);
+  let offset = Math.max(0, (st.offset || 0) + (Date.now() - (st.startedAt || Date.now())) / 1000);
+
+  //  TRAVA: o estado fica salvo em `mesas.musica`. Se o mestre parou de
+  //  mexer ontem, `startedAt` é de ontem e esta conta dá dezenas de
+  //  milhares de segundos. Mandar isso como ponto de partida faz cada
+  //  faixa começar DEPOIS do fim — a playlist corre inteira em silêncio
+  //  e parece que não tocou nada. Acima de 6 horas o estado é velho
+  //  demais para servir de sincronismo: começa do início.
+  if (!Number.isFinite(offset) || offset > 6 * 3600) offset = 0;
 
   //  ATENÇÃO: o volume publicado pelo mestre NÃO é empurrado direto no
   //  player. Ele entra como base da conta em _musAplicarVolume, que o
@@ -221,6 +274,7 @@ function _musAplicarEstado(st) {
         list: st.playlistId, listType: 'playlist',
         index: faixa, startSeconds: offset,
       });
+      _musVigiar();     // se em 8s nada tocar, o mestre fica sabendo
       return;
     }
 
@@ -308,22 +362,11 @@ async function musicaTocar() {
   const videoId = _musExtrairId(url);
   if (!videoId && !playlistId) { toast('Link do YouTube inválido. Cola o link do vídeo ou da playlist.', 'err'); return; }
 
-  //  Mix/rádio e listas privadas não abrem pela API do YouTube. Antes o
-  //  site tentava, não acontecia nada e ninguém sabia por quê.
+  //  Só o que é impossível é recusado. O resto, na dúvida, tenta.
   if (playlistId) {
-    const tipo = _musTipoDeLista(playlistId);
-    if (tipo === 'mix') {
-      if (videoId) {
-        toast('Isso é um Mix do YouTube, que não toca fora do site deles. Vou tocar só este vídeo.', 'err');
-        playlistId = null;
-      } else {
-        toast('Isso é um Mix/rádio do YouTube e não toca aqui. Abra a playlist de verdade e cole aquele link.', 'err');
-        return;
-      }
-    } else if (tipo === 'privada') {
-      toast('"Assistir mais tarde" e "Curtidas" são listas privadas e não tocam aqui. Crie uma playlist pública ou não listada.', 'err');
-      return;
-    }
+    const aviso = _musAvisoDeLista(playlistId);
+    if (aviso?.bloquear) { toast(aviso.msg, 'err'); return; }
+    if (aviso) toast(aviso.msg, 'err');
   }
 
   const estado = {
@@ -389,6 +432,7 @@ async function musicaParar() {
   MUSICA.indexAplicado = null;
   MUSICA.loopPendente  = null;
   MUSICA.erroFaixa     = 0;
+  _musPararVigia();
   try { MUSICA.player.stopVideo(); } catch(e) {}
   await _musPublicar(st);
   _musAtualizarWidget();
