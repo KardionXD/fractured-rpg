@@ -21,6 +21,30 @@ function musicaInit() {
   _musCanal();
   _musCarregarAPI();
   _musCarregarEstadoSalvo();
+
+  //  Liga a trilha ao mixer local: daqui em diante, quem mexe no "meu
+  //  volume" cai aqui e só aqui. Ver audio-local.js.
+  if (typeof audioRegistrar === 'function') audioRegistrar('musica', _musAplicarVolume);
+}
+
+// ── VOLUME: a conta que mantém o volume individual ────────────────
+//  O que sai no alto-falante = volume da mesa (do mestre, veio pela
+//  rede) × meu volume (deste navegador). Mudo é meu OU ainda não
+//  liberado pelo navegador.
+function _musAplicarVolume() {
+  if (!MUSICA.pronto || !MUSICA.player) return;
+  const daMesa = MUSICA.estado?.volume ?? 60;
+  const vol = (typeof audioVolumeEfetivo === 'function') ? audioVolumeEfetivo('musica', daMesa) : daMesa;
+  const mudoLocal = (typeof audioEstaMudo === 'function') ? audioEstaMudo('musica') : false;
+  //  O navegador só deixa tocar com som depois de um gesto da pessoa.
+  //  O mestre já deu o gesto ao clicar em Tocar.
+  const travadoPeloNavegador = !MUSICA.somLiberado && !isMaster;
+
+  try {
+    MUSICA.player.setVolume(vol);
+    if (mudoLocal || travadoPeloNavegador || vol === 0) MUSICA.player.mute();
+    else MUSICA.player.unMute();
+  } catch (e) {}
 }
 
 // ── YOUTUBE IFRAME API ────────────────────────────
@@ -48,6 +72,7 @@ function _musCriarPlayer() {
     events: {
       onReady: () => {
         MUSICA.pronto = true;
+        _musAplicarVolume();   // a preferência salva vale desde o primeiro som
         if (MUSICA.estado?.playing) _musAplicarEstado(MUSICA.estado);
       },
       onStateChange: (e) => {
@@ -102,9 +127,11 @@ function _musAplicarEstado(st) {
   // Offset: onde a música está agora (sincroniza quem entrou depois)
   const offset = Math.max(0, (st.offset || 0) + (Date.now() - (st.startedAt || Date.now())) / 1000);
 
-  MUSICA.player.setVolume(st.volume ?? 60);
-  // Sem gesto do usuário o navegador só permite tocar MUDO
-  if (!MUSICA.somLiberado && !isMaster) MUSICA.player.mute();
+  //  ATENÇÃO: o volume publicado pelo mestre NÃO é empurrado direto no
+  //  player. Ele entra como base da conta em _musAplicarVolume, que o
+  //  multiplica pelo volume local de quem está ouvindo. Era aqui que o
+  //  volume do mestre era imposto a todo mundo.
+  _musAplicarVolume();
 
   // ── PLAYLIST ──
   if (st.playlistId) {
@@ -148,7 +175,10 @@ async function musicaPular(dir) {
 
 function musicaLiberarSom() {
   MUSICA.somLiberado = true;
-  try { MUSICA.player.unMute(); MUSICA.player.playVideo(); } catch(e) {}
+  //  Libera o navegador, mas respeita quem pediu mudo: o clique aqui
+  //  é "pode tocar", não "toca alto".
+  try { MUSICA.player.playVideo(); } catch(e) {}
+  _musAplicarVolume();
   _musAtualizarWidget();
 }
 
@@ -221,10 +251,14 @@ async function musicaParar() {
   _musAtualizarWidget();
 }
 
+//  Volume DA MESA (só o mestre). Vira a base da conta de todo mundo —
+//  e não o valor final no player de ninguém, nem do próprio mestre,
+//  que também tem o seu volume local.
 async function musicaVolume(v) {
   if (!isMaster || !MUSICA.estado) return;
   const st = { ...MUSICA.estado, volume: parseInt(v) };
-  MUSICA.player?.setVolume(st.volume);
+  MUSICA.estado = st;
+  _musAplicarVolume();
   await _musPublicar(st);
 }
 
@@ -241,6 +275,7 @@ function _musWidget() {
       <div style="font-size:11px;font-weight:700;color:var(--gold,#c9a84c);letter-spacing:1px;margin-bottom:8px;display:flex;align-items:center;gap:6px">${fracIcon('musica', { size: 13 })}MÚSICA DA MESA</div>
       <div id="mus-agora" style="font-size:11px;color:var(--muted,#888);margin-bottom:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Nada tocando.</div>
       <button id="mus-liberar" onclick="musicaLiberarSom()" style="display:none;width:100%;margin-bottom:8px;padding:7px;border-radius:6px;border:1px solid var(--gold,#c9a84c);background:rgba(201,168,76,0.12);color:var(--gold,#c9a84c);font-size:11px;cursor:pointer">🔊 Ativar som da mesa</button>
+      ${typeof audioPainelHtml === 'function' ? audioPainelHtml() : ''}
       <div id="mus-master" style="display:none">
         <input id="mus-url" placeholder="Link do YouTube (vídeo ou playlist)"
           style="width:100%;box-sizing:border-box;background:rgba(0,0,0,0.4);border:1px solid var(--border,#333);border-radius:6px;color:var(--text,#eee);padding:7px 9px;font-size:11px;margin-bottom:7px">
@@ -252,8 +287,11 @@ function _musWidget() {
           <button class="btn-ghost" onclick="musicaRetomar()" style="font-size:11px;padding:6px 9px" title="Retomar">⏵</button>
           <button class="btn-ghost" onclick="musicaParar()" style="font-size:11px;padding:6px 9px;color:var(--red,#c0392b)" title="Parar">⏹</button>
         </div>
+        <div class="aud-titulo" style="margin-top:4px">VOLUME DA MESA <span class="aud-so-eu" style="background:rgba(201,168,76,.14);color:var(--gold,#c9a84c)">todos</span></div>
         <div style="display:flex;align-items:center;gap:7px;font-size:10px;color:var(--muted,#888)">
-          🔉 <input id="mus-vol" type="range" min="0" max="100" value="60" style="flex:1" onchange="musicaVolume(this.value)">
+          🔉 <input id="mus-vol" type="range" min="0" max="100" value="60" style="flex:1"
+                title="Base para toda a mesa. Cada um ainda ajusta o próprio volume por cima disto."
+                onchange="musicaVolume(this.value)">
           <label style="display:flex;align-items:center;gap:3px;cursor:pointer"><input id="mus-loop" type="checkbox" checked> loop</label>
         </div>
       </div>
@@ -274,9 +312,10 @@ function _musAtualizarWidget() {
   if (!agora) return;
 
   if (master) master.style.display = isMaster ? 'block' : 'none';
+  if (typeof audioPainelPintar === 'function') audioPainelPintar();
 
   const st = MUSICA.estado;
-  if (st?.playing && st.videoId) {
+  if (st?.playing && (st.videoId || st.playlistId)) {
     agora.textContent = (st.playlistId ? '📻 ' : '▶ ') + (st.titulo && !st.titulo.startsWith('http') ? st.titulo : (st.playlistId ? 'Playlist tocando...' : 'Tocando...'));
     if (toggle) toggle.style.borderColor = 'var(--gold, #c9a84c)';
     if (toggle) toggle.style.animation = 'mus-pulse 2s infinite';

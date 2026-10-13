@@ -4,9 +4,52 @@
 //  para os players quando quiser (👁 por pasta e por doc).
 //  A ocultação é garantida no SERVIDOR (RLS): documento
 //  invisível nem chega no navegador do player.
+//
+//  QUEM VÊ e QUEM ESCREVE são duas perguntas diferentes:
+//  · `visivel`  → quem lê (já existia).
+//  · `edicao`   → quem escreve: 'mestre' | 'todos' | 'alguns',
+//                 com `editores` guardando os liberados em 'alguns'.
+//
+//  As funções daqui só decidem o que DESENHAR. Quem decide o que pode
+//  de verdade é o banco: a policy de UPDATE e o trigger da migração
+//  003. Esconder o botão é cortesia com a interface, não segurança —
+//  um player sem permissão que chame a API na mão leva recusa do
+//  servidor, e um player COM permissão num arquivo não ganha nada em
+//  nenhum outro.
 // ══════════════════════════════════════════════════
 
-const ARQ = { pastas: [], docs: [], pastaAtiva: null, sub: null, carregado: false };
+const ARQ = {
+  pastas: [], docs: [], pastaAtiva: null, sub: null, carregado: false,
+  membros: [],          // [{ id, username }] sem o mestre — para liberar nomes
+  semPermissoes: false, // true = banco ainda sem a migração 003
+};
+
+//  O que ESTE usuário pode fazer com ESTE documento.
+function arqPodeEditar(d) {
+  if (!d) return false;
+  if (isMaster) return true;
+  if (!d.visivel) return false;                     // não vê, não escreve
+  const pasta = ARQ.pastas.find(p => p.id === d.pasta_id);
+  if (pasta && !pasta.visivel) return false;
+  if (d.edicao === 'todos') return true;
+  if (d.edicao === 'alguns') return Array.isArray(d.editores) && d.editores.includes(currentUser?.id);
+  return false;                                      // 'mestre' ou coluna ausente
+}
+
+//  Frase curta para mostrar no cartão e no topo do editor.
+function _arqQuemEdita(d) {
+  const modo = d?.edicao || 'mestre';
+  if (modo === 'todos')  return 'Todos os players podem editar';
+  if (modo === 'alguns') {
+    const n = (d.editores || []).length;
+    if (!n) return 'Ninguém liberado ainda';
+    const nomes = (d.editores || [])
+      .map(id => ARQ.membros.find(m => m.id === id)?.username)
+      .filter(Boolean);
+    return nomes.length ? `Pode editar: ${nomes.join(', ')}` : `${n} player${n === 1 ? '' : 's'} liberado${n === 1 ? '' : 's'}`;
+  }
+  return 'Só o mestre edita';
+}
 
 async function arquivosInit() {
   _arqMontarPagina();
@@ -27,6 +70,19 @@ async function _arqCarregar() {
   }
   ARQ.pastas = pastas || [];
   ARQ.docs = docs || [];
+
+  //  Banco sem a migração 003: a coluna `edicao` não vem. Tudo
+  //  continua só do mestre, que é o comportamento de antes.
+  ARQ.semPermissoes = !!(ARQ.docs.length && ARQ.docs[0].edicao === undefined);
+
+  //  Nomes para o mestre liberar. Só ele precisa da lista.
+  if (isMaster && !ARQ.membros.length) {
+    const { data: mm } = await db.from('mesa_membros')
+      .select('user_id, profiles(username)').eq('mesa_id', mesaId());
+    ARQ.membros = (mm || [])
+      .filter(m => m.user_id !== MESA?.master_id)
+      .map(m => ({ id: m.user_id, username: m.profiles?.username || 'Player' }));
+  }
   if (ARQ.pastaAtiva && !ARQ.pastas.find(p => p.id === ARQ.pastaAtiva)) ARQ.pastaAtiva = null;
   if (!ARQ.pastaAtiva && ARQ.pastas.length) ARQ.pastaAtiva = ARQ.pastas[0].id;
   ARQ.carregado = true;
@@ -48,6 +104,29 @@ function _arqOnChange(payload) {
   }
   if (!isMaster && payload.eventType === 'INSERT' && payload.new?.visivel) {
     toast('📂 Novo conteúdo nos Arquivos!', 'ok');
+  }
+
+  //  Aviso EM TEMPO REAL para quem está com o documento aberto: melhor
+  //  saber agora que o texto mudou do que descobrir ao tentar salvar.
+  const n = payload.new;
+  if (_ARQ_EDIT && n && n.id === _ARQ_EDIT.id && document.getElementById('arqdoc-editor')) {
+    const outroSalvou = n.versao != null && _ARQ_EDIT.versao != null
+      && n.versao !== _ARQ_EDIT.versao
+      && n.editado_por !== currentUser?.id;
+    if (outroSalvou && !_ARQ_EDIT.conflito) _arqConflito(n.id, n);
+
+    //  Permissão retirada no meio da edição: o servidor já vai recusar
+    //  o salvamento, então é mais honesto avisar antes.
+    const aindaPode = isMaster || n.edicao === 'todos'
+      || (n.edicao === 'alguns' && (n.editores || []).includes(currentUser?.id));
+    if (!aindaPode && !isMaster) {
+      const aviso = document.getElementById('arqdoc-aviso');
+      if (aviso) {
+        aviso.style.display = 'block';
+        aviso.innerHTML = '<strong>O mestre retirou a sua permissão de editar este documento.</strong> '
+          + 'O que você escreveu continua na tela, mas não será possível salvar.';
+      }
+    }
   }
   clearTimeout(window._arqReloadTimer);
   window._arqReloadTimer = setTimeout(() => { if (ARQ.carregado) _arqCarregar(); }, 350);
@@ -173,16 +252,25 @@ function _arqRender() {
     const card = document.createElement('div');
     card.className = 'arq-doc';
     const preview = _arqPreview(d.conteudo).slice(0, 90);
+    const liberado = (d.edicao === 'todos' || d.edicao === 'alguns');
+    //  O selo diz a verdade para cada lado: o mestre precisa saber que
+    //  liberou (é ele que perde segredo se esquecer), e o player precisa
+    //  saber que pode escrever sem abrir para descobrir.
+    const selo = isMaster
+      ? (liberado ? `<span class="arq-selo arq-selo-edit" title="${esc(_arqQuemEdita(d))}">✎ liberado</span>` : '')
+      : (arqPodeEditar(d) ? '<span class="arq-selo arq-selo-edit">✎ você pode editar</span>' : '');
     card.innerHTML = `
       <div style="display:flex;align-items:center;gap:8px">
         <span style="font-size:14px">📄</span>
         <div style="flex:1;min-width:0">
-          <div style="font-size:13px;font-weight:600;color:var(--gold)">${esc(d.titulo)}</div>
+          <div style="font-size:13px;font-weight:600;color:var(--gold)">${esc(d.titulo)}${selo}</div>
           <div style="font-size:10px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(preview)}${_arqPreview(d.conteudo).length > 90 ? '…' : ''}</div>
         </div>
         ${isMaster ? `
           <button class="arq-eye ${d.visivel ? 'on' : 'off'}" title="${d.visivel ? 'Visível — clique pra esconder' : 'Oculto — clique pra revelar'}"
             onclick="event.stopPropagation();arqToggleDoc('${d.id}', ${!d.visivel})">${d.visivel ? '👁' : '🚫'}</button>
+          <button class="arq-eye ${liberado ? 'on' : 'off'}" title="Quem pode editar: ${esc(_arqQuemEdita(d))}"
+            onclick="event.stopPropagation();arqPermissoes('${d.id}')">✎</button>
           <button class="arq-eye off" title="Editar" onclick="event.stopPropagation();arqEditarDoc('${d.id}')">✏️</button>
           <button class="arq-eye off" style="color:var(--red)" title="Deletar" onclick="event.stopPropagation();arqDeletarDoc('${d.id}','${esc(d.titulo).replace(/'/g,'&#39;')}')">✕</button>` : ''}
       </div>`;
@@ -264,10 +352,98 @@ function _arqPreview(conteudo) {
 function arqVerDoc(id) {
   const d = ARQ.docs.find(x => x.id === id);
   if (!d) return;
-  if (isMaster) { arqEditarDoc(id); return; }
+  //  Quem pode escrever abre direto no editor. Quem não pode abre no
+  //  papel — e nem recebe a barra de ferramentas.
+  if (arqPodeEditar(d)) { arqEditarDoc(id); return; }
   _arqModal(`
     <div style="font-size:16px;font-weight:700;color:var(--gold);margin-bottom:12px;letter-spacing:0.5px">📄 ${esc(d.titulo)}</div>
-    <div class="arq-paper arq-rich" style="max-height:64vh;overflow-y:auto">${_arqParaHtml(d.conteudo)}</div>`);
+    <div class="arq-paper arq-rich" style="max-height:64vh;overflow-y:auto">${_arqParaHtml(d.conteudo)}</div>
+    <div class="arq-so-leitura">Somente leitura. Peça ao mestre para liberar a edição deste documento.</div>`);
+}
+
+// ── QUEM PODE EDITAR (só o mestre abre) ───────────
+//  Três estados, e nada de meio-termo escondido: só eu, todos, ou uma
+//  lista de nomes. A escolha vale para ESTE documento.
+function arqPermissoes(id) {
+  if (!isMaster) return;
+  const d = ARQ.docs.find(x => x.id === id);
+  if (!d) return;
+  if (ARQ.semPermissoes) { toast('Rode a migração 003 no Supabase para liberar edição.', 'err'); return; }
+
+  const modo = d.edicao || 'mestre';
+  const libs = Array.isArray(d.editores) ? d.editores : [];
+  const opc = (v, titulo, sub) => `
+    <label class="arq-perm-op${modo === v ? ' sel' : ''}">
+      <input type="radio" name="arq-perm" value="${v}" ${modo === v ? 'checked' : ''}
+        onchange="_arqPermPintar()">
+      <span><strong>${titulo}</strong><span class="arq-perm-sub">${sub}</span></span>
+    </label>`;
+
+  _arqModal(`
+    <div style="font-size:12px;font-weight:700;color:var(--gold);letter-spacing:1px;margin-bottom:4px">✎ QUEM PODE EDITAR</div>
+    <div class="arq-perm-doc">📄 ${esc(d.titulo)}</div>
+
+    ${opc('mestre', 'Só eu', 'Os players apenas leem, se o documento estiver revelado.')}
+    ${opc('todos',  'Todos os players', 'Qualquer um da mesa pode escrever neste documento.')}
+    ${opc('alguns', 'Escolher quem',    'Só os nomes marcados abaixo.')}
+
+    <div id="arq-perm-lista" class="arq-perm-lista">
+      ${ARQ.membros.length
+        ? ARQ.membros.map(m => `
+            <label class="arq-perm-nome">
+              <input type="checkbox" value="${m.id}" ${libs.includes(m.id) ? 'checked' : ''}>
+              ${esc(m.username)}
+            </label>`).join('')
+        : '<div class="arq-perm-vazio">Nenhum player na mesa ainda.</div>'}
+    </div>
+
+    ${!d.visivel ? `<div class="arq-perm-aviso">
+      Este documento está <strong>oculto</strong>. Liberar a edição não o revela —
+      enquanto estiver oculto, nenhum player consegue abrir nem escrever.
+    </div>` : ''}
+
+    <div class="arq-perm-nota">
+      Vale só para este documento. Liberar um arquivo não libera os outros, e você
+      pode tirar a permissão a qualquer momento.
+    </div>
+
+    <div style="display:flex;gap:6px;margin-top:12px">
+      <button class="btn-ghost" style="flex:1;font-size:11px;padding:8px" onclick="document.getElementById('arq-modal').remove()">Cancelar</button>
+      <button class="btn-ghost" style="flex:1;font-size:11px;padding:8px;color:var(--gold);border-color:var(--gold)" onclick="arqSalvarPermissoes('${d.id}')">Salvar</button>
+    </div>`, 460);
+  _arqPermPintar();
+}
+
+//  A lista de nomes só faz sentido no modo "escolher quem".
+function _arqPermPintar() {
+  const modo = document.querySelector('input[name="arq-perm"]:checked')?.value;
+  const lista = document.getElementById('arq-perm-lista');
+  if (lista) lista.style.display = modo === 'alguns' ? 'flex' : 'none';
+  document.querySelectorAll('.arq-perm-op').forEach(l => {
+    l.classList.toggle('sel', l.querySelector('input')?.checked);
+  });
+}
+
+async function arqSalvarPermissoes(id) {
+  if (!isMaster) return;
+  const modo = document.querySelector('input[name="arq-perm"]:checked')?.value || 'mestre';
+  const editores = modo === 'alguns'
+    ? [...document.querySelectorAll('#arq-perm-lista input:checked')].map(i => i.value)
+    : [];
+
+  if (modo === 'alguns' && !editores.length) {
+    toast('Marque pelo menos um player — ou escolha "Só eu".', 'err');
+    return;
+  }
+
+  const { error } = await db.from('documentos')
+    .update({ edicao: modo, editores }).eq('id', id);
+  if (error) { toast('Erro: ' + error.message, 'err'); return; }
+
+  document.getElementById('arq-modal')?.remove();
+  const d = ARQ.docs.find(x => x.id === id);
+  toast(modo === 'mestre' ? '🔒 Edição voltou a ser só sua.' : '✎ ' + _arqQuemEdita({ ...d, edicao: modo, editores }), 'ok');
+  _arqCarregar();
 }
 
 // A seleção do texto se desfazia quando o clique na barra tirava o foco
@@ -432,11 +608,26 @@ function _arqImgClique(e) {
   document.getElementById('arqdoc-editor').after(bar);
 }
 
+//  O documento aberto para edição agora. `versao` é a que foi lida: é
+//  ela que o banco confere na hora de salvar, para ninguém apagar o
+//  texto do outro sem saber.
+let _ARQ_EDIT = null;
+
 function arqEditarDoc(id) {
   const d = id ? ARQ.docs.find(x => x.id === id) : null;
+
+  //  Trava do lado de cá, para a interface não prometer o que o
+  //  servidor vai negar. Documento novo é só do mestre.
+  if (d && !arqPodeEditar(d)) { arqVerDoc(d.id); return; }
+  if (!d && !isMaster) { toast('Só o mestre cria documentos.', 'err'); return; }
+
+  _ARQ_EDIT = d ? { id: d.id, versao: d.versao ?? null, conflito: false } : null;
+
   const inp = 'width:100%;box-sizing:border-box;background:rgba(0,0,0,0.4);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:8px 10px;font-size:14px;font-weight:600';
   _arqModal(`
     <div style="font-size:12px;font-weight:700;color:var(--gold);letter-spacing:1px;margin-bottom:10px">${d ? '✏️ EDITAR' : '📄 NOVO'} DOCUMENTO</div>
+    <div id="arqdoc-aviso" class="arq-aviso-vivo" style="display:none"></div>
+    ${d && !isMaster ? `<div class="arq-perm-eu">✎ O mestre liberou a edição deste documento para você.</div>` : ''}
     <input id="arqdoc-titulo" placeholder="Título do documento" value="${d ? esc(d.titulo).replace(/"/g,'&quot;') : ''}" style="${inp};margin-bottom:8px">
 
     <div class="arq-tb" onmousedown="_arqTbDown(event)">
@@ -511,11 +702,14 @@ function arqEditarDoc(id) {
     </div>
     <div id="arqdoc-editor" class="arq-editor arq-rich" contenteditable="true">${d ? _arqParaHtml(d.conteudo) : '<p></p>'}</div>
 
-    <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);margin:10px 0;cursor:pointer">
-      <input type="checkbox" id="arqdoc-visivel" ${d?.visivel ? 'checked' : ''} style="accent-color:var(--gold)">
-      👁 Visível para os players
-    </label>
-    <div style="display:flex;gap:6px">
+    ${isMaster ? `
+      <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);margin:10px 0 6px;cursor:pointer">
+        <input type="checkbox" id="arqdoc-visivel" ${d?.visivel ? 'checked' : ''} style="accent-color:var(--gold)">
+        👁 Visível para os players
+      </label>
+      ${d ? `<button class="arq-perm-link" onclick="arqPermissoes('${d.id}')">✎ Quem pode editar: <strong>${esc(_arqQuemEdita(d))}</strong> — mudar</button>` : ''}
+    ` : ''}
+    <div style="display:flex;gap:6px;margin-top:10px">
       <button class="btn-ghost" style="flex:1;font-size:11px;padding:8px" onclick="document.getElementById('arq-modal').remove()">Cancelar</button>
       <button class="btn-ghost" style="flex:1;font-size:11px;padding:8px;color:var(--gold);border-color:var(--gold)" onclick="arqSalvarDoc(${d ? `'${d.id}'` : 'null'})">💾 Salvar</button>
     </div>`, 760);
@@ -525,24 +719,122 @@ function arqEditarDoc(id) {
   }, 60);
 }
 
-async function arqSalvarDoc(id) {
+async function arqSalvarDoc(id, forcar) {
   const titulo = document.getElementById('arqdoc-titulo')?.value.trim();
   if (!titulo) { toast('Dá um título pro documento!', 'err'); return; }
+
   const payload = {
     titulo,
     conteudo: _arqSanitizar(document.getElementById('arqdoc-editor')?.innerHTML || ''),
-    visivel: document.getElementById('arqdoc-visivel')?.checked || false,
   };
-  let error;
-  if (id) {
-    ({ error } = await db.from('documentos').update(payload).eq('id', id));
-  } else {
-    ({ error } = await db.from('documentos').insert({ ...payload, mesa_id: mesaId(), pasta_id: ARQ.pastaAtiva }));
+  //  `visivel` só viaja quando é o mestre que está salvando. O trigger
+  //  do banco já devolveria o valor antigo para um player, mas é melhor
+  //  não mandar o que não se tem direito de mudar.
+  if (isMaster) payload.visivel = document.getElementById('arqdoc-visivel')?.checked || false;
+
+  // ── DOCUMENTO NOVO ──
+  if (!id) {
+    const { error } = await db.from('documentos')
+      .insert({ ...payload, mesa_id: mesaId(), pasta_id: ARQ.pastaAtiva });
+    if (error) { toast('Erro: ' + error.message, 'err'); return; }
+    document.getElementById('arq-modal')?.remove();
+    toast('Documento salvo!', 'ok');
+    _arqCarregar();
+    return;
   }
+
+  // ── DOCUMENTO QUE JÁ EXISTE ──
+  //  A gravação só vale se a versão no banco for a mesma que foi lida.
+  //  Se alguém salvou no meio do caminho, o `.eq('versao', …)` não
+  //  encontra linha e nada é sobrescrito — o aviso aparece em vez do
+  //  texto do outro desaparecer em silêncio.
+  const versaoLida = _ARQ_EDIT?.id === id ? _ARQ_EDIT.versao : null;
+  let q = db.from('documentos').update(payload).eq('id', id);
+  if (versaoLida != null && !forcar) q = q.eq('versao', versaoLida);
+
+  const { data, error } = await q.select();
   if (error) { toast('Erro: ' + error.message, 'err'); return; }
+
+  if (!data || !data.length) {
+    //  Zero linhas tem duas causas, e a diferença importa para a pessoa:
+    //  perdeu a permissão, ou alguém salvou antes (conflito). Vamos
+    //  perguntar ao banco em vez de adivinhar.
+    const { data: atual } = await db.from('documentos')
+      .select('*').eq('id', id).maybeSingle();
+
+    //  A PERMISSÃO VEM PRIMEIRO. Se ela caiu, avisar de conflito seria
+    //  cruel: a pessoa tentaria "salvar por cima" e levaria outra
+    //  recusa, sem nunca entender o motivo.
+    if (!atual || !arqPodeEditar(atual)) {
+      toast('O servidor não permitiu salvar este documento. A permissão pode ter sido retirada.', 'err');
+      const aviso = document.getElementById('arqdoc-aviso');
+      if (aviso) {
+        aviso.style.display = 'block';
+        aviso.innerHTML = '<strong>Não foi possível salvar: você não tem mais permissão de editar este documento.</strong> '
+          + 'O texto continua na tela — copie o que escreveu antes de fechar, se quiser guardar.';
+      }
+      _arqCarregar();
+      return;
+    }
+
+    if (versaoLida != null && atual.versao !== versaoLida) { _arqConflito(id, atual); return; }
+
+    //  Nenhuma das duas: algo inesperado. Melhor dizer isso do que
+    //  inventar uma explicação.
+    toast('O documento não foi salvo e o motivo não ficou claro. Recarregue a página e tente de novo.', 'err');
+    return;
+  }
+
+  //  Guarda a versão nova para um segundo salvamento na mesma sessão.
+  if (_ARQ_EDIT?.id === id) { _ARQ_EDIT.versao = data[0].versao ?? null; _ARQ_EDIT.conflito = false; }
+
   document.getElementById('arq-modal')?.remove();
   toast('Documento salvo!', 'ok');
   _arqCarregar();
+}
+
+// ── CONFLITO: duas pessoas no mesmo documento ─────
+//  Nada é decidido por nós aqui. O texto digitado continua na tela, e a
+//  pessoa escolhe. O que não acontece mais é o salvamento passar por
+//  cima do trabalho do outro sem ninguém ficar sabendo.
+function _arqConflito(id, atual) {
+  if (_ARQ_EDIT?.id === id) _ARQ_EDIT.conflito = true;
+  const aviso = document.getElementById('arqdoc-aviso');
+  const texto = `<strong>Alguém salvou este documento enquanto você escrevia.</strong>
+    Seu texto está aqui na tela e não foi perdido — mas se salvar agora,
+    o que a outra pessoa escreveu vai embora.`;
+
+  if (aviso) {
+    aviso.style.display = 'block';
+    aviso.innerHTML = `${texto}
+      <div class="arq-aviso-btns">
+        <button class="btn-ghost" onclick="_arqVerVersaoNova('${id}')">Ver a versão que está salva</button>
+        <button class="btn-ghost arq-aviso-forcar" onclick="arqSalvarDoc('${id}', true)">Salvar o meu por cima</button>
+      </div>`;
+    aviso.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  } else {
+    toast('Alguém salvou este documento antes de você. Nada foi sobrescrito.', 'err');
+  }
+}
+
+//  Abre a versão salva em outra janela de leitura, sem fechar o que a
+//  pessoa escreveu. Comparar lado a lado é mais útil que escolher no
+//  escuro.
+async function _arqVerVersaoNova(id) {
+  const { data } = await db.from('documentos').select('*').eq('id', id).maybeSingle();
+  if (!data) { toast('Documento não encontrado.', 'err'); return; }
+  const w = document.createElement('div');
+  w.className = 'arq-versao-fundo';
+  w.innerHTML = `<div class="arq-versao">
+      <div class="arq-versao-topo">
+        <span>📄 Versão salva no servidor — ${esc(data.titulo)}</span>
+        <button onclick="this.closest('.arq-versao-fundo').remove()">✕</button>
+      </div>
+      <div class="arq-paper arq-rich arq-versao-corpo">${_arqParaHtml(data.conteudo)}</div>
+      <div class="arq-versao-pe">O seu texto continua aberto atrás desta janela.</div>
+    </div>`;
+  w.addEventListener('click', e => { if (e.target === w) w.remove(); });
+  document.body.appendChild(w);
 }
 
 async function arqToggleDoc(id, visivel) {

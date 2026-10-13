@@ -468,12 +468,48 @@ function npcImgPreview(input) {
 //  CENAS DE MAPA
 // ══════════════════════════════════════════════════
 
+// ── PASTAS DE CENA ────────────────────────────────
+//  As cenas cresceram demais para uma lista só. Pasta é a arrumação:
+//  mora no banco (tabela `cena_pastas` + coluna `cenas_mapa.pasta_id`),
+//  porque é da mesa e tem de continuar igual depois de um F5 e para
+//  todo mundo.
+//
+//  Cena sem pasta_id fica na raiz — e é aí que estão TODAS as cenas que
+//  já existiam antes desta mudança. Nada precisa ser reenviado.
+let cenaPastas      = [];
+let _cenasBusca     = '';
+let _cenasSemPastas = false;   // true = o banco ainda não tem a migração 003
+
+//  Aberta ou recolhida é preferência de quem olha, não da mesa: fica no
+//  navegador de cada um.
+function _cenaPastasFechadas() {
+  try { return JSON.parse(localStorage.getItem('cenas_fechadas_' + mesaId()) || '[]') || []; }
+  catch (e) { return []; }
+}
+function _cenaPastaAberta(id) { return !_cenaPastasFechadas().includes(id); }
+function cenaPastaAlternar(id) {
+  const fechadas = _cenaPastasFechadas();
+  const i = fechadas.indexOf(id);
+  if (i === -1) fechadas.push(id); else fechadas.splice(i, 1);
+  try { localStorage.setItem('cenas_fechadas_' + mesaId(), JSON.stringify(fechadas)); } catch (e) {}
+  renderCenas(); renderCenasInline();
+}
+
 async function carregarCenas() {
-  const { data } = await db.from('cenas_mapa')
-    .select('*')
-    .eq('mesa_id', mesaId())
-    .order('ordem');
-  cenas = data || [];
+  //  As duas leituras em paralelo. `select('*')` traz `pasta_id`
+  //  sozinho depois da migração; antes dela vem undefined, e tudo cai
+  //  na raiz — que é exatamente o comportamento de antes.
+  const [cenasRes, pastasRes] = await Promise.all([
+    db.from('cenas_mapa').select('*').eq('mesa_id', mesaId()).order('ordem'),
+    db.from('cena_pastas').select('*').eq('mesa_id', mesaId()).order('ordem').order('created_at'),
+  ]);
+
+  cenas = cenasRes.data || [];
+
+  //  Banco sem a migração: a tabela não existe. Guardamos o fato para
+  //  avisar o mestre no lugar certo, em vez de encher o console.
+  if (pastasRes.error) { cenaPastas = []; _cenasSemPastas = true; }
+  else { cenaPastas = pastasRes.data || []; _cenasSemPastas = false; }
 
   // Restaura a cena ativa após F5 (antes disso, salvar após reload falhava)
   if (!cenaAtiva) {
@@ -482,7 +518,159 @@ async function carregarCenas() {
   }
 
   renderCenas();
+  renderCenasInline();
   subscribeCenas();
+}
+
+async function criarPastaCena() {
+  if (!isMaster) return;
+  if (_cenasSemPastas) { toast('Rode a migração 003 no Supabase para usar pastas de mapa.', 'err'); return; }
+  const nome = prompt('Nome da pasta (ex: "Vila da Folha", "Masmorra"):');
+  if (!nome?.trim()) return;
+  const { error } = await db.from('cena_pastas').insert({
+    mesa_id: mesaId(), nome: nome.trim(), ordem: cenaPastas.length,
+  });
+  if (error) { toast('Erro ao criar pasta: ' + error.message, 'err'); return; }
+  toast(`Pasta "${nome.trim()}" criada.`, 'ok');
+  await carregarCenas();
+}
+
+async function renomearPastaCena(id) {
+  if (!isMaster) return;
+  const p = cenaPastas.find(x => x.id === id);
+  if (!p) return;
+  const nome = prompt('Novo nome da pasta:', p.nome);
+  if (!nome?.trim() || nome.trim() === p.nome) return;
+  const { error } = await db.from('cena_pastas').update({ nome: nome.trim() }).eq('id', id);
+  if (error) { toast('Erro ao renomear: ' + error.message, 'err'); return; }
+  await carregarCenas();
+}
+
+//  Apagar pasta é onde dá medo de perder mapa. Então aqui não existe
+//  `confirm()` seco: a pergunta diz quantos mapas estão dentro e dá as
+//  duas saídas em botões separados, com a segura em primeiro lugar.
+function deletarPastaCena(id) {
+  if (!isMaster) return;
+  const p = cenaPastas.find(x => x.id === id);
+  if (!p) return;
+  const dentro = cenas.filter(c => c.pasta_id === id);
+
+  const corpo = dentro.length
+    ? `<p class="cena-dlg-p">A pasta <strong>${_cenaEsc(p.nome)}</strong> tem
+         <strong>${dentro.length} ${dentro.length === 1 ? 'mapa' : 'mapas'}</strong> dentro.
+         O que fazer com ${dentro.length === 1 ? 'ele' : 'eles'}?</p>
+       <ul class="cena-dlg-lista">${dentro.slice(0, 6).map(c => `<li>${_cenaEsc(c.nome)}</li>`).join('')}
+         ${dentro.length > 6 ? `<li class="cena-dlg-mais">e mais ${dentro.length - 6}…</li>` : ''}</ul>`
+    : `<p class="cena-dlg-p">A pasta <strong>${_cenaEsc(p.nome)}</strong> está vazia.</p>`;
+
+  const botoes = dentro.length
+    ? `<button class="btn-ghost cena-dlg-ok" onclick="_cenaPastaApagar('${id}', false)">
+         Apagar a pasta e <strong>manter os mapas</strong>
+         <span class="cena-dlg-nota">eles voltam para “Fora de pasta”</span>
+       </button>
+       <button class="btn-ghost cena-dlg-perigo" onclick="_cenaPastaApagar('${id}', true)">
+         Apagar a pasta <strong>e os ${dentro.length} mapas</strong>
+         <span class="cena-dlg-nota">não tem como desfazer</span>
+       </button>`
+    : `<button class="btn-ghost cena-dlg-ok" onclick="_cenaPastaApagar('${id}', false)">Apagar a pasta</button>`;
+
+  const dlg = document.createElement('div');
+  dlg.className = 'cena-dlg-fundo';
+  dlg.id = 'cena-dlg';
+  dlg.innerHTML = `<div class="cena-dlg">
+      <div class="cena-dlg-topo">Apagar pasta</div>
+      ${corpo}
+      <div class="cena-dlg-btns">${botoes}
+        <button class="btn-ghost cena-dlg-cancelar" onclick="_cenaDlgFechar()">Cancelar</button>
+      </div>
+    </div>`;
+  dlg.addEventListener('click', e => { if (e.target === dlg) _cenaDlgFechar(); });
+  document.body.appendChild(dlg);
+}
+
+function _cenaDlgFechar() { document.getElementById('cena-dlg')?.remove(); }
+
+async function _cenaPastaApagar(id, apagarMapas) {
+  _cenaDlgFechar();
+  if (!isMaster) return;
+
+  if (apagarMapas) {
+    const ids = cenas.filter(c => c.pasta_id === id).map(c => c.id);
+    if (ids.length) {
+      const { error } = await db.from('cenas_mapa').delete().in('id', ids);
+      if (error) { toast('Erro ao apagar os mapas: ' + error.message, 'err'); return; }
+      if (ids.includes(cenaAtiva)) cenaAtiva = null;
+    }
+  }
+  //  Sem apagar os mapas, o próprio banco os solta para a raiz:
+  //  `pasta_id` foi criada com ON DELETE SET NULL. Mapa nunca é
+  //  apagado por tabela, só por escolha explícita aqui em cima.
+  const { error } = await db.from('cena_pastas').delete().eq('id', id);
+  if (error) { toast('Erro ao apagar a pasta: ' + error.message, 'err'); return; }
+  toast(apagarMapas ? 'Pasta e mapas apagados.' : 'Pasta apagada. Os mapas estão fora de pasta.', 'ok');
+  await carregarCenas();
+}
+
+async function moverCenaParaPasta(cenaId, pastaId) {
+  if (!isMaster) return;
+  const cena = cenas.find(c => c.id === cenaId);
+  if (!cena) return;
+  const destino = pastaId || null;
+  if ((cena.pasta_id || null) === destino) return;
+
+  //  Move na tela primeiro: arrastar tem de responder na hora.
+  cena.pasta_id = destino;
+  renderCenas(); renderCenasInline();
+
+  const { error } = await db.from('cenas_mapa').update({ pasta_id: destino }).eq('id', cenaId);
+  if (error) {
+    toast('Não deu para mover: ' + error.message, 'err');
+    await carregarCenas();   // desfaz, o banco é quem manda
+    return;
+  }
+  const p = cenaPastas.find(x => x.id === destino);
+  toast(p ? `"${cena.nome}" → ${p.nome}` : `"${cena.nome}" saiu da pasta.`, 'ok');
+}
+
+//  Alternativa ao arrastar, que é ruim no telefone e impossível no
+//  teclado: um menu com os destinos.
+function cenaMenuMover(cenaId, ev) {
+  ev?.stopPropagation();
+  document.getElementById('cena-menu')?.remove();
+  const cena = cenas.find(c => c.id === cenaId);
+  if (!cena) return;
+
+  const itens = [{ id: '', nome: 'Fora de pasta' }].concat(cenaPastas.map(p => ({ id: p.id, nome: p.nome })));
+  const menu = document.createElement('div');
+  menu.id = 'cena-menu';
+  menu.className = 'cena-menu';
+  menu.innerHTML = `<div class="cena-menu-topo">Mover para…</div>` + itens.map(i => {
+    const aqui = (cena.pasta_id || '') === i.id;
+    return `<button class="cena-menu-item${aqui ? ' aqui' : ''}"
+       onclick="document.getElementById('cena-menu')?.remove();moverCenaParaPasta('${cenaId}','${i.id}')"
+       ${aqui ? 'disabled' : ''}>${i.id ? '📁' : '🗺'} ${_cenaEsc(i.nome)}${aqui ? ' ✓' : ''}</button>`;
+  }).join('') + (isMaster ? `<button class="cena-menu-item cena-menu-nova" onclick="document.getElementById('cena-menu')?.remove();criarPastaCena()">＋ Nova pasta…</button>` : '');
+
+  document.body.appendChild(menu);
+  const r = ev?.currentTarget?.getBoundingClientRect?.();
+  const topo = r ? Math.min(r.bottom + 4, window.innerHeight - menu.offsetHeight - 8) : 80;
+  const esq  = r ? Math.min(r.left, window.innerWidth - menu.offsetWidth - 8) : 80;
+  menu.style.top  = Math.max(8, topo) + 'px';
+  menu.style.left = Math.max(8, esq) + 'px';
+  setTimeout(() => document.addEventListener('click', _cenaMenuFora), 0);
+}
+function _cenaMenuFora(e) {
+  const m = document.getElementById('cena-menu');
+  if (m && !m.contains(e.target)) { m.remove(); document.removeEventListener('click', _cenaMenuFora); }
+}
+
+function _cenaEsc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function cenasBuscar(t) {
+  _cenasBusca = String(t || '').trim().toLowerCase();
+  renderCenas(); renderCenasInline();
 }
 
 async function carregarCenaAtiva() {
@@ -495,41 +683,200 @@ async function carregarCenaAtiva() {
   if (data) aplicarCena(data);
 }
 
-function renderCenas() {
-  const lista = document.getElementById('cenas-lista');
-  if (!lista) return;
+// ── DESENHO DA LISTA ──────────────────────────────
+//  Um só desenhista para os dois lugares onde as cenas aparecem (a
+//  página de NPCs e o modal dentro da sala). Antes eram duas funções
+//  parecidas, e toda mudança tinha de ser feita duas vezes.
 
+function _cenaItemEl(cena, pastaNome) {
+  const div = document.createElement('div');
+  div.className = 'cena-item' + (cena.ativa ? ' cena-ativa' : '');
+  div.dataset.cena = cena.id;
+  div.innerHTML = `
+    <div class="cena-thumb">
+      ${cena.mapa_url
+        ? `<img src="${cena.mapa_url}" style="width:100%;height:100%;object-fit:cover;border-radius:4px" alt="">`
+        : `<span style="font-size:20px">🗺️</span>`}
+    </div>
+    <div class="cena-info">
+      <div class="cena-nome">${_cenaEsc(cena.nome)}</div>
+      ${cena.ativa ? '<span class="cena-badge-ativa">● AO VIVO</span>' : ''}
+      ${pastaNome ? `<span class="cena-de-pasta">📁 ${_cenaEsc(pastaNome)}</span>` : ''}
+    </div>
+    <div class="cena-btns">
+      ${isMaster ? `<button class="ct-pv-btn" onclick="ativarCena('${cena.id}')" title="Ativar para todos">▶</button>` : ''}
+      ${isMaster ? `<button class="ct-pv-btn" onclick="cenaMenuMover('${cena.id}', event)" title="Mover para pasta">📁</button>` : ''}
+      ${isMaster ? `<button class="ct-pv-btn" onclick="deletarCena('${cena.id}')" style="color:var(--red)" title="Deletar">✕</button>` : ''}
+    </div>`;
+
+  div.addEventListener('click', e => {
+    if (e.target.closest('.cena-btns')) return;
+    if (isMaster) previewCena(cena);
+  });
+
+  //  Arrastar para dentro da pasta (mestre). É o caminho rápido; o
+  //  botão 📁 faz o mesmo para quem está no telefone.
+  if (isMaster) {
+    div.draggable = true;
+    div.addEventListener('dragstart', e => {
+      div.classList.add('cena-arrastando');
+      try { e.dataTransfer.setData('text/cena', cena.id); } catch (err) {}
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    div.addEventListener('dragend', () => div.classList.remove('cena-arrastando'));
+  }
+  return div;
+}
+
+//  Liga uma área como destino de soltar. `pastaId` null = raiz.
+function _cenaZonaSolta(el, pastaId) {
+  if (!isMaster) return;
+  el.addEventListener('dragover', e => { e.preventDefault(); el.classList.add('cena-solta'); });
+  el.addEventListener('dragleave', () => el.classList.remove('cena-solta'));
+  el.addEventListener('drop', e => {
+    e.preventDefault();
+    el.classList.remove('cena-solta');
+    let id = '';
+    try { id = e.dataTransfer.getData('text/cena'); } catch (err) {}
+    if (id) moverCenaParaPasta(id, pastaId);
+  });
+}
+
+function _cenasPintar(elId) {
+  const lista = document.getElementById(elId);
+  if (!lista) return;
   lista.innerHTML = '';
-  if (!cenas.length) {
-    lista.innerHTML = '<div style="font-size:11px;color:var(--muted);padding:8px;text-align:center">Nenhuma cena criada.</div>';
+
+  //  No telefone, esta lista virou uma tira que rola de lado, com os
+  //  mapas em forma de pílula (ver style.css, bloco de mobile). Isso
+  //  funciona para uma lista plana e não funciona para pastas: cabeçalho
+  //  e conteúdo viram pílulas soltas na mesma fileira. Então avisamos o
+  //  CSS: com pastas, a lista volta a ser vertical; sem pastas, nada
+  //  muda para quem já estava usando assim.
+  lista.classList.toggle('cenas-com-pastas', cenaPastas.length > 0);
+
+  const busca    = _cenasBusca;
+  const casa     = c => !busca || String(c.nome || '').toLowerCase().includes(busca);
+  const naPasta  = id => cenas.filter(c => (c.pasta_id || null) === id);
+
+  // A busca procura também pelo nome da pasta, para "masmorra" achar
+  // a pasta inteira.
+  const pastaCasa = p => busca && String(p.nome || '').toLowerCase().includes(busca);
+
+  // ── Campo de busca ──
+  if (cenas.length > 3 || cenaPastas.length) {
+    const b = document.createElement('div');
+    b.className = 'cena-busca-caixa';
+    b.innerHTML = `<input class="cena-busca" type="search" placeholder="Buscar mapa…"
+      value="${_cenaEsc(busca)}" aria-label="Buscar mapa por nome"
+      oninput="cenasBuscar(this.value)">`;
+    lista.appendChild(b);
+  }
+
+  if (!cenas.length && !cenaPastas.length) {
+    const vazio = document.createElement('div');
+    vazio.className = 'cena-vazio';
+    vazio.textContent = 'Nenhuma cena criada.';
+    lista.appendChild(vazio);
     return;
   }
 
-  cenas.forEach(cena => {
-    const div = document.createElement('div');
-    div.className = 'cena-item' + (cena.ativa ? ' cena-ativa' : '');
-    div.innerHTML = `
-      <div class="cena-thumb">
-        ${cena.mapa_url
-          ? `<img src="${cena.mapa_url}" style="width:100%;height:100%;object-fit:cover;border-radius:4px">`
-          : `<span style="font-size:20px">🗺️</span>`}
-      </div>
-      <div class="cena-info">
-        <div class="cena-nome">${cena.nome}</div>
-        ${cena.ativa ? '<span class="cena-badge-ativa">● AO VIVO</span>' : ''}
-      </div>
-      <div class="cena-btns">
-        ${isMaster ? `<button class="ct-pv-btn" onclick="ativarCena('${cena.id}')" title="Ativar para todos">▶</button>` : ''}
-        ${isMaster ? `<button class="ct-pv-btn" onclick="deletarCena('${cena.id}')" style="color:var(--red)" title="Deletar">✕</button>` : ''}
-      </div>
-    `;
-    div.addEventListener('click', e => {
-      if (e.target.closest('.cena-btns')) return;
-      if (isMaster) previewCena(cena);
-    });
-    lista.appendChild(div);
+  let mostrados = 0;
+
+  // ── Pastas ──
+  cenaPastas.forEach(pasta => {
+    const dentro  = naPasta(pasta.id);
+    const filtrados = pastaCasa(pasta) ? dentro : dentro.filter(casa);
+    //  Buscando: pasta sem resultado sai da frente.
+    if (busca && !filtrados.length) return;
+
+    //  Buscando, a pasta abre sozinha — senão o resultado estaria
+    //  escondido justamente onde a pessoa procurou.
+    const aberta = busca ? true : _cenaPastaAberta(pasta.id);
+
+    const cab = document.createElement('div');
+    cab.className = 'cena-pasta-cab' + (aberta ? ' aberta' : '');
+    cab.innerHTML = `
+      <button class="cena-pasta-nome" onclick="cenaPastaAlternar('${pasta.id}')"
+        aria-expanded="${aberta}" title="${aberta ? 'Recolher' : 'Expandir'}">
+        <span class="cena-pasta-seta">${aberta ? '▾' : '▸'}</span>
+        <span class="cena-pasta-ico">📁</span>
+        <span class="cena-pasta-txt">${_cenaEsc(pasta.nome)}</span>
+        <span class="cena-pasta-n">${dentro.length}</span>
+      </button>
+      ${isMaster ? `<span class="cena-pasta-btns">
+        <button class="ct-pv-btn" onclick="renomearPastaCena('${pasta.id}')" title="Renomear">✎</button>
+        <button class="ct-pv-btn" onclick="deletarPastaCena('${pasta.id}')" style="color:var(--red)" title="Apagar pasta">✕</button>
+      </span>` : ''}`;
+    _cenaZonaSolta(cab, pasta.id);
+    lista.appendChild(cab);
+
+    if (!aberta) return;
+    const corpo = document.createElement('div');
+    corpo.className = 'cena-pasta-corpo';
+    _cenaZonaSolta(corpo, pasta.id);
+    if (!filtrados.length) {
+      const v = document.createElement('div');
+      v.className = 'cena-vazio cena-vazio-pasta';
+      v.textContent = isMaster ? 'Vazia — arraste um mapa para cá.' : 'Vazia.';
+      corpo.appendChild(v);
+    } else {
+      filtrados.forEach(c => { corpo.appendChild(_cenaItemEl(c)); mostrados++; });
+    }
+    lista.appendChild(corpo);
   });
+
+  // ── Fora de pasta ──
+  const raiz = naPasta(null).filter(casa);
+  if (cenaPastas.length) {
+    //  Com pastas na tela, a raiz ganha um cabeçalho para ser um
+    //  destino visível de arrastar ("tirar da pasta").
+    if (raiz.length || isMaster) {
+      const cab = document.createElement('div');
+      cab.className = 'cena-pasta-cab cena-raiz-cab aberta';
+      cab.innerHTML = `<span class="cena-pasta-nome cena-raiz-nome">
+          <span class="cena-pasta-ico">🗺</span>
+          <span class="cena-pasta-txt">Fora de pasta</span>
+          <span class="cena-pasta-n">${naPasta(null).length}</span>
+        </span>`;
+      _cenaZonaSolta(cab, null);
+      lista.appendChild(cab);
+    }
+    const corpo = document.createElement('div');
+    corpo.className = 'cena-pasta-corpo';
+    _cenaZonaSolta(corpo, null);
+    raiz.forEach(c => { corpo.appendChild(_cenaItemEl(c)); mostrados++; });
+    if (!raiz.length && isMaster && !busca) {
+      const v = document.createElement('div');
+      v.className = 'cena-vazio cena-vazio-pasta';
+      v.textContent = 'Nada fora de pasta.';
+      corpo.appendChild(v);
+    }
+    lista.appendChild(corpo);
+  } else {
+    //  Sem pastas, a lista é a de sempre — nada mudou para quem não
+    //  quer organizar nada.
+    raiz.forEach(c => { lista.appendChild(_cenaItemEl(c)); mostrados++; });
+  }
+
+  if (busca && !mostrados) {
+    const v = document.createElement('div');
+    v.className = 'cena-vazio';
+    v.textContent = `Nenhum mapa com "${busca}".`;
+    lista.appendChild(v);
+  }
+
+  //  Aviso só para o mestre, e só se a migração não foi rodada.
+  if (isMaster && _cenasSemPastas) {
+    const a = document.createElement('div');
+    a.className = 'cena-aviso';
+    a.textContent = 'Pastas de mapa: rode a migração 003 no Supabase para ativar.';
+    lista.appendChild(a);
+  }
 }
+
+function renderCenas()       { _cenasPintar('cenas-lista'); }
+function renderCenasInline() { _cenasPintar('cenas-lista-inline'); }
 
 async function criarCena() {
   const nome = prompt('Nome da cena (ex: "Interior do Bunker"):');
@@ -669,6 +1016,12 @@ function subscribeCenas() {
       // Mestre também atualiza a lista de cenas
       if (isMaster) { renderCenas(); renderCenasInline(); }
     })
+    //  A arrumação também é ao vivo: pasta criada, renomeada ou apagada
+    //  aparece em todas as telas abertas sem F5.
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'cena_pastas', filter: 'mesa_id=eq.' + mesaId() }, () => {
+      clearTimeout(window._cenasReloadTimer);
+      window._cenasReloadTimer = setTimeout(() => carregarCenas(), 400);
+    })
     .subscribe();
 }
 
@@ -689,6 +1042,7 @@ function abrirModalCenas() {
       <div style="padding:10px;max-height:400px;overflow-y:auto">
         <div id="cenas-lista-inline" style="display:flex;flex-direction:column;gap:5px;margin-bottom:8px"></div>
         <button class="btn-ghost" onclick="criarCena()" style="width:100%;font-size:10px;padding:5px;margin-bottom:4px">＋ Nova Cena com mapa atual</button>
+        <button class="btn-ghost" onclick="criarPastaCena()" style="width:100%;font-size:10px;padding:5px;margin-bottom:4px">📁 Nova pasta</button>
         <button class="btn-ghost" onclick="salvarCenaAtual()" style="width:100%;font-size:10px;padding:5px">💾 Salvar cena atual</button>
       </div>
     `;
@@ -714,34 +1068,6 @@ function fecharModalCenasFora(e) {
   if (m && !m.contains(e.target) && !e.target.closest('[onclick*="abrirModalCenas"]')) {
     fecharModalCenas();
   }
-}
-
-function renderCenasInline() {
-  const lista = document.getElementById('cenas-lista-inline');
-  if (!lista) return;
-  lista.innerHTML = '';
-  if (!cenas.length) {
-    lista.innerHTML = '<div style="font-size:11px;color:var(--muted);text-align:center;padding:8px">Nenhuma cena ainda.</div>';
-    return;
-  }
-  cenas.forEach(cena => {
-    const div = document.createElement('div');
-    div.className = 'cena-item' + (cena.ativa ? ' cena-ativa' : '');
-    div.innerHTML = `
-      <div class="cena-thumb">
-        ${cena.mapa_url ? `<img src="${cena.mapa_url}" style="width:100%;height:100%;object-fit:cover;border-radius:4px">` : '<span style="font-size:16px">🗺️</span>'}
-      </div>
-      <div class="cena-info">
-        <div class="cena-nome">${cena.nome}</div>
-        ${cena.ativa ? '<span class="cena-badge-ativa">● AO VIVO</span>' : ''}
-      </div>
-      <div class="cena-btns">
-        <button class="ct-pv-btn" onclick="ativarCena('${cena.id}');renderCenasInline()" title="Ativar para todos">▶</button>
-        <button class="ct-pv-btn" onclick="deletarCena('${cena.id}')" style="color:var(--red)" title="Deletar">✕</button>
-      </div>
-    `;
-    lista.appendChild(div);
-  });
 }
 
 // Inicializa NPC page quando abre

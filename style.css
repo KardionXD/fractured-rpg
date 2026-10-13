@@ -3931,8 +3931,13 @@ button.ocupado::after {
     right: 10px !important;
   }
   body.na-sala #mus-painel {
-    bottom: auto; top: 50px;
-    left: auto; right: 0;
+    /* O `!important` é necessário: o painel nasce com `left:0` no
+       atributo style (musica.js), e estilo inline vence regra de folha.
+       Sem isto o painel abria para a direita a partir de um botão que
+       já está encostado na borda direita — e 280px de painel saíam da
+       tela, levando o controle de volume com eles. */
+    bottom: auto !important; top: 50px !important;
+    left: auto !important; right: 0 !important;
   }
   body.na-sala #mus-toggle { width: 38px; height: 38px; }
 }
@@ -5076,3 +5081,340 @@ body.avdf-modal-aberto { overflow: hidden; }
   border: 1px dashed var(--border2); border-radius: 9px;
 }
 
+
+/* ══════════════════════════════════════════════════════════════════
+   MIXER LOCAL — "meu volume", dentro do widget de música
+   Vale para mestre e player: todo mundo tem ouvido.
+   ══════════════════════════════════════════════════════════════════ */
+.aud-painel {
+  margin-bottom: 9px; padding: 8px 9px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border, #333); border-radius: 8px;
+}
+.aud-titulo {
+  font-size: 9px; font-weight: 700; letter-spacing: 1px;
+  color: var(--muted, #888); margin-bottom: 7px;
+  display: flex; align-items: center; gap: 6px;
+}
+.aud-so-eu {
+  font-weight: 600; letter-spacing: 0.4px; text-transform: none;
+  padding: 1px 5px; border-radius: 20px;
+  background: rgba(255, 255, 255, 0.07); color: var(--muted, #888);
+}
+.aud-linha { display: flex; align-items: center; gap: 8px; }
+.aud-mudo {
+  flex: 0 0 auto; width: 26px; height: 26px; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; line-height: 1; cursor: pointer;
+  border: 1px solid var(--border, #333); border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04); color: var(--text, #eee);
+  transition: border-color .15s, background .15s;
+}
+.aud-mudo:hover { border-color: var(--gold, #c9a84c); }
+.aud-mudo-on {
+  border-color: var(--red, #c0392b);
+  background: rgba(192, 57, 43, 0.14);
+}
+.aud-range { flex: 1 1 auto; min-width: 0; accent-color: var(--gold, #c9a84c); }
+.aud-num {
+  flex: 0 0 auto; min-width: 22px; text-align: right;
+  font-size: 10px; font-variant-numeric: tabular-nums; color: var(--muted, #888);
+}
+/* Um bloco por canal — só aparece quando a mesa tiver mais de um
+   canal de áudio (música / ambiente / efeitos). Ver AUDIO_CANAIS. */
+.aud-canais {
+  margin-top: 8px; padding-top: 7px;
+  border-top: 1px solid var(--border, #333);
+  display: flex; flex-direction: column; gap: 6px;
+}
+.aud-canal-nome { font-size: 10px; color: var(--muted, #888); }
+
+/* No telefone o dedo precisa de alvo maior que o cursor do mouse. */
+@media (max-width: 768px) {
+  .aud-mudo { width: 32px; height: 32px; font-size: 15px; }
+  .aud-range { height: 26px; }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   PASTAS DE MAPA (CENAS)
+   Mesmo visual dos itens de cena que já existiam: a pasta é só uma
+   linha de cabeçalho e um recuo. Sem pasta, a lista é a de antes.
+   ══════════════════════════════════════════════════════════════════ */
+.cena-busca-caixa { margin-bottom: 6px; }
+.cena-busca {
+  width: 100%; box-sizing: border-box;
+  background: rgba(0, 0, 0, .35); border: 1px solid var(--border);
+  border-radius: 6px; color: var(--text);
+  padding: 6px 8px; font: inherit; font-size: 11px;
+}
+.cena-busca:focus { outline: none; border-color: var(--gold, #c9a84c); }
+.cena-busca::placeholder { color: var(--muted); }
+
+.cena-pasta-cab {
+  display: flex; align-items: center; gap: 4px;
+  margin-top: 4px; border-radius: 6px;
+  border: 1px solid transparent;
+  transition: background .12s, border-color .12s;
+}
+.cena-pasta-cab:hover { background: rgba(255, 255, 255, .03); }
+.cena-pasta-nome {
+  flex: 1; min-width: 0;
+  display: flex; align-items: center; gap: 5px;
+  background: none; border: none; cursor: pointer;
+  color: var(--text); font: inherit; font-size: 11px; font-weight: 600;
+  padding: 5px 4px; text-align: left;
+}
+.cena-raiz-nome { cursor: default; color: var(--muted); font-weight: 500; }
+.cena-pasta-seta { flex: 0 0 auto; width: 9px; font-size: 9px; color: var(--muted); }
+.cena-pasta-ico  { flex: 0 0 auto; font-size: 11px; }
+.cena-pasta-txt  { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cena-pasta-n {
+  flex: 0 0 auto; font-size: 9px; font-weight: 700; color: var(--muted);
+  background: rgba(255, 255, 255, .06); border-radius: 20px; padding: 1px 6px;
+}
+.cena-pasta-btns { display: flex; gap: 2px; flex: 0 0 auto; }
+.cena-pasta-corpo {
+  display: flex; flex-direction: column; gap: 5px;
+  padding: 2px 0 2px 11px; margin-left: 4px;
+  border-left: 1px solid var(--border);
+  border-radius: 0 6px 6px 0;
+}
+
+/* Arrastando: o alvo acende, para não existir dúvida de onde vai cair */
+.cena-arrastando { opacity: .45; }
+.cena-solta {
+  background: rgba(201, 168, 76, .1) !important;
+  border-color: var(--gold, #c9a84c) !important;
+}
+.cena-pasta-corpo.cena-solta { border-left-color: var(--gold, #c9a84c) !important; }
+
+.cena-de-pasta { font-size: 8px; color: var(--muted); display: block; }
+.cena-vazio { font-size: 11px; color: var(--muted); padding: 8px; text-align: center; }
+.cena-vazio-pasta { font-size: 10px; padding: 5px 4px; text-align: left; font-style: italic; }
+.cena-aviso {
+  margin-top: 8px; padding: 6px 8px; border-radius: 6px;
+  font-size: 10px; line-height: 1.5;
+  color: var(--gold, #c9a84c);
+  background: rgba(201, 168, 76, .08);
+  border: 1px dashed rgba(201, 168, 76, .4);
+}
+
+/* Menu "mover para…" — a alternativa ao arrastar */
+.cena-menu {
+  position: fixed; z-index: 10050; min-width: 180px; max-width: 240px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; box-shadow: 0 6px 22px rgba(0, 0, 0, .6);
+  padding: 5px; max-height: 60vh; overflow-y: auto;
+}
+.cena-menu-topo {
+  font-size: 9px; font-weight: 700; letter-spacing: 1px;
+  color: var(--muted); padding: 4px 7px 6px;
+}
+.cena-menu-item {
+  display: block; width: 100%; text-align: left;
+  background: none; border: none; border-radius: 5px;
+  color: var(--text); font: inherit; font-size: 11px;
+  padding: 7px 8px; cursor: pointer;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cena-menu-item:hover:not(:disabled) { background: rgba(255, 255, 255, .06); }
+.cena-menu-item:disabled { color: var(--muted); cursor: default; }
+.cena-menu-item.aqui { color: var(--green); }
+.cena-menu-nova {
+  margin-top: 4px; padding-top: 8px;
+  border-top: 1px solid var(--border); border-radius: 0;
+  color: var(--gold, #c9a84c);
+}
+
+/* Apagar pasta: a pergunta que diz o que acontece com os mapas */
+.cena-dlg-fundo {
+  position: fixed; inset: 0; z-index: 10100;
+  background: rgba(0, 0, 0, .66);
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+}
+.cena-dlg {
+  width: min(400px, 100%);
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 16px 17px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, .7);
+}
+.cena-dlg-topo {
+  font-size: 11px; font-weight: 700; letter-spacing: 1.5px;
+  text-transform: uppercase; color: var(--text); margin-bottom: 10px;
+}
+.cena-dlg-p { font-size: 12px; line-height: 1.65; color: var(--text); margin: 0 0 9px; }
+.cena-dlg-lista {
+  margin: 0 0 12px; padding: 7px 10px 7px 24px;
+  font-size: 11px; line-height: 1.7; color: var(--muted);
+  background: rgba(0, 0, 0, .25); border-radius: 7px;
+}
+.cena-dlg-mais { list-style: none; margin-left: -12px; font-style: italic; }
+.cena-dlg-btns { display: flex; flex-direction: column; gap: 6px; }
+.cena-dlg-btns > button {
+  width: 100%; text-align: left; font-size: 12px;
+  padding: 9px 11px; line-height: 1.4;
+}
+.cena-dlg-nota {
+  display: block; font-size: 10px; font-weight: 400;
+  color: var(--muted); margin-top: 2px;
+}
+.cena-dlg-ok { border-color: var(--green) !important; color: var(--green) !important; }
+.cena-dlg-ok .cena-dlg-nota { color: rgba(255, 255, 255, .45); }
+.cena-dlg-perigo { border-color: var(--red) !important; color: var(--red) !important; }
+.cena-dlg-perigo .cena-dlg-nota { color: rgba(255, 255, 255, .45); }
+.cena-dlg-cancelar { text-align: center !important; color: var(--muted) !important; }
+
+/* No telefone, alvos maiores e recuo menor (a tela é estreita) */
+@media (max-width: 768px) {
+  .cena-pasta-nome { padding: 8px 4px; }
+  .cena-pasta-corpo { padding-left: 8px; }
+  .cena-menu-item { padding: 10px 9px; font-size: 12px; }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   DOCUMENTOS — QUEM VÊ vs QUEM ESCREVE
+   ══════════════════════════════════════════════════════════════════ */
+.arq-selo {
+  display: inline-block; margin-left: 7px; vertical-align: middle;
+  font-family: inherit; font-size: 9px; font-weight: 700;
+  letter-spacing: .3px; padding: 1px 6px; border-radius: 20px;
+}
+.arq-selo-edit {
+  color: var(--green); background: rgba(39, 174, 96, .12);
+  border: 1px solid rgba(39, 174, 96, .4);
+}
+.arq-so-leitura {
+  margin-top: 10px; font-size: 10px; color: var(--muted);
+  text-align: center; font-style: italic;
+}
+.arq-perm-eu {
+  margin-bottom: 9px; padding: 7px 10px; border-radius: 7px;
+  font-size: 11px; color: var(--green);
+  background: rgba(39, 174, 96, .08);
+  border: 1px solid rgba(39, 174, 96, .3);
+}
+
+/* Painel de permissões */
+.arq-perm-doc {
+  font-size: 12px; color: var(--muted); margin-bottom: 12px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.arq-perm-op {
+  display: flex; align-items: flex-start; gap: 9px;
+  padding: 10px 11px; margin-bottom: 6px;
+  border: 1px solid var(--border); border-radius: 8px;
+  background: rgba(0, 0, 0, .25);
+  font-size: 12px; color: var(--text); cursor: pointer;
+  transition: border-color .15s, background .15s;
+}
+.arq-perm-op:hover { border-color: var(--border2); }
+.arq-perm-op.sel { border-color: var(--gold); background: rgba(201, 168, 76, .07); }
+.arq-perm-op input { margin-top: 2px; accent-color: var(--gold); flex: 0 0 auto; }
+.arq-perm-op > span { display: flex; flex-direction: column; gap: 2px; }
+.arq-perm-sub { font-size: 10px; color: var(--muted); line-height: 1.5; }
+.arq-perm-lista {
+  display: none; flex-direction: column; gap: 2px;
+  margin: 2px 0 8px; padding: 8px 10px;
+  border: 1px dashed var(--border); border-radius: 8px;
+}
+.arq-perm-nome {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; color: var(--text); padding: 5px 2px; cursor: pointer;
+}
+.arq-perm-nome input { accent-color: var(--gold); }
+.arq-perm-vazio { font-size: 11px; color: var(--muted); font-style: italic; }
+.arq-perm-aviso {
+  margin: 4px 0 8px; padding: 8px 10px; border-radius: 7px;
+  font-size: 11px; line-height: 1.6; color: var(--gold);
+  background: rgba(201, 168, 76, .08);
+  border: 1px dashed rgba(201, 168, 76, .4);
+}
+.arq-perm-nota { font-size: 10px; color: var(--muted); line-height: 1.6; }
+.arq-perm-link {
+  display: block; width: 100%; text-align: left;
+  background: none; border: 1px solid var(--border); border-radius: 7px;
+  color: var(--muted); font: inherit; font-size: 10px;
+  padding: 7px 9px; cursor: pointer;
+}
+.arq-perm-link:hover { border-color: var(--gold); color: var(--gold); }
+.arq-perm-link strong { color: var(--text); font-weight: 600; }
+
+/* Aviso de conflito dentro do editor */
+.arq-aviso-vivo {
+  margin-bottom: 10px; padding: 10px 12px; border-radius: 8px;
+  font-size: 11.5px; line-height: 1.65; color: #f2e3c0;
+  background: rgba(192, 57, 43, .13);
+  border: 1px solid rgba(192, 57, 43, .55);
+}
+.arq-aviso-vivo strong { color: #ffb4a8; display: block; margin-bottom: 2px; }
+.arq-aviso-btns { display: flex; gap: 6px; margin-top: 9px; flex-wrap: wrap; }
+.arq-aviso-btns > button { flex: 1 1 150px; font-size: 11px; padding: 7px 9px; }
+.arq-aviso-forcar { color: var(--red) !important; border-color: var(--red) !important; }
+
+/* Janela "versão salva no servidor" — fica ACIMA do editor (8600) */
+.arq-versao-fundo {
+  position: fixed; inset: 0; z-index: 8700;
+  background: rgba(0, 0, 0, .78);
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+}
+.arq-versao {
+  width: 100%; max-width: 640px; max-height: 90vh;
+  display: flex; flex-direction: column;
+  background: var(--bg, #0d0b08); border: 1px solid var(--gold);
+  border-radius: 10px; overflow: hidden;
+}
+.arq-versao-topo {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 11px 14px; background: rgba(201, 168, 76, .08);
+  border-bottom: 1px solid var(--border);
+  font-size: 11px; font-weight: 700; letter-spacing: .5px; color: var(--gold);
+}
+.arq-versao-topo > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.arq-versao-topo button {
+  background: none; border: none; color: var(--muted);
+  font-size: 16px; cursor: pointer; flex: 0 0 auto;
+}
+.arq-versao-corpo { margin: 12px 14px; overflow-y: auto; }
+.arq-versao-pe {
+  padding: 9px 14px; font-size: 10px; color: var(--muted);
+  border-top: 1px solid var(--border); text-align: center;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   CENAS NO TELEFONE, COM PASTAS
+   Sem pastas, a tira horizontal de pílulas continua como estava.
+   Com pastas, ela volta a ser uma lista vertical — pasta e conteúdo
+   não cabem numa fileira que rola de lado.
+────────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  #cenas-lista.cenas-com-pastas {
+    flex-direction: column !important;
+    flex-wrap: nowrap;
+    overflow-x: visible;
+    scroll-snap-type: none;
+    gap: 4px !important;
+  }
+  #cenas-lista.cenas-com-pastas > * {
+    flex: 0 0 auto;
+    width: auto !important;
+    align-self: stretch;
+    white-space: normal;
+    border-radius: 7px;
+    min-height: 0;
+  }
+  #cenas-lista.cenas-com-pastas .cena-item { min-height: 40px; border-radius: 7px; }
+  #cenas-lista.cenas-com-pastas .cena-nome { white-space: nowrap; }
+
+  /* A busca entra na tira como o primeiro item, e não como um mapa. */
+  #cenas-lista > .cena-busca-caixa {
+    flex: 0 0 150px !important;
+    min-height: 0 !important;
+    border-radius: 0 !important;
+    white-space: normal !important;
+  }
+  #cenas-lista > .cena-busca-caixa .cena-busca { border-radius: 999px; }
+  #cenas-lista.cenas-com-pastas > .cena-busca-caixa { flex: 0 0 auto !important; }
+  #cenas-lista > .cena-vazio, #cenas-lista > .cena-aviso {
+    border-radius: 7px !important; white-space: normal !important;
+  }
+}
