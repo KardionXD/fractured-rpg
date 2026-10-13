@@ -79,12 +79,31 @@ function _musCriarPlayer() {
   if (!host) {
     host = document.createElement('div');
     host.id = 'musica-yt-host';
-    host.style.cssText = 'position:fixed;bottom:-9999px;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none';
+    //  Fica fora da tela, mas com tamanho de player de verdade. Um
+    //  quadro de 1×1 é tratado como suspeito por navegador e pelo
+    //  próprio YouTube (a documentação pede 200×200 no mínimo), e aí a
+    //  reprodução pode ser recusada sem erro nenhum.
+    host.style.cssText = 'position:fixed;bottom:-9999px;left:-9999px;width:200px;height:200px;opacity:0;pointer-events:none';
     document.body.appendChild(host);
   }
   MUSICA.player = new YT.Player('musica-yt-host', {
-    width: 1, height: 1,
-    playerVars: { autoplay: 0, controls: 0, disablekb: 1, playsinline: 1 },
+    width: 200, height: 200,
+    playerVars: {
+      autoplay: 0, controls: 0, disablekb: 1, playsinline: 1,
+      //  SEM ISTO O CONTROLE NÃO CHEGA NO PLAYER.
+      //
+      //  O console do site mostrava, em toda sessão:
+      //    "Failed to execute 'postMessage'… target origin
+      //     ('https://www.youtube.com') does not match the recipient
+      //     window's origin ('https://fractured-rpg.vercel.app')"
+      //
+      //  A API do YouTube conversa com o quadro por postMessage, e a
+      //  mensagem só é entregue se a origem combinar. Sem declarar a
+      //  origem do site, comandos como loadPlaylist podem simplesmente
+      //  não chegar — sem erro, sem som.
+      enablejsapi: 1,
+      origin: location.origin,
+    },
     events: {
       onReady: () => {
         MUSICA.pronto = true;
@@ -162,17 +181,45 @@ function _musErro() {
 function _musVigiar() {
   if (!isMaster) return;
   _musPararVigia();
-  MUSICA.vigia = setTimeout(() => {
+  MUSICA.vigia = setTimeout(async () => {
     MUSICA.vigia = null;
     const estado = MUSICA.player?.getPlayerState?.();
     if (estado === 1) return;                       // está tocando, falso alarme
     const lista = MUSICA.player?.getPlaylist?.();
+
+    //  PRIMEIRA SUSPEITA: extensão de bloqueio de anúncios.
+    //
+    //  Isto explica o caso mais confuso de todos — vídeo solto toca e
+    //  playlist não. Para montar a LISTA, o YouTube chama
+    //  `youtubei/v1/next`; um vídeo solto não precisa dessa chamada.
+    //  Bloqueador que mata `youtubei/v1/*` deixa o vídeo passar e mata
+    //  a playlist, sem erro nenhum na tela.
+    if (await _musBloqueadorAtivo()) {
+      toast('Uma extensão do navegador (bloqueador de anúncios) está barrando as chamadas do YouTube. '
+          + 'Vídeo solto ainda toca, mas playlist não: a lista precisa de uma chamada que está bloqueada. '
+          + 'Libere este site na extensão e recarregue.', 'err');
+      return;
+    }
+
     if (lista && lista.length) {
       toast('A playlist abriu, mas nenhuma faixa começou. As músicas dela podem bloquear reprodução fora do YouTube.', 'err');
     } else {
       toast('Essa playlist não abriu. Quase sempre é um destes: a lista é privada (só funciona pública ou não listada), é um Mix do YouTube, ou foi removida.', 'err');
     }
   }, 8000);
+}
+
+//  Pergunta direto: o navegador consegue falar com o YouTube?
+//  `no-cors` não deixa ler a resposta, e não precisa — o que interessa é
+//  se a requisição SAI. Bloqueador derruba antes de sair e a promessa
+//  é recusada. Só é chamado quando algo já deu errado.
+async function _musBloqueadorAtivo() {
+  try {
+    await fetch('https://www.youtube.com/generate_204', { mode: 'no-cors', cache: 'no-store' });
+    return false;
+  } catch (e) {
+    return true;
+  }
 }
 
 function _musPararVigia() {
